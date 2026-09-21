@@ -52,6 +52,7 @@ npm run build
 - `docs/integrations/aof.md` — read-only контракт для Age of Farming (AOF), с явной маркировкой неполных данных.
 - `docs/integrations/neon-relay.md` — read-only контракт для Neon Relay с разделением game server, backend и Solana data planes.
 - `docs/integrations/guttercaps.md` — read-only контракт для GUTTERCAPS с on-chain инвариантами, индексатором и антифродом.
+- `docs/INTEGRATION_TRAFFICGEN.md` — интеграция off-chain генератора трафика **TalkChart** (адаптер `trafficgen`, event envelope, pull/push ingestion, `/api/analytics/traffic`, UI-раздел «Трафик / Acquisition»); исходный контракт — `PROMPT_TRAFFIC_GENERATOR_INTEGRATION.md`.
 
 ### Этап 3 — интеграции и безопасность
 

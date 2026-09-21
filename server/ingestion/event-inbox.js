@@ -13,8 +13,8 @@ export function ingest(input, source = 'mock') {
   return { accepted: true, duplicate: false, event }
 }
 
-export function list({ programId, commitment, limit = 100 } = {}) {
-  return [...events.values()].filter((event) => (!programId || event.programId === programId) && (!commitment || event.commitment === commitment)).slice(-Math.min(1000, Math.max(1, limit))).reverse()
+export function list({ programId, commitment, source, limit = 100 } = {}) {
+  return [...events.values()].filter((event) => (!programId || event.programId === programId) && (!commitment || event.commitment === commitment) && (!source || event.source === source)).slice(-Math.min(1000, Math.max(1, limit))).reverse()
 }
 
 export function inboxStatus() { return { events: events.size, duplicates, rejected, storage: 'memory-fixture', immutable: true, identity: 'cluster:slot:signature:instructionIndex:innerIndex' } }

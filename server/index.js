@@ -1,7 +1,7 @@
 import http from 'node:http'
 import { aggregateOverview, buildAiReport, detectAnomalies, forecast } from '../src/engine/analytics.js'
 import { GAME_REGISTRY, getGame } from '../src/data/registry.js'
-import { createProvider, MockProvider } from './ingestion/provider.js'
+import { createProvider, createTrafficgenProvider } from './ingestion/provider.js'
 import { allCursors } from './ingestion/cursor-store.js'
 import { ingest, inboxStatus, list } from './ingestion/event-inbox.js'
 import { reconciliationReport } from './ingestion/reconciliation.js'
@@ -13,6 +13,7 @@ import { createInvestorSnapshot, investorTrend, listInvestorSnapshots } from './
 import { controlPolicy, createControlRequest, listControlRequests } from './operations/control-requests.js'
 import { prometheusMetrics } from './ops/metrics.js'
 import { adjacentAnalytics } from './analytics/adjacent.js'
+import { trafficAnalytics } from './analytics/traffic.js'
 import { auditLog, checkAccess, recordAudit } from './security/access.js'
 
 const port = Number(process.env.API_PORT || 8787)
@@ -40,9 +41,11 @@ async function route(req, res) {
   if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, { ok: true, service: 'watchtower-api', uptimeSeconds: Math.round((Date.now() - startedAt) / 1000), mode: 'mock-read-model', writes: false, provider: process.env.WATCHTOWER_PROVIDER || 'mock' })
   if (req.method === 'GET' && url.pathname === '/api/readyz') { const adapters = adapterReadiness(); return json(res, adapters.configured ? 200 : 200, { ready: true, mode: process.env.WATCHTOWER_PROVIDER || 'mock', adaptersConfigured: adapters.configured, writes: false, reason: adapters.configured ? 'provider configuration detected' : 'offline mode is explicitly allowed' }) }
   if (req.method === 'GET' && url.pathname === '/api/overview') return json(res, 200, { ...aggregateOverview(), generatedAt: new Date().toISOString() })
-  if (req.method === 'GET' && url.pathname === '/api/read-model') return json(res, 200, { overview: aggregateOverview(), adjacent: adjacentAnalytics(), investor: investorReport(), funnel: buildFunnel({ limit: 5000 }), crossGame: crossGameSegments({ limit: 5000 }), campaigns: recommendations({ limit: 5000 }), investorTrend: await investorTrend({ limit: 30 }), ingestion: { ...inboxStatus(), adapters: adapterReadiness() }, controls: controlPolicy(), generatedAt: new Date().toISOString() })
+  if (req.method === 'GET' && url.pathname === '/api/read-model') return json(res, 200, { overview: aggregateOverview(), adjacent: adjacentAnalytics(), investor: investorReport(), funnel: buildFunnel({ limit: 5000 }), crossGame: crossGameSegments({ limit: 5000 }), campaigns: recommendations({ limit: 5000 }), traffic: trafficAnalytics({ events: list({ limit: 1000 }) }), investorTrend: await investorTrend({ limit: 30 }), ingestion: { ...inboxStatus(), adapters: adapterReadiness() }, controls: controlPolicy(), generatedAt: new Date().toISOString() })
   if (req.method === 'GET' && url.pathname === '/api/ingestion/status') return json(res, 200, { ...inboxStatus(), provider: process.env.WATCHTOWER_PROVIDER || 'mock', cursors: await allCursors(), reconciliation: reconciliationReport(list({ limit: 1000 })) })
   if (req.method === 'GET' && url.pathname === '/api/infra/solana') return json(res, 200, await createProvider().health())
+  if (req.method === 'GET' && url.pathname === '/api/infra/trafficgen') return json(res, 200, await createTrafficgenProvider().health())
+  if (req.method === 'GET' && url.pathname === '/api/analytics/traffic') return json(res, 200, trafficAnalytics({ events: list({ source: 'trafficgen', limit: 1000 }) }))
   if (req.method === 'GET' && url.pathname === '/api/ingestion/adapters') return json(res, 200, adapterReadiness())
   if (req.method === 'GET' && url.pathname === '/api/funnels') return json(res, 200, buildFunnel({ gameId: url.searchParams.get('gameId') || undefined, limit: Number(url.searchParams.get('limit') || 5000) }))
   if (req.method === 'GET' && url.pathname === '/api/players/cross-game') return json(res, 200, crossGameSegments({ limit: Number(url.searchParams.get('limit') || 5000) }))
@@ -63,12 +66,17 @@ async function route(req, res) {
     const adapter = getGameAdapter(parts[2])
     return adapter ? json(res, 200, adapter) : json(res, 404, { error: 'game_not_found' })
   }
-  if (req.method === 'GET' && url.pathname === '/api/events') return json(res, 200, { events: list({ programId: url.searchParams.get('programId') || undefined, commitment: url.searchParams.get('commitment') || undefined, limit: Number(url.searchParams.get('limit') || 100) }) })
+  if (req.method === 'GET' && url.pathname === '/api/events') return json(res, 200, { events: list({ programId: url.searchParams.get('programId') || undefined, commitment: url.searchParams.get('commitment') || undefined, source: url.searchParams.get('source') || undefined, limit: Number(url.searchParams.get('limit') || 100) }) })
   if (req.method === 'POST' && url.pathname === '/api/ingest/solana') {
     const input = await readJson(req)
     const result = ingest(input, process.env.WATCHTOWER_PROVIDER || 'mock')
     const gameId = input.gameId || input.payload?.gameId
     return json(res, 202, { ...result, decoder: gameId ? decodeGameEvent(gameId, input) : null })
+  }
+  if (req.method === 'POST' && url.pathname === '/api/ingest/trafficgen') {
+    const input = await readJson(req)
+    const result = ingest({ ...input, chain: input.chain || 'offchain', app: input.app || 'trafficgen' }, 'trafficgen')
+    return json(res, 202, { ...result, decoder: decodeGameEvent('trafficgen', result.event || input) })
   }
   if (req.method === 'GET' && url.pathname === '/api/games') return json(res, 200, { games: aggregateOverview().games })
   if (req.method === 'GET' && url.pathname === '/api/alerts') return json(res, 200, { alerts: detectAnomalies() })
