@@ -27,14 +27,32 @@ const definitions = {
     resources: ['$CG'],
     quality: 'partial',
   },
+  trafficgen: {
+    name: 'Traffic Generator',
+    kind: 'traffic',
+    offchain: true,
+    apiBaseUrlEnv: 'TRAFFICGEN_API_BASE_URL',
+    // Каталог событий зафиксирован паспортом TalkChart (WATCHTOWER_INTEGRATION.md, раздел 5).
+    eventTypes: [
+      'CampaignStarted', 'SessionStarted', 'PageView', 'CTAClicked', 'LandingReached', 'DataGapDetected',
+    ],
+    resources: [],
+    // Паспорт утверждает complete, но runtime-проверка из песочницы невозможна:
+    // статус поднимается только после успешного /api/infra/trafficgen (ok: true).
+    quality: 'unavailable',
+  },
 }
 
 export function gameAdapters(env = process.env) {
-  return Object.entries(definitions).map(([gameId, definition]) => ({
-    gameId, ...definition, programId: env[definition.programEnv] || null,
-    configured: Boolean(env[definition.programEnv]),
-    writes: false,
-  }))
+  return Object.entries(definitions).map(([gameId, definition]) => {
+    const programId = definition.programEnv ? env[definition.programEnv] || null : null
+    const apiBaseUrl = definition.apiBaseUrlEnv ? env[definition.apiBaseUrlEnv] || null : null
+    return {
+      gameId, ...definition, programId, apiBaseUrl,
+      configured: Boolean(programId || apiBaseUrl),
+      writes: false,
+    }
+  })
 }
 
 export function getGameAdapter(gameId, env = process.env) { return gameAdapters(env).find((adapter) => adapter.gameId === gameId) || null }
