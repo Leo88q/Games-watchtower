@@ -1,0 +1,16 @@
+{
+  "name": "games-watchtower",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "dev:api": "node server/index.js",
+    "build": "vite build",
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.7"
+  }
+}
