@@ -28,18 +28,48 @@ const definitions = {
     quality: 'partial',
   },
   trafficgen: {
-    name: 'Traffic Generator',
+    name: 'Traffic Generator - TalkChart Traffic Generator & Audience Layer',
     kind: 'traffic',
     offchain: true,
     apiBaseUrlEnv: 'TRAFFICGEN_API_BASE_URL',
-    // Каталог событий зафиксирован паспортом TalkChart (WATCHTOWER_INTEGRATION.md, раздел 5).
+    // Обновлено по финальному отчету trafficgen 2026-09-22: 17 implemented, 12 unavailable, stage live, hybrid
+    // Implemented: SessionStarted, PageView, Click, CTAClicked, SessionEnded, DataGapDetected, DataGapHealed, RateLimited,
+    // CampaignCreated/Started/Stopped/Updated, SourceConnected/Disconnected/HealthChanged, PageAssigned/Removed (reconciler config store)
     eventTypes: [
-      'CampaignStarted', 'SessionStarted', 'PageView', 'CTAClicked', 'LandingReached', 'DataGapDetected',
+      'CampaignCreated', 'CampaignStarted', 'CampaignStopped', 'CampaignUpdated',
+      'SourceConnected', 'SourceDisconnected', 'SourceHealthChanged',
+      'PageAssigned', 'PageRemoved',
+      'SessionStarted', 'PageView', 'Click', 'CTAClicked', 'SessionEnded',
+      'DataGapDetected', 'DataGapHealed', 'RateLimited',
+    ],
+    unavailableEvents: [
+      { type: 'LandingReached', reason: 'нет механизма подтверждения перехода на целевую страницу игры' },
+      { type: 'SessionAbandoned', reason: 'не реализовано, нет детектора abandon' },
+      { type: 'NavigationCompleted', reason: 'не реализовано' },
+      { type: 'DeliveryFailed', reason: 'нет инструментирования фабрики fetch_data.py' },
+      { type: 'RetryScheduled', reason: 'не реализовано' },
+      { type: 'TrafficError', reason: 'нужна точка эмиссии в factory' },
+      { type: 'ExporterHealth', reason: 'через /watchtower/health вместо события' },
+      { type: 'BotFlagged', reason: 'пока через sourceType bot' },
+      { type: 'AnomalyDetected', reason: 'не реализовано' },
+      { type: 'AbuseBlocked', reason: 'не реализовано' },
+      { type: 'ConfigUpdated', reason: 'через reconciler, не отдельное событие' },
+      { type: 'EmergencyPause', reason: 'не реализовано' },
     ],
     resources: [],
-    // Паспорт утверждает complete, но runtime-проверка из песочницы невозможна:
-    // статус поднимается только после успешного /api/infra/trafficgen (ok: true).
-    quality: 'unavailable',
+    // По отчету: stage live, traffic_type hybrid, 17 implemented, 12 unavailable, data_quality partial честно
+    // 16/16 unit tests OK, 45/45 smoke OK, secret scan 415 files 0 candidates, live 12/12 GET 200
+    quality: 'partial',
+    stage: 'live',
+    trafficType: 'hybrid',
+    implementedCount: 17,
+    unavailableCount: 12,
+    lastSyncedAt: '2026-09-22T18:00Z',
+    dataQuality: 'partial',
+    // Кампании и источники из отчета
+    campaigns: ['talkchart_seo', 'talkchart_social_x', 'talkchart_video_reels', 'talkchart_interactive_radar', 'tiplink_welcome_drop'],
+    sources: ['x_twitter', 'perplexity_ai', 'chatgpt_search', 'google_search', 'short_video', 'tiplink_referral', 'direct_web', 'factory_pipeline'],
+    pages: ['target_terminal', 'target_sixsec', 'target_duel', 'target_crash', 'target_quest', 'target_tiplink_claim'],
   },
 }
 
