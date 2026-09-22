@@ -1,0 +1,432 @@
+{
+  "name": "Watchtower OS",
+  "version": "3.0.0",
+  "osVersion": "3.0.0",
+  "mode": "watchtower-os-v3",
+  "studio": "Leo Games Studio",
+  "tenants": ["ares1", "aof", "neonrelay", "guttercaps"],
+  "totalComponents": 33,
+  "v1Layers": 8,
+  "v2Products": 12,
+  "v3BestFree": 13,
+  "idealFreeStack": "best free per category not garbage deduplicated",
+  "duplicates": [
+    {
+      "duplicate": "create-solana-game vs solana-game-preset",
+      "both": "scaffold Anchor JS Unity Jest Mocha Bankrun",
+      "bestFree": "solana-game-preset official starter Solana Foundation npx preset Anchor JS Unity scaffold rapid prototyping",
+      "deprecated": "create-solana-game template Jest Mocha Bankrun quick start duplicate",
+      "category": "scaffold testing"
+    },
+    {
+      "duplicate": "Aureus Arena SDK vs RitArena SDK",
+      "both": "TypeScript SDK AI agents arena autonomous bots compete prizes on Solana",
+      "bestFree": "RitArena SDK full lifecycle management retry logic event emission more complete",
+      "deprecated": "Aureus Arena SDK competitive duplicate",
+      "category": "AI arena"
+    },
+    {
+      "duplicate": "SolGuard vs SolShield",
+      "both": "AI auto audit 130+ patterns signer checks rights bypass flash-loan exploits",
+      "bestFree": "SolGuard more established free 130+ patterns",
+      "deprecated": "SolShield similar duplicate",
+      "category": "security AI audit"
+    }
+  ],
+  "layers": {
+    "identity": {
+      "providers": ["privy", "phantom-connect", "firststep", "altude"],
+      "primary": "privy",
+      "onboardingFlow": ["firststep guest -> privy embedded -> phantom native -> linked cross-game PDA"],
+      "crossGamePda": "studio_profile",
+      "programId": "CgInv111111111111111111111111111111111111111",
+      "hooks": ["useCreateWallet", "useSolanaWallets"],
+      "bestFree": true
+    },
+    "sessionKeys": {
+      "api": {
+        "createSession": "createSession(targetProgramPublicKey, topUp, expiryInMinutes)",
+        "signAndSendTransaction": "signAndSendTransaction(sessionToken, transaction)",
+        "revokeSession": "revokeSession(sessionToken)"
+      },
+      "defaultTopUpSol": 0.01,
+      "risk": "max loss = topUp only (0.01 SOL)",
+      "bestFree": true
+    },
+    "assets": {
+      "mass": {
+        "type": "cNFT",
+        "standard": "Bubblegum v2",
+        "economics": "1M ~ $110 off-chain Merkle Tree + MCC",
+        "marketplace": "tensor primary Bubblegum v2, ME deprecated for new cNFT, Shyft escrow-less, GameShift USD"
+      },
+      "onChainStats": {
+        "type": "Metaplex Core Attributes Plugin",
+        "purpose": "Store game stats key-value directly on-chain in NFT readable by programs indexable via DAS",
+        "bestFree": true
+      },
+      "scalableStorage": {
+        "type": "Xandeum",
+        "purpose": "Scalable storage layer exabytes game states assets player data",
+        "bestFree": true
+      },
+      "strategy": "cNFT $110/M mass + Core Attributes on-chain key-value best free on-chain stats + Xandeum exabyte scalable best free scalable + Standard rare"
+    },
+    "indexer": {
+      "helius": {
+        "laserstream": {
+          "protocol": "gRPC",
+          "features": ["24h historical replay", "multinode failover", "priority fee API", "webhooks", "DAS API"]
+        }
+      },
+      "shyft": {
+        "features": ["NFT API", "Token API", "Wallet API", "Callback API", "Marketplace API", "accelerated gPA p50 15ms"]
+      },
+      "customPg": {
+        "db": "PostgreSQL + TimescaleDB + Redis",
+        "multitenant": "tenant_id + RLS"
+      },
+      "bestFree": true
+    },
+    "l2": {
+      "sonic": {
+        "hyperGrid": "dedicated grid thousands no contention high frequency",
+        "sorada": "30-40x faster RPC 5ms reads",
+        "rush": "declarative ECS"
+      },
+      "repla": {
+        "cli": "repla-cli",
+        "settlement": "Anchor program on Solana mainnet"
+      },
+      "magicblock": {
+        "product": "Ephemeral Rollups sub-10ms gasless",
+        "magicActions": "auto execution triggers"
+      },
+      "arcium": {
+        "project": "Arcium Rollups",
+        "type": "confidential computing rollups",
+        "purpose": "gaming payments architecture privacy",
+        "bestFree": true
+      },
+      "bestFree": "Sonic HyperGrid + MagicBlock ER sub-10ms + REPLA L3 + Arcium confidential rollups privacy + PST private verifiable + Xandeum exabyte = ideal free L2 privacy storage"
+    },
+    "analytics": {
+      "helika": "cross-game dashboard",
+      "gamesight": "ad->on-chain attribution solana_wallet external_id Late ID Binding",
+      "gameSignals": {
+        "data": "60M+ onchain tx 12 games ML churn 14d >85%",
+        "bestFree": true
+      },
+      "bestFree": true
+    },
+    "marketplace": {
+      "magicEden": "120 QPM free public reads Bearer for instructions",
+      "shyft": "escrow-less in-app marketplace",
+      "gameshift": "USD 170+ 100% chargeback gas abstraction",
+      "tensor": "cNFT primary Bubblegum v2",
+      "accessProtocol": {
+        "type": "stake-to-access",
+        "purpose": "sustainable income developers communities",
+        "bestFree": true
+      },
+      "idosgames": {
+        "type": "bridge EVM Solana RewardPool",
+        "bestFree": true
+      },
+      "bestFree": true
+    },
+    "engines": {
+      "unity": "Solana.Unity-SDK",
+      "godot": "godot-solana-sdk GDExtension",
+      "godotDetailed": "SolanaClient WalletAdapter AnchorProgram Candy Machine SPL builders session keys analog",
+      "gamba": "monorepo betting casino core React hooks UI framework provably fair",
+      "preset": {
+        "sdk": "solana-game-preset",
+        "bestFree": true,
+        "note": "official starter, create-solana-game duplicate deprecated"
+      },
+      "ritarena": {
+        "sdk": "ritarena-sdk",
+        "bestFree": true,
+        "chosenOver": "Aureus duplicate"
+      },
+      "relayzero": "agent economy network",
+      "stealthsdk": "framework AI-games token STEALTH",
+      "bestFree": true
+    },
+    "infra": {
+      "arc": "Entity-Component interoperability",
+      "bolt": "FOCG fully on-chain verifiable",
+      "depin": "decentralized physical infra",
+      "arcium": {
+        "type": "confidential computing rollups",
+        "bestFree": true
+      },
+      "xandeum": {
+        "type": "scalable storage exabytes",
+        "bestFree": true
+      },
+      "pst": {
+        "type": "private verifiable state",
+        "bestFree": true
+      },
+      "coreAttributes": {
+        "type": "on-chain key-value NFT stats",
+        "bestFree": true
+      },
+      "bestFree": true
+    },
+    "security": {
+      "securityAuditingSkill": {
+        "type": "skill addon Claude systematic audit",
+        "bestFree": true
+      },
+      "sentioCli": {
+        "type": "AST scanner Rust",
+        "bestFree": true
+      },
+      "solguard": {
+        "type": "AI auto audit 130+ patterns",
+        "bestFree": true,
+        "chosenOver": "SolShield duplicate"
+      },
+      "bestFree": true,
+      "idealFreeStack": "Security Auditing Skill prompt-based + Sentio CLI static AST + SolGuard AI 130+ = full coverage not competitive"
+    },
+    "storage": {
+      "xandeum": {
+        "type": "scalable storage exabytes",
+        "bestFree": true
+      },
+      "pst": {
+        "type": "private verifiable commitments",
+        "bestFree": true
+      },
+      "coreAttributes": {
+        "type": "on-chain key-value NFT stats",
+        "bestFree": true
+      },
+      "bestFree": true,
+      "idealFreeStack": "Xandeum scalable public exabyte + PST private commitments + Core Attributes public on-chain key-value = full coverage storage privacy"
+    },
+    "monetization": {
+      "accessProtocol": {
+        "type": "stake-to-access",
+        "bestFree": true
+      },
+      "idosgamesWallet": {
+        "type": "bridge EVM Solana RewardPool",
+        "bestFree": true
+      },
+      "bestFree": true
+    },
+    "testing": {
+      "solanaSlam": {
+        "type": "LiteSVM Anchor Mocha",
+        "bestFree": true
+      },
+      "createSolanaGame": {
+        "duplicate": true,
+        "deprecated": true,
+        "duplicateOf": "solana-game-preset"
+      },
+      "bestFree": true,
+      "idealFreeStack": "Preset official scaffold + SLAM LiteSVM Anchor Mocha best free testing, create-solana-game duplicate deprecated"
+    },
+    "privacy": {
+      "arcium": {
+        "type": "confidential computing rollups",
+        "bestFree": true
+      },
+      "pst": {
+        "type": "private verifiable",
+        "bestFree": true
+      },
+      "bestFree": true
+    },
+    "aiAgents": {
+      "husks": {
+        "type": "AI autobattler INT8",
+        "bestFree": true
+      },
+      "ritarena": {
+        "type": "AI arena lifecycle retry events",
+        "bestFree": true,
+        "chosenOver": "Aureus duplicate"
+      },
+      "relayzero": {
+        "type": "agent economy network",
+        "bestFree": true
+      },
+      "stealthsdk": {
+        "type": "framework AI-games token STEALTH",
+        "bestFree": true
+      },
+      "aureusDeprecated": {
+        "deprecated": true,
+        "duplicateOf": "RitArena"
+      },
+      "bestFree": true
+    },
+    "crossChain": {
+      "race": "multichain infra secure fair SDK sdk-solana CLI race-cli bundles",
+      "idosgames": "bridge EVM Solana RewardPool best free bridge",
+      "bestFree": true
+    },
+    "utils": {
+      "claudeSkill": "Unity SDK MWA state arch testing",
+      "securityAuditingSkill": "systematic audit vulnerabilities best free security utils",
+      "bestFree": true
+    }
+  },
+  "v3IdealFreeStack": {
+    "analysis": "Проанализированы все инструменты v1+v2+v3, выбраны лучшие бесплатные без конкурентных дубликатов, идеальный стек для каждого действия а не мусорка",
+    "duplicates": [
+      {
+        "duplicate": "create-solana-game vs solana-game-preset",
+        "bestFree": "solana-game-preset official starter",
+        "deprecated": "create-solana-game"
+      },
+      {
+        "duplicate": "Aureus Arena SDK vs RitArena SDK",
+        "bestFree": "RitArena full lifecycle retry events",
+        "deprecated": "Aureus"
+      },
+      {
+        "duplicate": "SolGuard vs SolShield",
+        "bestFree": "SolGuard more established",
+        "deprecated": "SolShield"
+      }
+    ],
+    "idealFreePerCategory": {
+      "identity": "Privy + Phantom + FirstStep + Altude + Session Keys 0.01 SOL best free",
+      "assets": "cNFT $110/M + Core Attributes on-chain key-value best free + Xandeum exabyte scalable best free",
+      "indexer": "LaserStream gRPC 24h replay + Shyft gPA 15ms + PG TimescaleDB Redis best free",
+      "l2": "Sonic HyperGrid + MagicBlock ER sub-10ms + REPLA L3 + Arcium confidential rollups privacy + PST private verifiable + Xandeum exabyte",
+      "analytics": "Helika + GameSight solana_wallet external_id + Game Signals 60M+ ML churn >85% best free",
+      "marketplace": "ME 120 QPM + Shyft escrow-less + GameShift USD 170+ + Tensor + Gamba + Access Protocol stake-to-access + idosgames bridge best free",
+      "engines": "Unity + Godot detailed + Gamba + Preset official best free scaffold",
+      "infra": "ARC + Bolt + DePIN + Arcium + Xandeum + PST + Core Attributes best free",
+      "security": "Security Auditing Skill + Sentio CLI + SolGuard best free",
+      "testing": "Solana SLAM LiteSVM Anchor Mocha best free + Preset scaffold, create-solana-game duplicate deprecated",
+      "monetization": "Access Protocol stake-to-access + @idosgames/wallet bridge EVM Solana RewardPool best free",
+      "aiAgents": "Husks INT8 + RitArena lifecycle retry events best free chosen over Aureus + relayzero agent economy + StealthSDK framework token STEALTH best free",
+      "crossChain": "RACE multichain + @idosgames/wallet bridge best free",
+      "storage": "Xandeum exabyte + PST private verifiable + Core Attributes on-chain key-value best free",
+      "privacy": "PST private verifiable + Arcium confidential rollups best free",
+      "utils": "Claude Skill + Security Auditing Skill best free"
+    },
+    "freePreferred": true,
+    "notGarbage": "Full ideal stack for each action, not garbage collection, deduplicated, best free per category"
+  },
+  "contracts": {
+    "crossGameInventory": "CgInv111111111111111111111111111111111111111",
+    "sessionKeys": "SessKeys111111111111111111111111111111111111",
+    "studioTreasury": "STrEaSuRy11111111111111111111111111111111111"
+  },
+  "apiRoutes": [
+    "/api/os/config",
+    "/api/os/health",
+    "/api/identity/config",
+    "/api/identity/health",
+    "/api/session-keys/config",
+    "/api/session-keys/health",
+    "/api/assets/config",
+    "/api/assets/health",
+    "/api/assets/strategy",
+    "/api/indexer/config",
+    "/api/indexer/health",
+    "/api/l2/config",
+    "/api/l2/health",
+    "/api/l2/router",
+    "/api/analytics/config",
+    "/api/analytics/health",
+    "/api/marketplace/config",
+    "/api/marketplace/health",
+    "/api/marketplace/router",
+    "/api/engines/config",
+    "/api/engines/health",
+    "/api/sdk/unity",
+    "/api/sdk/godot",
+    "/api/sdk/godot-solana",
+    "/api/sdk/gamba",
+    "/api/sdk/preset",
+    "/api/sdk/ritarena",
+    "/api/sdk/relayzero",
+    "/api/sdk/stealthsdk",
+    "/api/sdk/xandeum",
+    "/api/sdk/pst",
+    "/api/sdk/core-attributes",
+    "/api/sdk/access-protocol",
+    "/api/sdk/idosgames-wallet",
+    "/api/sdk/security-auditing-skill",
+    "/api/sdk/sentio-cli",
+    "/api/sdk/solguard",
+    "/api/sdk/solana-slam",
+    "/api/sdk/arcium",
+    "/api/infra/config",
+    "/api/infra/health",
+    "/api/infra/arc",
+    "/api/infra/bolt",
+    "/api/infra/depin",
+    "/api/infra/arcium",
+    "/api/infra/xandeum",
+    "/api/infra/pst",
+    "/api/infra/core-attributes",
+    "/api/game-signals/config",
+    "/api/game-signals/health",
+    "/api/payments/config",
+    "/api/payments/health",
+    "/api/payments/rust-api",
+    "/api/ai/config",
+    "/api/ai/health",
+    "/api/ai/husks",
+    "/api/ai/aureus",
+    "/api/ai/ritarena",
+    "/api/ai/relayzero",
+    "/api/ai/stealthsdk",
+    "/api/cross-chain/config",
+    "/api/cross-chain/health",
+    "/api/cross-chain/race",
+    "/api/utils/config",
+    "/api/utils/health",
+    "/api/utils/claude-skill",
+    "/api/security/config",
+    "/api/security/health",
+    "/api/security/auditing-skill",
+    "/api/security/sentio-cli",
+    "/api/security/solguard",
+    "/api/storage/config",
+    "/api/storage/health",
+    "/api/storage/xandeum",
+    "/api/storage/pst",
+    "/api/storage/core-attributes",
+    "/api/monetization/config",
+    "/api/monetization/health",
+    "/api/monetization/access-protocol",
+    "/api/monetization/idosgames-wallet",
+    "/api/testing/config",
+    "/api/testing/health",
+    "/api/testing/solana-slam",
+    "/api/testing/create-solana-game",
+    "/api/privacy/config",
+    "/api/privacy/health",
+    "/api/privacy/arcium",
+    "/api/health",
+    "/api/readyz"
+  ],
+  "writes": false,
+  "dataQuality": "partial",
+  "security": {
+    "noPrivateKeys": true,
+    "readOnly": true,
+    "blockchainWritesEnabled": 0,
+    "sessionKeysRisk": "0.01 SOL only",
+    "godotAudit": "no audit mainnet caution",
+    "helikaWarning": "AI focus shift",
+    "magicEdenWarning": "stops indexing new cNFT",
+    "bestFreeSecurity": "Security Auditing Skill + Sentio CLI + SolGuard 130+ patterns",
+    "bestFreeTesting": "Solana SLAM LiteSVM Anchor Mocha",
+    "bestFreeStorage": "Xandeum exabyte + PST private verifiable + Core Attributes on-chain key-value"
+  }
+}
