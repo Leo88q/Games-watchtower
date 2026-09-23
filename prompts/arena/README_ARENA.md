@@ -9,6 +9,8 @@ Agent Mode, открытую на репозитории соответству�
 | Файл | Для кого | Репозиторий Arena | game_id |
 |---|---|---|---|
 | `00_HUB_CONTRACT.md` | все | `Leo88q/Games-watchtower` (только чтение) | — |
+| `../../docs/ECOSYSTEM_MINIMUM_REQUIREMENTS.md` | все | хаб | — |
+| `../../docs/ECOSYSTEM_MAXIMUM_TARGET.md` + `../../docs/ecosystem-target.spec.json` | все | хаб (цель L3/L4 и покрытие) | — |
 | `PROMPT_ARENA_ARES1.md` | ARES-1 | `Leo88q/ares1` | `ares1` |
 | `PROMPT_ARENA_AOF.md` | Age of Farming | `Leo88q/aof` | `aof` |
 | `PROMPT_ARENA_NEONRELAY.md` | Neon Relay | `Leo88q/neon-relay` | `neonrelay` |

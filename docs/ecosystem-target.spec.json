@@ -1,0 +1,122 @@
+{
+  "spec": "watchtower-ecosystem-target",
+  "version": "1.0.0",
+  "purpose": "Целевое (максимальное) состояние экосистемы: тёплый продукт с переплетением игр через контракты, бэкенд и фронтенд. Используется хабом для расчёта покрытия: GET /api/ecosystem/status и скрипт scripts/check-ecosystem-target.mjs",
+  "tenants": ["ares1", "aof", "neonrelay", "guttercaps", "trafficgen"],
+  "maturityLevels": {
+    "L0": "cold — репозиторий без интеграции",
+    "L1": "passport — паспорт и адаптер заявлены, данных нет",
+    "L2": "connected — read-only экспортер отдаёт факты, хаб видит tenant, dataQuality честный",
+    "L3": "warm — полный контур метрик/экономики/идентичности, инварианты и алерты в работе, cross-game связки включены",
+    "L4": "hot — live-трафик, SLO соблюдается, proposal-flow в бою, DR и дежурство проверены"
+  },
+  "planes": {
+    "contracts": [
+      { "id": "c-01", "title": "Program id подтверждён сетью и опубликован в паспорте и в ENV хаба", "level": "L2", "evidence": "curl getAccountInfo + integration-manifest.json + .env.example" },
+      { "id": "c-02", "title": "IDL опубликован и версия синхронизирована (sync-idl + doc-drift guard)", "level": "L2", "evidence": "idl json в репо + тест расхождения" },
+      { "id": "c-03", "title": "Owner-констрейнты и проверки владельца на всех аккаунтах (SW002 закрыт)", "level": "L2", "evidence": "аудит 0 critical + тест на подмену аккаунта" },
+      { "id": "c-04", "title": "PDA seeds валидируются, деления защищены от нуля (SW013/SW024)", "level": "L2", "evidence": "аудит + негативные тесты" },
+      { "id": "c-05", "title": "token::authority и token::mint на всех изменяемых token-аккаунтах (SW009/SW010)", "level": "L2", "evidence": "аудит + тест подмены mint/authority" },
+      { "id": "c-06", "title": "emit! на каждое изменение состояния — хаб видит переходы (SW027)", "level": "L3", "evidence": "event-map покрывает 100% инструкций изменения состояния" },
+      { "id": "c-07", "title": "Инварианты как property-тесты: сохранение ценности, отсутствие двойного claim, caps, solvency escrow, отсутствие отрицательных балансов, staleness оракула", "level": "L3", "evidence": "property/fuzz suite в CI" },
+      { "id": "c-08", "title": "Session keys: scope deny (withdraw_treasury), лимит 0.01 SOL, expiry, revoke, allowlist программ", "level": "L3", "evidence": "тест отказа запрещённой операции" },
+      { "id": "c-09", "title": "Upgrade authority = multisig + timelock, без single-key", "level": "L3", "evidence": "адрес мультисига в паспорте + проверка через RPC" },
+      { "id": "c-10", "title": "Pause/emergency stop с multisig и документированным регламентом включения/выключения", "level": "L3", "evidence": "инструкция pause + runbook + тест" },
+      { "id": "c-11", "title": "План миграций состояния и версионирования программ (upgrade plan, migration ix)", "level": "L4", "evidence": "прогон миграции на localnet/devnet" },
+      { "id": "c-12", "title": "Реестр адресов (программы, mint, treasury, PDA) как единый источник для игр и хаба", "level": "L4", "evidence": "registry endpoint/файл + тест консистентности" }
+    ],
+    "backend": [
+      { "id": "b-01", "title": "Read-only экспортер /watchtower/* — полный набор 14 маршрутов, health.writes=false", "level": "L2", "evidence": "curl-вывод по каждому маршруту" },
+      { "id": "b-02", "title": "Идемпотентность по канонической идентичности (cluster+slot+signature+ix+inner / eventId)", "level": "L2", "evidence": "повтор → duplicate:true" },
+      { "id": "b-03", "title": "Курсор, replay и backfill с сохранением исходного timestamp и observedAt", "level": "L2", "evidence": "детерминированный replay N событий" },
+      { "id": "b-04", "title": "Indexer: LaserStream gRPC (failover, 24h replay) + Shyft gPA/webhooks + DAS", "level": "L3", "evidence": "health провайдера + lastSlot/lag в /watchtower/health" },
+      { "id": "b-05", "title": "Tracking commitment и finalized lag; reorg/rollback обработка с компенсацией проекций", "level": "L3", "evidence": "тест на форк/откат слота" },
+      { "id": "b-06", "title": "Gap detection и healing только полным backfill", "level": "L3", "evidence": "DataGapDetected → DataGapHealed lifecycle" },
+      { "id": "b-07", "title": "Read-model: PostgreSQL с RLS по tenant_id + TimescaleDB гипертэйблы + Redis (cache/rate limit/queues)", "level": "L3", "evidence": "миграции + тест изоляции тенантов" },
+      { "id": "b-08", "title": "Проекции: игроки, сессии, когорты, экономика, безопасность — пересобираемые (rebuild)", "level": "L3", "evidence": "команда rebuild и сверка сумм с первичными событиями" },
+      { "id": "b-09", "title": "Экономический ledger двойной записи: mint/burn, sources/sinks, treasury, fees, сверка (reconciliation)", "level": "L3", "evidence": "отчёт сверки: события ↔ проводки ↔ балансы" },
+      { "id": "b-10", "title": "Reward pipeline: caps, epochs, Merkle-запечатывание, claims без двойной выплаты", "level": "L3", "evidence": "тест двойного claim + паритет Merkle" },
+      { "id": "b-11", "title": "Anti-fraud сервис: risk scoring кошелька, Sybil/multi-account, аномальные reward-паттерны, KYT-скрининг", "level": "L3", "evidence": "precision/recall на исторических метках + журнал решений" },
+      { "id": "b-12", "title": "API: версионирование, OpenAPI-спека, пагинация, ETag/кэш, единый контракт ошибок, request id", "level": "L3", "evidence": "OpenAPI валидна + тесты контракта" },
+      { "id": "b-13", "title": "Аутентификация сервис-к-сервису: read-токены с ротацией и constant-time сравнением, mTLS/подпись для write-proposal", "level": "L3", "evidence": "тест отзыва токена, тест подписи proposal" },
+      { "id": "b-14", "title": "Proposal-контур: приём решения из хаба, локальное подтверждение (RBAC+2FA+approval), audit log, rollback", "level": "L4", "evidence": "сквозной тест: proposal → approval → apply → rollback" },
+      { "id": "b-15", "title": "Наблюдаемость: OTel-трейсы, Prometheus-метрики, структурированные логи, Sentry, SLO-дашборд", "level": "L3", "evidence": "трейс ingest→проекция, алерты по SLO" },
+      { "id": "b-16", "title": "Надёжность: retry с backoff, circuit breaker, dead-letter, keyset-пагинация; DR с RPO/RTO и проверенным restore", "level": "L4", "evidence": "хаос-тест провайдера + отчёт restore" },
+      { "id": "b-17", "title": "Секреты: vault/KMS, разделение key custody, отсутствие signer в экспортере, gitleaks в CI", "level": "L2", "evidence": "0 секретов + описание custody" },
+      { "id": "b-18", "title": "Кэш/очереди под нагрузку: дедупликация на входе, приоритеты, лимиты, защита от шторма событий", "level": "L4", "evidence": "нагрузочный тест на X events/sec" }
+    ],
+    "frontend": [
+      { "id": "f-01", "title": "Бейдж dataQuality на каждом виджете: complete/partial/unavailable вместо нулей и заглушек", "level": "L2", "evidence": "скриншот/тест: виджет без данных показывает unavailable" },
+      { "id": "f-02", "title": "Трассируемость: по клику — формула метрики, источник, период агрегации, часовой пояс, lastVerifiedAt", "level": "L3", "evidence": "UI-панель метрики с полями из API" },
+      { "id": "f-03", "title": "Игровые экраны: onboarding кошелька guest → embedded → native → linked, без потери прогресса", "level": "L3", "evidence": "e2e-тест перехода состояний" },
+      { "id": "f-04", "title": "Session keys UX: действия без попапов кошелька в рамках лимита и expiry, понятные ошибки при отказе", "level": "L3", "evidence": "e2e: N действий без подтверждения, отказ на запрещённой операции" },
+      { "id": "f-05", "title": "Assets UI: инвентарь cNFT/Standard, provenance (source_game, asset_id), Core Attributes", "level": "L3", "evidence": "e2e: инвентарь читается из индексера/DAS" },
+      { "id": "f-06", "title": "Marketplace UI: листинги, покупка/продажа, комиссии, статусы финализации сделки", "level": "L3", "evidence": "e2e на localnet/devnet" },
+      { "id": "f-07", "title": "Proposal-flow UI: 2FA, второе подтверждение, таймер, дифф эффекта, audit trail, кнопка отката", "level": "L4", "evidence": "e2e: опасное действие требует двух шагов" },
+      { "id": "f-08", "title": "Realtime: WebSocket/SSE для алертов и live-метрик, деградация до polling", "level": "L3", "evidence": "тест обрыва соединения и восстановления" },
+      { "id": "f-09", "title": "Общий дизайн-язык и 19 панелей управления в хабе: статус, конфиг, метрики, действия (read/proposal), ссылки на SDK и доки", "level": "L3", "evidence": "все 19 панелей рендерятся и читают реальные API-поля" },
+      { "id": "f-10", "title": "Доступность и локализация: ru/en, клавиатурная навигация, контраст, aria для критичных потоков", "level": "L3", "evidence": "axe/a11y прогон + i18n-файлы" },
+      { "id": "f-11", "title": "Производительность: LCP < 2.5s, bundle < 200 kB gzip, отсутствие блокирующих ресурсов", "level": "L3", "evidence": "lighthouse/bundle-отчёт" },
+      { "id": "f-12", "title": "Честные состояния: skeleton, retry, error boundary, пустые состояния с объяснением причины", "level": "L2", "evidence": "e2e на 500/timeout от API" },
+      { "id": "f-13", "title": "Экосистемный экран: статус всех tenant'ов (stage, dataQuality, findings, connected, L-уровень)", "level": "L4", "evidence": "экран на /api/ecosystem/status" }
+    ],
+    "data": [
+      { "id": "d-01", "title": "Единый словарь событий и метрик во всех играх, маппинг игровых названий в канонические", "level": "L3", "evidence": "event-map для каждой игры + тест покрытия" },
+      { "id": "d-02", "title": "Единые определения метрик: DAU/WAU/MAU, retention D1..D30, churn, LTV, ARPDAU — с формулами", "level": "L3", "evidence": "сравнение определений между играми" },
+      { "id": "d-03", "title": "Feature store и общие признаки churn/toxicity/whale с версионированием", "level": "L4", "evidence": "реестр фич + воспроизводимость обучения" },
+      { "id": "d-04", "title": "ML с бэктестом, метриками качества, мониторингом дрейфа и объяснимостью", "level": "L4", "evidence": "отчёт бэктеста + метрики drift" },
+      { "id": "d-05", "title": "Приватность: минимизация PII, PST/Arcium для приватных механик, retention и право на удаление", "level": "L3", "evidence": "PII-grep clean + политика retention" },
+      { "id": "d-06", "title": "Late ID Binding: связка solana_wallet ↔ external_id ↔ acquisition source", "level": "L3", "evidence": "воронка ad_click → wallet → first_action" },
+      { "id": "d-07", "title": "Инвесторские и студийные отчёты только из реальных данных, mock-режим исключён из публикации", "level": "L4", "evidence": "отчёт с полем source и перечнем подключённых tenant'ов" },
+      { "id": "d-08", "title": "Data contracts: схема события с валидацией, отклонение битых событий с причиной, карантин", "level": "L3", "evidence": "тест schema-rejected + журнал rejected" }
+    ],
+    "ops": [
+      { "id": "o-01", "title": "CI: сборка, тесты, secret-scan, doc-drift, аудит как гейт на каждый PR", "level": "L2", "evidence": "зелёный CI + список джобов" },
+      { "id": "o-02", "title": "SLO на игру и публичный статус: свежесть данных, finalized lag, p95 API, uptime", "level": "L3", "evidence": "SLO-дашборд + отчёт за период" },
+      { "id": "o-03", "title": "Алерты с порогами, дежурством и runbook на каждый алерт", "level": "L3", "evidence": "каталог алертов + runbooks + тест доставки" },
+      { "id": "o-04", "title": "Инцидент-процесс: severity, SLA реакции, эскалация, postmortem, действия только через proposal-flow", "level": "L4", "evidence": "проведённый учебный инцидент" },
+      { "id": "o-05", "title": "Backup/DR: RPO ≤ 15 мин, RTO ≤ 4 ч, регулярный проверенный restore", "level": "L3", "evidence": "отчёт restore + расписание" },
+      { "id": "o-06", "title": "Безопасность цепочки поставок: зависимости, SBOM, подписанные артефакты, обновления по CVE", "level": "L3", "evidence": "SBOM + отчёт сканера" },
+      { "id": "o-07", "title": "Аудит и комплаенс: регулярный внешний/внутренний аудит программ и бэкенда, реестр принятых рисков", "level": "L4", "evidence": "отчёт аудита + accepted-risk реестр" },
+      { "id": "o-08", "title": "Стоимость: учёт RPC/провайдеров и бюджета запросов, предсказуемые расходы на 1k игроков", "level": "L3", "evidence": "юнит-экономика инфраструктуры" },
+      { "id": "o-09", "title": "Релиз-процесс: ветка arena/*, PR, изменения через ревью, откат релиза описан", "level": "L3", "evidence": "история PR + регламент отката" },
+      { "id": "o-10", "title": "Единый контракт приёмки: Definition of Done, отчёт A–F, доказательства командами", "level": "L2", "evidence": "PR с фактическим выводом команд" }
+    ]
+  },
+  "interweaving": [
+    { "id": "i-01", "title": "Единая идентичность: один studio_profile PDA, одинаковый playerKey во всех играх, linked wallets", "level": "L3", "evidence": "один игрок найден в 2+ играх по playerKey" },
+    { "id": "i-02", "title": "Единый consent-сервис: opt-out действует во всех играх и каналах немедленно", "level": "L3", "evidence": "тест opt-out → доставка блокируется во всех играх" },
+    { "id": "i-03", "title": "Cross-game inventory: единый контракт и правила переноса активов с лимитами и nullifier от дублей", "level": "L4", "evidence": "перенос предмета между двумя играми с аудит-логом" },
+    { "id": "i-04", "title": "Provenance активов: source_game, asset_id, полная история переходов между играми", "level": "L4", "evidence": "запрос истории актива через API" },
+    { "id": "i-05", "title": "Единая экономика студии: studio treasury, per-game budgets, запрет автономной эмиссии из игры", "level": "L4", "evidence": "сводный ledger + сверка по консолидации" },
+    { "id": "i-06", "title": "Общий сезонный календарь и кросс-игровые события/квесты с едиными наградами", "level": "L4", "evidence": "событие, засчитанное в 2+ играх" },
+    { "id": "i-07", "title": "Общий профиль игрока: уровень, достижения, статус — одинаково трактуются во всех играх", "level": "L3", "evidence": "профиль читается из хаба во всех играх" },
+    { "id": "i-08", "title": "Кампании из хаба: анонимные сегменты, consent/frequency/budget, attribution, rollback", "level": "L4", "evidence": "сквозной прогон кампании с атрибуцией и откатом" },
+    { "id": "i-09", "title": "Сквозная аналитика: единый funnel, cross-game retention, общий whale radar и anti-fraud", "level": "L4", "evidence": "cross-game отчёт с общими метриками" },
+    { "id": "i-10", "title": "Единые alert rules и incident flow: один severity-словарь, SLA, эскалация, единый audit log", "level": "L3", "evidence": "алерт, видимый в хабе и в игре" },
+    { "id": "i-11", "title": "Контроль из хаба: подписанный proposal → подтверждение в игре → audit в обоих журналах", "level": "L4", "evidence": "сквозной тест proposal с двумя журналами" },
+    { "id": "i-12", "title": "Cross-chain контур: RACE/idosgames с лимитами, антифродом и KYT-скринингом", "level": "L4", "evidence": "перенос ценности с проверкой лимитов" }
+  ],
+  "slo": {
+    "apiReadLatencyP95Ms": 300,
+    "ingestLatencyP99Ms": 2000,
+    "finalizedLagP95Seconds": 30,
+    "dataFreshnessMinutes": 5,
+    "uptimeMonthlyPercent": 99.9,
+    "rpoMinutes": 15,
+    "rtoHours": 4,
+    "alertDeliveryP1Minutes": 5,
+    "alertDeliveryP2Minutes": 30,
+    "exporterAvailabilityPercent": 99.9
+  },
+  "gates": {
+    "requiredRoutes": 14,
+    "maxOpenCriticalFindings": 0,
+    "secretsInRepo": 0,
+    "writesFromHub": false,
+    "signerInExporter": false,
+    "mockInPublishedReports": false,
+    "tenantCoverageL3PercentTarget": 80,
+    "evidenceRequired": "фактический вывод команд в PR (форма A–F)"
+  }
+}

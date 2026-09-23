@@ -8,7 +8,9 @@
     "dev:api": "node server/index.js",
     "build": "vite build",
     "test:smoke": "node scripts/smoke-test.mjs",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "ecosystem:target": "node scripts/check-ecosystem-target.mjs",
+    "ecosystem:target:strict": "node scripts/check-ecosystem-target.mjs --strict"
   },
   "devDependencies": {
     "vite": "^7.1.7"
