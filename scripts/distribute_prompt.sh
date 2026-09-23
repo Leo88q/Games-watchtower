@@ -1,150 +1,114 @@
 #!/usr/bin/env bash
-# Разложить один промпт-файл по всем репозиториям экосистемы и запушить в main.
+# Раскладывает промпт-файл по всем репозиториям экосистемы и пушит в main.
 #
-# Запуск:            bash ~/distribute_audit_prompt.sh
-# Проверка без пуша: DRY_RUN=1 bash ~/distribute_audit_prompt.sh
+# Запуск:  bash ~/distribute_prompt.sh
 #
-# Скрипт идемпотентен: если файл уже совпадает — повторно ничего не коммитит.
-# Клоны лежат в ~/audit-dist/<репозиторий>, повторный запуск их переиспользует.
+# Путь к клонам искать не нужно: скрипт сам ищет их в домашней папке,
+# а если клона нет — клонирует в ~/audit-dist/<репозиторий>.
+# Повторный запуск безопасен: если файл уже такой, ничего не коммитится.
 #
-# Переопределяется окружением:
-#   SRC=<файл>  REPOS="aof investor"  WORK=<каталог>  OWNER=Leo88q  DRY_RUN=1
-
+# Что кладём (SRC) и какие репозитории (REPOS) — можно переопределить окружением:
+#   SRC=~/Downloads/другой.md REPOS="aof investor" bash ~/distribute_prompt.sh
 set -u
 
 SRC="${SRC:-$HOME/Downloads/PROMPT_AUDIT_FULL_STACK_V2.md}"
-WORK="${WORK:-$HOME/audit-dist}"
+CLONE_DIR="${CLONE_DIR:-$HOME/audit-dist}"
 OWNER="${OWNER:-Leo88q}"
-REPOS="${REPOS:-Games-watchtower aof ares1 guttercaps neon-relay talkchart-traffic-generator investor}"
-DRY_RUN="${DRY_RUN:-0}"
 URL_TEMPLATE="${URL_TEMPLATE:-https://github.com/$OWNER/%s.git}"
+REPOS="${REPOS:-Games-watchtower aof ares1 guttercaps neon-relay talkchart-traffic-generator}"
+BRANCH="${BRANCH:-main}"
 
-# Куда кладём файл внутри репозитория: у хаба есть prompts/audit/, у продуктов — корень.
-# Меняешь путь — поменяй здесь.
-path_in_repo() {
-  case "$1" in
-    Games-watchtower) echo "prompts/audit/PROMPT_AUDIT_FULL_STACK_V2.md" ;;
-    *)                echo "PROMPT_AUDIT_FULL_STACK_V2.md" ;;
-  esac
-}
-
+# файл промпта: если точного имени нет — ищем по маске (в имени часто есть скобки: [V2])
 if [ ! -f "$SRC" ]; then
-  # в имени файла часто есть скобки ([V2]) — попробуем найти его по маске
-  alt="$(ls -1 "$HOME/Downloads"/PROMPT_AUDIT_FULL_STACK*V2*.md 2>/dev/null | head -1)"
-  if [ -n "$alt" ] && [ -f "$alt" ]; then
-    echo "Точного пути нет, использую найденный файл: $alt"
-    SRC="$alt"
-  else
-    echo "Файл не найден: $SRC"
-    echo "Что есть похожего в ~/Downloads:"
-    ls -1 "$HOME/Downloads" 2>/dev/null | grep -i "PROMPT_AUDIT" | sed 's/^/  /' || echo "  (ничего похожего)"
-    echo
-    echo "В имени бывают скобки и пробелы — тогда нужны кавычки, например:"
-    echo "  SRC=\"\$HOME/Downloads/PROMPT_AUDIT_FULL_STACK_[V2].md\" bash ~/distribute_audit_prompt.sh"
-    exit 1
-  fi
+  found="$(ls -1 "$HOME/Downloads"/*PROMPT_AUDIT_FULL_STACK*V2*.md 2>/dev/null | head -1)"
+  [ -n "$found" ] && { echo "Точного пути нет, беру найденный файл: $found"; SRC="$found"; }
 fi
+if [ ! -f "$SRC" ]; then
+  echo "Не нашёл файл промпта ($SRC)."
+  echo "Что есть в ~/Downloads:"
+  ls -1 "$HOME/Downloads" 2>/dev/null | grep -i "PROMPT_AUDIT" | sed 's/^/  /'
+  echo "Укажи путь явно:  SRC=\"\$HOME/Downloads/имя.md\" bash ~/distribute_prompt.sh"
+  exit 1
+fi
+echo "Файл: $SRC ($(wc -c < "$SRC" | tr -d ' ') байт)"
 
-if [ -z "$(git config --global user.email || true)" ] && [ -z "$(git config user.email || true)" ]; then
-  echo "ВНИМАНИЕ: git не знает, кто ты (нет user.name/user.email) — коммиты не создадутся."
-  echo "Выполни один раз и запусти скрипт снова:"
+if [ -z "$(git config --get user.email 2>/dev/null || true)" ] && [ -z "$(git config --get user.name 2>/dev/null || true)" ]; then
+  echo "git не знает, кто ты (нет user.name/user.email) — коммиты не создадутся. Выполни один раз:"
   echo "  git config --global user.name \"Твоё имя\""
   echo "  git config --global user.email \"твой@email\""
   exit 1
 fi
 
-echo "Источник: $SRC ($(wc -c < "$SRC" | tr -d ' ') байт, $(wc -l < "$SRC" | tr -d ' ') строк)"
-[ "$DRY_RUN" = "1" ] && echo "РЕЖИМ DRY RUN: коммиты создаются, пуш не выполняется"
-mkdir -p "$WORK"
-RESULTS="$WORK/.results"; : > "$RESULTS"
-say() { echo "  $*"; }
-
+ok=0; skip=0
 for r in $REPOS; do
-  printf '\n=== %s ===\n' "$r"
-  dir="$WORK/$r"
-  rel="$(path_in_repo "$r")"
-
-  # 1. Клон (или обновление уже существующего)
-  if [ -d "$dir/.git" ]; then
-    # у клона пустого репозитория бывает не прописан refspec — без него нет origin/main
-    git -C "$dir" config --get remote.origin.fetch >/dev/null 2>&1 ||
-      git -C "$dir" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
-    if ! git -C "$dir" fetch -q origin 2>/dev/null; then
-      say "предупреждение: origin/main не получен, работаю с локальной копией"
-    fi
-    if git -C "$dir" rev-parse --verify -q HEAD >/dev/null; then
-      if ! git -C "$dir" checkout -q main; then say "не смог встать на main — пропускаю"; echo "$r | SKIP: checkout main не удался" >> "$RESULTS"; continue; fi
-      if git -C "$dir" rev-parse --verify -q origin/main >/dev/null; then
-        if ! git -C "$dir" merge -q --ff-only origin/main 2>/dev/null; then
-          say "локальный main разошёлся с origin — пропускаю (в $dir есть свои коммиты;"
-          say "  чтобы начать с чистого листа: rm -rf \"$dir\" и запусти скрипт снова)"
-          echo "$r | SKIP: локальный main разошёлся с origin" >> "$RESULTS"; continue
-        fi
-      else
-        say "на origin ещё нет ветки main — коммит её создаст"
-      fi
-    fi
-  else
-    if ! git clone -q --depth 1 "$(printf "$URL_TEMPLATE" "$r")" "$dir"; then
-      say "клонирование не удалось (нет доступа? репозиторий переименован?) — пропускаю"
-      echo "$r | SKIP: не удалось клонировать" >> "$RESULTS"; continue
-    fi
-  fi
-
-  # 2. Пустой репозиторий или другое имя ветки
-  if ! git -C "$dir" rev-parse --verify -q HEAD >/dev/null; then
-    if git -C "$dir" rev-parse --verify -q origin/main >/dev/null; then
-      git -C "$dir" checkout -q -B main origin/main || { say "ветка main недоступна — пропускаю"; echo "$r | SKIP: origin/main недоступен" >> "$RESULTS"; continue; }
-      say "создал локальный main из origin/main"
+  # 1. Где клон: ищем в домашней папке, при отсутствии — клонируем в CLONE_DIR
+  d="$(find "$HOME" -maxdepth 6 -type d -name "$r" -not -path "*/node_modules/*" \
+        -not -path "$CLONE_DIR/*" -exec test -d '{}/.git' ';' -print -quit 2>/dev/null)"
+  if [ -z "$d" ]; then
+    d="$CLONE_DIR/$r"
+    if [ -d "$d/.git" ]; then
+      :
     else
-      git -C "$dir" checkout -q -B main || { say "не смог создать ветку main — пропускаю"; echo "$r | SKIP: ветка main не создаётся" >> "$RESULTS"; continue; }
-      say "репозиторий пуст — файл станет первым коммитом в main"
+      echo "$r: локального клона нет, клонирую в $d"
+      mkdir -p "$CLONE_DIR"
+      git clone -q "$(printf "$URL_TEMPLATE" "$r")" "$d" 2>/dev/null || {
+        echo "$r: клонирование не удалось (нет доступа? репозиторий переименован?) — пропуск"
+        skip=$((skip+1)); continue; }
     fi
   fi
 
-  # 3. Раскладка файла
-  mkdir -p "$(dirname "$dir/$rel")"
-  cp "$SRC" "$dir/$rel"
-  local_hash="$(git -C "$dir" hash-object -- "$rel")"
-  remote_hash="$(git -C "$dir" rev-parse -q --verify "origin/main:$rel" 2>/dev/null || true)"
-
-  if [ -n "$(git -C "$dir" status --porcelain -- "$rel")" ]; then
-    git -C "$dir" add -- "$rel"
-    if ! git -C "$dir" commit -q -m "docs(audit): add $(basename "$rel")"; then
-      say "коммит не прошёл — пропускаю"; echo "$r | SKIP: коммит не прошёл" >> "$RESULTS"; continue
-    fi
-    say "коммит $(git -C "$dir" log -1 --format=%h) создан"
-  fi
-
-  if [ "$local_hash" = "$remote_hash" ]; then
-    say "на origin/main уже лежит этот файл — пуш не нужен"
-    echo "$r | OK (без изменений): $rel" >> "$RESULTS"; continue
-  fi
-  short="$(git -C "$dir" log -1 --format=%h)"
-  local_extra="$(git -C "$dir" log --oneline origin/main..HEAD 2>/dev/null | grep -v "docs(audit): add $(basename "$rel")" || true)"
-  if [ -n "$local_extra" ]; then
-    say "внимание: в этом клоне есть другие локальные коммиты, они тоже уйдут в origin/main:"
-    echo "$local_extra" | head -5 | sed 's/^/    /'
-  fi
-
-  if [ "$DRY_RUN" = "1" ]; then
-    say "[dry-run] к пушу готов commit $short"
-    echo "$r | DRY-RUN: коммит $short готов" >> "$RESULTS"; continue
-  fi
-
-  # 4. Пуш (с одним повтором через rebase, если ветка уехала вперёд)
-  if git -C "$dir" push -q origin main; then
-    say "OK → $r/$rel ($short)"; echo "$r | OK: $rel ($short)" >> "$RESULTS"
-  elif git -C "$dir" pull -q --rebase origin main 2>/dev/null && git -C "$dir" push -q origin main; then
-    say "OK (после rebase) → $r/$rel"; echo "$r | OK: $rel (после rebase)" >> "$RESULTS"
+  # 2. Куда кладём файл: в хабе — рядом с остальными аудит-промптами, в продуктах — в корень
+  if [ "$r" = "Games-watchtower" ]; then
+    f="prompts/audit/$(basename "$SRC")"
   else
-    say "НЕ УДАЛОСЬ запушить — проверь права и ветку вручную: $dir"
-    echo "$r | FAIL: пуш отклонён" >> "$RESULTS"
+    f="$(basename "$SRC")"
+  fi
+
+  # 3. Чистое ли состояние
+  if [ -n "$(git -C "$d" status --porcelain)" ]; then
+    echo "$r: есть незакоммиченные изменения — пропуск (разберись в $d, потом запусти снова)"
+    skip=$((skip+1)); continue
+  fi
+  if ! git -C "$d" checkout -q "$BRANCH" 2>/dev/null; then
+    if git -C "$d" rev-parse --verify -q "origin/$BRANCH" >/dev/null; then
+      git -C "$d" checkout -q -B "$BRANCH" "origin/$BRANCH" || { echo "$r: не смог встать на $BRANCH — пропуск"; skip=$((skip+1)); continue; }
+    else
+      git -C "$d" checkout -q -B "$BRANCH" || { echo "$r: не смог встать на $BRANCH — пропуск"; skip=$((skip+1)); continue; }
+    fi
+  fi
+  if ! git -C "$d" pull -q --rebase origin "$BRANCH" 2>/dev/null; then
+    echo "$r: origin/$BRANCH не подтянулся — пропуск ($d)"; skip=$((skip+1)); continue
+  fi
+
+  # 4. Кладём файл
+  mkdir -p "$(dirname "$d/$f")"
+  cp "$SRC" "$d/$f"
+  git -C "$d" add -- "$f"
+
+  # в хабе раньше файл лёг в корень — убираем дубль, чтобы не было двух копий
+  if [ "$r" = "Games-watchtower" ] && [ -f "$d/$(basename "$SRC")" ]; then
+    git -C "$d" rm -q --cached -- "$(basename "$SRC")"
+    rm -f "$d/$(basename "$SRC")"
+    echo "$r: убрал дубль из корня репозитория"
+  fi
+
+  if git -C "$d" diff --cached --quiet; then
+    echo "$r: файл уже на месте — коммитить нечего"; ok=$((ok+1)); continue
+  fi
+  git -C "$d" commit -q -m "docs(audit): add $(basename "$f")" || { echo "$r: коммит не прошёл"; skip=$((skip+1)); continue; }
+
+  if git -C "$d" push -q origin "$BRANCH"; then
+    echo "$r: OK → $f   (клон: $d)"; ok=$((ok+1))
+  else
+    echo "$r: пуш отклонён — пробую pull --rebase и повторяю"
+    if git -C "$d" pull -q --rebase origin "$BRANCH" 2>/dev/null && git -C "$d" push -q origin "$BRANCH"; then
+      echo "$r: OK (после rebase) → $f"; ok=$((ok+1))
+    else
+      echo "$r: ПУШ НЕ ПРОШЁЛ — проверь права, затем: git -C \"$d\" push origin $BRANCH"; skip=$((skip+1))
+    fi
   fi
 done
 
-printf '\n=== ИТОГ ===\n'
-column -t -s '|' "$RESULTS" 2>/dev/null || cat "$RESULTS"
 echo
-echo "Клоны: $WORK"
-echo "Проверка в браузере: https://github.com/$OWNER/<репозиторий>/blame/main/<путь>"
+echo "Готово: успешно $ok, пропущено $skip"
+echo "Проверка: https://github.com/$OWNER/<репозиторий>/blame/$BRANCH/PROMPT_AUDIT_FULL_STACK_V2.md"
