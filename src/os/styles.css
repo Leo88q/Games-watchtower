@@ -14,3 +14,13 @@
 .os-layer span { font-size:11px; color:#64748b; }
 .os-mono { font-family: ui-monospace, SFMono-Regular, monospace; font-size:11px; background:#0a0e15; border:1px solid #1e293b; border-radius:8px; padding:8px; color:#94a3b8; white-space:pre-wrap; word-break:break-all; max-height:180px; overflow:auto; }
 @media (max-width: 900px) { .os-grid { grid-template-columns: 1fr; } .os-layers { grid-template-columns: repeat(2,1fr); } }
+
+/* --- Watchtower OS v3 — сводка и контрольные панели в дашборде (src/main.js) --- */
+.os-v3-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 14px 0; }
+.os-v3-summary article { background: #10151f; border: 1px solid #1e293b; border-radius: 12px; padding: 14px; }
+.os-v3-summary article span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; }
+.os-v3-summary article b { display: block; font-size: 24px; color: #e2e8f0; margin: 6px 0 4px; }
+.os-v3-summary article small { color: #64748b; line-height: 1.45; display: block; }
+#os-panels-content .control-panel h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: #94a3b8; }
+#os-panels-content .control-panel ul { list-style: none; }
+#os-panels-content .control-panel { margin-bottom: 20px; }

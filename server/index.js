@@ -1,4 +1,5 @@
 import http from 'node:http'
+import { readFileSync } from 'node:fs'
 import { aggregateOverview, buildAiReport, detectAnomalies, forecast } from '../src/engine/analytics.js'
 import { GAME_REGISTRY, getGame } from '../src/data/registry.js'
 import { createProvider, createTrafficgenProvider } from './ingestion/provider.js'
@@ -17,7 +18,7 @@ import { trafficAnalytics } from './analytics/traffic.js'
 import { auditLog, checkAccess, recordAudit } from './security/access.js'
 // OS v3 modules — 33 компонента идеальный бесплатный стек
 import { watchtowerOSConfig, watchtowerOSHealth } from './modules/os.js'
-import { identityLayerConfig, identityHealth } from './modules/identity/index.js'
+import { identityLayerConfig, identityHealth, createUnifiedWallet, tenantIdentity } from './modules/identity/index.js'
 import { sessionKeysConfig, sessionKeysHealth, createSession, getSession, listSessions, signAndSendTransaction, revokeSession } from './modules/session-keys/index.js'
 import { assetsConfig, assetsHealth, cnftCollectionConfig, assetStrategy } from './modules/assets/index.js'
 import { indexerLayerConfig, indexerHealth } from './modules/indexer/index.js'
@@ -45,6 +46,11 @@ import { privacyLayerConfig, privacyHealth } from './modules/privacy/index.js'
 
 const port = Number(process.env.API_PORT || 8787)
 const startedAt = Date.now()
+
+// studio.config.json — каноничный конфиг OS v3 (totalComponents: 33, tenants, duplicates, layers)
+function studioOSConfig() {
+  return JSON.parse(readFileSync(new URL('../studio.config.json', import.meta.url), 'utf8'))
+}
 
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'x-content-type-options': 'nosniff' })
@@ -119,15 +125,25 @@ async function route(req, res) {
   }
 
   /* ====== OS v3 Routes — 33 компонента, 19 слоёв ====== */
-  if (req.method === 'GET' && url.pathname === '/api/os/config') return json(res, 200, watchtowerOSConfig(process.env))
+  if (req.method === 'GET' && url.pathname === '/api/os/config') {
+    // studio.config.json + watchtowerOSConfig() из server/modules/os.js: 19 слоёв, 33 компонента, дубликаты deprecated
+    const studio = studioOSConfig()
+    const osConfig = watchtowerOSConfig(process.env)
+    const mergedLayers = {}
+    for (const key of new Set([...Object.keys(studio.layers || {}), ...Object.keys(osConfig.layers || {})])) {
+      mergedLayers[key] = { ...(studio.layers || {})[key], ...(osConfig.layers || {})[key] }
+    }
+    return json(res, 200, { ...studio, ...osConfig, layers: mergedLayers, v2Products: { ...osConfig.v2Products, count: studio.v2Products }, modules: Object.keys(mergedLayers), totalComponents: studio.totalComponents ?? osConfig.totalComponents ?? 33, generatedAt: new Date().toISOString() })
+  }
   if (req.method === 'GET' && url.pathname === '/api/os/health') return json(res, 200, watchtowerOSHealth(process.env))
+  if (req.method === 'GET' && url.pathname === '/api/os/modules') { const layers = Object.keys(watchtowerOSConfig(process.env).layers || {}); return json(res, 200, { os: 'server/modules/os.js', modules: layers, count: layers.length, totalComponents: 33 }) }
 
   // Identity
   if (req.method === 'GET' && url.pathname === '/api/identity/config') return json(res, 200, identityLayerConfig(process.env))
   if (req.method === 'GET' && url.pathname === '/api/identity/health') return json(res, 200, identityHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/identity/wallet') return json(res, 200, { providers: ['privy', 'phantom', 'firststep', 'altude'], status: 'configured' })
+  if (req.method === 'GET' && url.pathname === '/api/identity/wallet') return json(res, 200, createUnifiedWallet({ provider: url.searchParams.get('provider') || undefined, gameId: url.searchParams.get('gameId') || undefined, authMethod: url.searchParams.get('authMethod') || undefined }))
   if (req.method === 'GET' && parts[0] === 'api' && parts[1] === 'identity' && parts[2] === 'tenant' && parts[3])
-    return json(res, 200, { tenant: parts[3], identity: identityLayerConfig(process.env).providers?.[parts[3]] || 'configured' })
+    return json(res, 200, tenantIdentity({ gameId: parts[3], walletAddress: url.searchParams.get('wallet') || undefined }))
 
   // Session Keys
   if (req.method === 'GET' && url.pathname === '/api/session-keys/config') return json(res, 200, sessionKeysConfig())
@@ -152,7 +168,7 @@ async function route(req, res) {
   if (req.method === 'GET' && url.pathname === '/api/assets/config') return json(res, 200, assetsConfig(process.env))
   if (req.method === 'GET' && url.pathname === '/api/assets/health') return json(res, 200, assetsHealth(process.env))
   if (req.method === 'GET' && url.pathname === '/api/assets/strategy') return json(res, 200, assetStrategy({ gameId: url.searchParams.get('gameId') || 'generic', itemType: url.searchParams.get('itemType'), rarity: url.searchParams.get('rarity') }))
-  if (req.method === 'GET' && url.pathname === '/api/assets/cnft/collection') return json(res, 200, cnftCollectionConfig(process.env))
+  if (req.method === 'GET' && url.pathname === '/api/assets/cnft/collection') return json(res, 200, cnftCollectionConfig({ collectionName: url.searchParams.get('collection') || undefined, gameId: url.searchParams.get('gameId') || undefined }))
 
   // Indexer
   if (req.method === 'GET' && url.pathname === '/api/indexer/config') return json(res, 200, indexerLayerConfig(process.env))
