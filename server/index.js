@@ -34,6 +34,8 @@ import { utilsLayerConfig, utilsHealth } from './modules/utils/index.js'
 import { securityLayerConfig, securityHealth } from './modules/security/index.js'
 import { storageLayerConfig, storageHealth } from './modules/storage/index.js'
 import { buildEcosystemStatus } from './ecosystem/status.js'
+import { computeEconomy, metricCatalog } from './economy/metrics.js'
+import { demoConfig, demoEvents } from './economy/demo.js'
 import { listArenaPrompts, readArenaPrompt } from './ecosystem/prompts.js'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -286,6 +288,29 @@ async function route(req, res) {
     })
   }
 
+  // Экономика: метрики студии по окну наблюдения. demo=1 включает явно помеченные демо-данные.
+  if (req.method === 'GET' && url.pathname === '/api/economy/catalog') return json(res, 200, { writes: false, ...metricCatalog() })
+  if (req.method === 'GET' && url.pathname === '/api/economy/overview') {
+    const window = url.searchParams.get('window') || '7d'
+    const gameId = url.searchParams.get('gameId') || undefined
+    const demo = url.searchParams.get('demo') === '1'
+    const source = demo ? demoEvents({}) : list({ limit: 20000 })
+    const events = gameId ? source.filter((event) => (event.payload?.gameId || event.app || event.source) === gameId) : source
+    const config = demo ? demoConfig() : economyConfigFromEnv(process.env)
+    const economy = computeEconomy({ events, window, config, demo })
+    return json(res, 200, {
+      writes: false,
+      ...economy,
+      warning: demo ? 'DEMO DATA: синтетический поток событий, не боевые данные студии' : null,
+      source: demo ? 'demo://economy-generator' : 'event-inbox',
+    })
+  }
+  if (req.method === 'GET' && url.pathname === '/api/economy/health') {
+    const demo = url.searchParams.get('demo') === '1'
+    const economy = computeEconomy({ events: demo ? demoEvents({}) : list({ limit: 20000 }), window: url.searchParams.get('window') || '7d', config: demo ? demoConfig() : economyConfigFromEnv(process.env), demo })
+    return json(res, 200, { writes: false, demo, index: economy.index, inputs: economy.inputs })
+  }
+
   // Arena-промпты: каталог и текст (для кнопки «Приступить» в интерфейсе)
   if (req.method === 'GET' && url.pathname === '/api/arena/prompts') return json(res, 200, listArenaPrompts())
   if (req.method === 'GET' && url.pathname.startsWith('/api/arena/prompts/')) {
@@ -341,3 +366,24 @@ function serveStatic(req, res, url) {
 http.createServer((req, res) => {
   Promise.resolve(route(req, res)).catch((error) => json(res, 500, { error: 'internal_error', message: error.message }))
 }).listen(port, '0.0.0.0', () => console.log(`Watchtower API listening on http://0.0.0.0:${port}`))
+
+// Экономическая конфигурация из окружения: значения задаёт оператор, хаб их не выдумывает.
+function economyConfigFromEnv(env) {
+  const num = (key) => (env[key] !== undefined && env[key] !== '' && Number.isFinite(Number(env[key])) ? Number(env[key]) : undefined)
+  return {
+    circulating: num('WATCHTOWER_ECONOMY_CIRCULATING'),
+    maxSupply: num('WATCHTOWER_ECONOMY_MAX_SUPPLY'),
+    treasuryBalance: num('WATCHTOWER_ECONOMY_TREASURY_BALANCE'),
+    dailyBurn: num('WATCHTOWER_ECONOMY_DAILY_BURN'),
+    burnCadenceDays: num('WATCHTOWER_ECONOMY_BURN_CADENCE_DAYS'),
+    revenueUsd: num('WATCHTOWER_ECONOMY_REVENUE_USD'),
+    costsUsd: num('WATCHTOWER_ECONOMY_COSTS_USD'),
+    stablecoinRevenueUsd: num('WATCHTOWER_ECONOMY_STABLECOIN_REVENUE_USD'),
+    cosmeticRevenueUsd: num('WATCHTOWER_ECONOMY_COSMETIC_REVENUE_USD'),
+    liquidityUsd: num('WATCHTOWER_ECONOMY_LIQUIDITY_USD'),
+    marketCapUsd: num('WATCHTOWER_ECONOMY_MARKETCAP_USD'),
+    sybilFlaggedWallets: num('WATCHTOWER_ECONOMY_SYBIL_FLAGGED'),
+    mainAsset: env.WATCHTOWER_ECONOMY_MAIN_ASSET || 'POTATO',
+    prices: env.WATCHTOWER_ECONOMY_PRICES ? Object.fromEntries(String(env.WATCHTOWER_ECONOMY_PRICES).split(',').map((pair) => pair.split(':').map((x) => x.trim())).filter((p) => p.length === 2).map(([k, v]) => [k, Number(v)])) : {},
+  }
+}

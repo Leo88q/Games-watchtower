@@ -10,7 +10,9 @@
     "test:smoke": "node scripts/smoke-test.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "ecosystem:target": "node scripts/check-ecosystem-target.mjs",
-    "ecosystem:target:strict": "node scripts/check-ecosystem-target.mjs --strict"
+    "ecosystem:target:strict": "node scripts/check-ecosystem-target.mjs --strict",
+    "test:economy": "node --test scripts/economy-metrics.test.mjs",
+    "test:all": "npm run test:smoke && npm run test:economy"
   },
   "devDependencies": {
     "vite": "^7.1.7"

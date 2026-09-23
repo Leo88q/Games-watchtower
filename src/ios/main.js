@@ -14,6 +14,9 @@ const state = {
   query: '',
   theme: localStorage.getItem('wt-theme') || 'light',
   refreshedAt: null,
+  economy: null,
+  economyWindow: localStorage.getItem('wt-economy-window') || '7d',
+  economyDemo: localStorage.getItem('wt-economy-demo') === '1',
 }
 
 const api = async (path) => {
@@ -85,6 +88,38 @@ async function loadAll() {
 }
 
 const d = (key) => (state.data[key]?.ok ? state.data[key].value : null)
+
+async function loadEconomy() {
+  const params = new URLSearchParams({ window: state.economyWindow })
+  if (state.economyDemo) params.set('demo', '1')
+  try {
+    state.economy = await api(`/api/economy/overview?${params.toString()}`)
+    if (!state.economy.catalog) {
+      try { state.economy.catalog = await api('/api/economy/catalog') } catch { /* каталог необязателен */ }
+    }
+  } catch (error) {
+    state.economy = { error: error.message }
+  }
+}
+
+function economyFamilyLabel(id) {
+  const families = state.economy?.catalog?.families || []
+  return families.find((f) => f.id === id)?.label || id
+}
+function economyFamilyWhy(id) {
+  const families = state.economy?.catalog?.families || []
+  return families.find((f) => f.id === id)?.why || ''
+}
+function formatMetricValue(metric) {
+  if (metric.value === null || metric.value === undefined) return '—'
+  const value = Number(metric.value)
+  if (!Number.isFinite(value)) return String(metric.value)
+  const unit = metric.unit || ''
+  if (unit === 'USD') return `$${value.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}`
+  if (unit === '%') return `${value}%`
+  if (Math.abs(value) >= 1000) return `${value.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ${unit}`.trim()
+  return `${value} ${unit}`.trim()
+}
 const provider = () => d('health')?.provider || 'unknown'
 const isMock = () => provider() === 'mock'
 
@@ -214,6 +249,109 @@ function sectionGames() {
       </div>`).join('')}
   </div>
   ${explainBlock('games')}`
+}
+
+function sectionEconomy() {
+  const economy = state.economy
+  if (!economy) return '<div class="card card-static"><h3>Экономика</h3><p>Загрузка метрик…</p></div>'
+  if (economy.error) return `<div class="card card-static"><h3>Экономика</h3><p>Не удалось загрузить метрики: ${esc(economy.error)}</p></div>`
+
+  const index = economy.index || {}
+  const metrics = economy.metrics || []
+  const families = [...new Set(metrics.map((m) => m.family))]
+  const available = metrics.filter((m) => m.quality !== 'unavailable').length
+  const statusCls = index.status === 'healthy' ? 'ok' : index.status === 'watch' ? 'warn' : index.status === 'critical' ? 'bad' : 'neutral'
+  const statusLabel = { healthy: 'Здоровая', watch: 'Наблюдение', critical: 'Критично', unavailable: 'Нет данных' }[index.status] || 'Нет данных'
+
+  return `
+  <div class="section-head">
+    <div>
+      <h2>Экономика студии</h2>
+      <p>Метрики считаются из принятых событий и явной конфигурации. Фокус 2026: лимит supply, сжигание по факту использования, stablecoin-выручка, доля извлечения против потребления.</p>
+    </div>
+    <div class="spacer"></div>
+    ${economy.demo ? badge('DEMO DATA', 'warn') : badge(economy.source || 'event-inbox', 'neutral')}
+  </div>
+
+  <div class="card card-static fade-in">
+    <div class="row-between">
+      <div>
+        <h3>Индекс здоровья экономики</h3>
+        <div class="tiny muted">${esc(index.reason || 'Композитная оценка из шести компонентов')}</div>
+      </div>
+      <div class="row">
+        ${badge(statusLabel, statusCls)}
+        <span class="kpi-value" style="font-size:26px">${index.score === null || index.score === undefined ? '—' : index.score}</span>
+      </div>
+    </div>
+    <div class="bar ${statusCls === 'ok' ? 'ok' : statusCls === 'warn' ? 'warn' : 'bad'}" style="margin-top:12px">
+      <span style="width:${index.score || 0}%"></span>
+    </div>
+    <div class="grid grid-3" style="margin-top:14px">
+      ${(index.components || []).map((c) => `
+        <div class="card card-plain">
+          <div class="row-between"><span class="tiny">${esc(c.label)}</span><b>${Math.round(c.score * 100)}</b></div>
+          <div class="bar" style="margin-top:6px"><span style="width:${Math.round(c.score * 100)}%"></span></div>
+          <div class="tiny muted" style="margin-top:6px">${esc(c.note || '')}</div>
+        </div>`).join('') || `<div class="tiny muted">Компоненты появятся при наличии данных от игр. Доступно: ${(index.components || []).length} из 6.</div>`}
+    </div>
+    <div class="row" style="margin-top:14px">
+      <div class="segmented" style="margin:0">
+        ${(economy.catalog?.windows || [{ id: '7d', label: '7 дней' }]).map((w) => `<button class="seg-btn ${state.economyWindow === w.id ? 'active' : ''}" data-action="economy-window" data-window="${esc(w.id)}">${esc(w.label)}</button>`).join('')}
+      </div>
+      <div class="spacer"></div>
+      <button class="btn ${state.economyDemo ? 'btn-primary' : ''}" data-action="economy-demo">${state.economyDemo ? 'Выключить демо' : 'Показать на демо-данных'}</button>
+    </div>
+    ${economy.demo ? `<div class="reason" style="margin-top:12px">DEMO DATA: синтетический поток за 90 дней (420 кошельков, недельные сжигания). Данные не попадают в event-inbox студии.</div>` : ''}
+    ${explainBlock('economyIndex')}
+  </div>
+
+  <div class="row" style="margin:16px 0 10px">
+    ${badge(`доступно метрик: ${available} из ${metrics.length}`, available > 20 ? 'ok' : available > 5 ? 'warn' : 'neutral')}
+    ${badge(`события в окне: ${economy.inputs?.eventsHuman ?? 0}`, 'neutral')}
+    ${badge(`боты исключены: ${economy.inputs?.eventsExcludedAsBot ?? 0}`, 'neutral')}
+    ${badge(`окно: ${esc(economy.window)} (${esc(economy.timezone)})`, 'accent')}
+  </div>
+
+  <div class="grid grid-2">
+    ${families.map((family) => {
+      const list = metrics.filter((m) => m.family === family)
+      const familyOk = list.filter((m) => m.quality !== 'unavailable').length
+      return `
+      <div class="card card-static fade-in">
+        <div class="row-between">
+          <h3>${esc(economyFamilyLabel(family))}</h3>
+          ${badge(`${familyOk}/${list.length}`, familyOk === list.length ? 'ok' : familyOk ? 'warn' : 'neutral')}
+        </div>
+        <div class="tiny muted" style="margin:6px 0 10px">${esc(economyFamilyWhy(family))}</div>
+        <div class="list">
+          ${list.map((m) => `
+            <div class="list-item" style="flex-direction:column;align-items:stretch;gap:6px">
+              <div class="row-between">
+                <div class="list-item-title">${esc(m.label)}</div>
+                <div class="row">
+                  <b>${esc(formatMetricValue(m))}</b>
+                  ${qualityBadge(m.quality === 'unavailable' ? 'unavailable' : m.quality)}
+                </div>
+              </div>
+              <details class="fold">
+                <summary class="tiny">Формула и источник</summary>
+                <div class="fold-body">
+                  <div><b>Формула:</b> ${esc(m.formula)}</div>
+                  <div><b>Источник:</b> ${esc(m.source)}</div>
+                  <div><b>Окно:</b> ${esc(m.window || economy.window)} · <b>Часовой пояс:</b> ${esc(m.timezone)}</div>
+                  ${m.needs?.length ? `<div><b>Нужны события:</b> ${esc(m.needs.join(', '))}</div>` : ''}
+                  ${m.novelties?.length ? `<div><b>Актуальность 2026:</b> ${esc(m.novelties.join(', '))}</div>` : ''}
+                  ${m.reason ? `<div><b>Почему нет данных:</b> ${esc(m.reason)}</div>` : ''}
+                </div>
+              </details>
+            </div>`).join('')}
+        </div>
+      </div>`
+    }).join('')}
+  </div>
+  ${explainBlock('economy')}
+  ${explainBlock('economyDemo')}`
 }
 
 function sectionAnalytics() {
@@ -481,6 +619,7 @@ function sectionDeploy() {
 
 const SECTIONS_RENDER = {
   overview: sectionOverview,
+  economy: sectionEconomy,
   games: sectionGames,
   analytics: sectionAnalytics,
   security: sectionSecurity,
@@ -589,6 +728,7 @@ document.addEventListener('click', async (event) => {
     state.section = target.dataset.section
     state.query = ''
     history.replaceState(null, '', `#${state.section}`)
+    if (state.section === 'economy' && !state.economy) await loadEconomy()
     renderSection()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -601,6 +741,20 @@ document.addEventListener('click', async (event) => {
     state.theme = state.theme === 'light' ? 'dark' : 'light'
     localStorage.setItem('wt-theme', state.theme)
     render()
+  }
+  if (action === 'economy-window') {
+    state.economyWindow = target.dataset.window
+    localStorage.setItem('wt-economy-window', state.economyWindow)
+    await loadEconomy()
+    renderSection()
+    toast(`Окно: ${state.economyWindow}`)
+  }
+  if (action === 'economy-demo') {
+    state.economyDemo = !state.economyDemo
+    localStorage.setItem('wt-economy-demo', state.economyDemo ? '1' : '0')
+    await loadEconomy()
+    renderSection()
+    toast(state.economyDemo ? 'Включены демо-данные (DEMO DATA)' : 'Демо выключено: только боевые события')
   }
   if (action === 'open-prompt') await openPromptModal(target.dataset.prompt)
   if (action === 'prompt-for') await openPromptModal(tenantPromptId(target.dataset.tenant))
@@ -674,7 +828,8 @@ window.addEventListener('hashchange', () => {
 document.getElementById('app').innerHTML = '<div class="page"><div class="card card-static" style="text-align:center;padding:60px 20px"><div class="brand" style="justify-content:center;font-size:18px">Загрузка данных хаба…</div><p class="muted" style="margin-top:10px">Читаю /api/health, /api/ecosystem/status, /api/read-model</p></div></div>'
 render()
 
-loadAll().then(() => {
+loadAll().then(async () => {
+  if (state.section === 'economy') await loadEconomy()
   render()
   toast(`Данные загружены: ${Object.values(state.data).filter((x) => x.ok).length} из ${Object.keys(state.data).length} запросов`)
 }).catch((error) => {
