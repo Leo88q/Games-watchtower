@@ -33,6 +33,12 @@ import { crossChainLayerConfig, crossChainHealth } from './modules/cross-chain/i
 import { utilsLayerConfig, utilsHealth } from './modules/utils/index.js'
 import { securityLayerConfig, securityHealth } from './modules/security/index.js'
 import { storageLayerConfig, storageHealth } from './modules/storage/index.js'
+import { buildEcosystemStatus } from './ecosystem/status.js'
+import { computeEconomy, metricCatalog } from './economy/metrics.js'
+import { demoConfig, demoEvents } from './economy/demo.js'
+import { listArenaPrompts, readArenaPrompt } from './ecosystem/prompts.js'
+import fs from 'node:fs'
+import path from 'node:path'
 import { monetizationLayerConfig, monetizationHealth } from './modules/monetization/index.js'
 import { testingLayerConfig, testingHealth } from './modules/testing/index.js'
 import { privacyLayerConfig, privacyHealth } from './modules/privacy/index.js'
@@ -41,7 +47,7 @@ const port = Number(process.env.API_PORT || 8787)
 const startedAt = Date.now()
 
 function json(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY' })
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'x-content-type-options': 'nosniff' })
   res.end(JSON.stringify(body))
 }
 
@@ -263,9 +269,121 @@ async function route(req, res) {
   // Cross-game projection
   if (req.method === 'GET' && url.pathname === '/api/cross-game/projection') return json(res, 200, buildCrossGameProjection({ limit: Number(url.searchParams.get('limit') || 5000) }))
 
+  // Ecosystem — статус зрелости всех tenant'ов (L0..L4) и покрытие цели
+  if (req.method === 'GET' && url.pathname === '/api/ecosystem/status') {
+    return json(res, 200, buildEcosystemStatus({ adapters: adapterReadiness().adapters, registry: GAME_REGISTRY, env: process.env }))
+  }
+  if (req.method === 'GET' && url.pathname === '/api/ecosystem/report') {
+    const status = buildEcosystemStatus({ adapters: adapterReadiness().adapters, registry: GAME_REGISTRY, env: process.env })
+    return json(res, 200, {
+      generatedAt: status.generatedAt,
+      writes: false,
+      source: '/api/ecosystem/status',
+      connectedTenants: status.tenants.filter((t) => t.configured).map((t) => t.gameId),
+      notConnectedTenants: status.tenants.filter((t) => !t.configured).map((t) => ({ gameId: t.gameId, reason: t.reason })),
+      coverage: status.coverage,
+      findingsTotal: status.findingsTotal,
+      dataQuality: status.coverage.configured === status.coverage.tenants ? 'complete' : status.coverage.configured === 0 ? 'unavailable' : 'partial',
+      note: 'Отчёт читается напрямую из состояния адаптеров и файлов аудита; mock-данные не подмешиваются.',
+    })
+  }
+
+  // Экономика: метрики студии по окну наблюдения. demo=1 включает явно помеченные демо-данные.
+  if (req.method === 'GET' && url.pathname === '/api/economy/catalog') return json(res, 200, { writes: false, ...metricCatalog() })
+  if (req.method === 'GET' && url.pathname === '/api/economy/overview') {
+    const window = url.searchParams.get('window') || '7d'
+    const gameId = url.searchParams.get('gameId') || undefined
+    const demo = url.searchParams.get('demo') === '1'
+    const source = demo ? demoEvents({}) : list({ limit: 20000 })
+    const events = gameId ? source.filter((event) => (event.payload?.gameId || event.app || event.source) === gameId) : source
+    const config = demo ? demoConfig() : economyConfigFromEnv(process.env)
+    const economy = computeEconomy({ events, window, config, demo })
+    return json(res, 200, {
+      writes: false,
+      ...economy,
+      warning: demo ? 'DEMO DATA: синтетический поток событий, не боевые данные студии' : null,
+      source: demo ? 'demo://economy-generator' : 'event-inbox',
+    })
+  }
+  if (req.method === 'GET' && url.pathname === '/api/economy/health') {
+    const demo = url.searchParams.get('demo') === '1'
+    const economy = computeEconomy({ events: demo ? demoEvents({}) : list({ limit: 20000 }), window: url.searchParams.get('window') || '7d', config: demo ? demoConfig() : economyConfigFromEnv(process.env), demo })
+    return json(res, 200, { writes: false, demo, index: economy.index, inputs: economy.inputs })
+  }
+
+  // Arena-промпты: каталог и текст (для кнопки «Приступить» в интерфейсе)
+  if (req.method === 'GET' && url.pathname === '/api/arena/prompts') return json(res, 200, listArenaPrompts())
+  if (req.method === 'GET' && url.pathname.startsWith('/api/arena/prompts/')) {
+    const id = decodeURIComponent(url.pathname.slice('/api/arena/prompts/'.length))
+    const prompt = readArenaPrompt(id)
+    if (!prompt) return json(res, 404, { error: 'prompt_not_found', id })
+    return json(res, 200, { writes: false, ...prompt })
+  }
+
+  if (!url.pathname.startsWith('/api/')) {
+    const served = serveStatic(req, res, url)
+    if (served) return undefined
+  }
+
   return json(res, 404, { error: 'not_found' })
+}
+
+// Раздача собранного фронтенда (dist) тем же портом: удобно для деплоя одним сервисом.
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
+}
+
+function serveStatic(req, res, url) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false
+  const distDir = path.join(process.cwd(), 'dist')
+  if (!fs.existsSync(distDir)) return false
+  const clean = path.normalize(url.pathname).replace(/^(\.\.[/\\])+/, '')
+  let filePath = path.join(distDir, clean)
+  if (!filePath.startsWith(distDir)) return false
+  let isFile = false
+  try { isFile = fs.statSync(filePath).isFile() } catch { isFile = false }
+  if (!isFile) {
+    const fallback = url.pathname === '/' || url.pathname === '/index.html'
+      ? (fs.existsSync(path.join(distDir, 'ios.html')) ? 'ios.html' : 'index.html')
+      : null
+    if (!fallback) return false
+    filePath = path.join(distDir, fallback)
+    if (!fs.existsSync(filePath)) return false
+  }
+  const body = fs.readFileSync(filePath)
+  res.writeHead(200, {
+    'content-type': MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream',
+    'content-length': body.length,
+    'cache-control': path.extname(filePath) === '.html' ? 'no-cache' : 'public, max-age=300',
+    'x-content-type-options': 'nosniff',
+  })
+  res.end(req.method === 'HEAD' ? undefined : body)
+  return true
 }
 
 http.createServer((req, res) => {
   Promise.resolve(route(req, res)).catch((error) => json(res, 500, { error: 'internal_error', message: error.message }))
 }).listen(port, '0.0.0.0', () => console.log(`Watchtower API listening on http://0.0.0.0:${port}`))
+
+// Экономическая конфигурация из окружения: значения задаёт оператор, хаб их не выдумывает.
+function economyConfigFromEnv(env) {
+  const num = (key) => (env[key] !== undefined && env[key] !== '' && Number.isFinite(Number(env[key])) ? Number(env[key]) : undefined)
+  return {
+    circulating: num('WATCHTOWER_ECONOMY_CIRCULATING'),
+    maxSupply: num('WATCHTOWER_ECONOMY_MAX_SUPPLY'),
+    treasuryBalance: num('WATCHTOWER_ECONOMY_TREASURY_BALANCE'),
+    dailyBurn: num('WATCHTOWER_ECONOMY_DAILY_BURN'),
+    burnCadenceDays: num('WATCHTOWER_ECONOMY_BURN_CADENCE_DAYS'),
+    revenueUsd: num('WATCHTOWER_ECONOMY_REVENUE_USD'),
+    costsUsd: num('WATCHTOWER_ECONOMY_COSTS_USD'),
+    stablecoinRevenueUsd: num('WATCHTOWER_ECONOMY_STABLECOIN_REVENUE_USD'),
+    cosmeticRevenueUsd: num('WATCHTOWER_ECONOMY_COSMETIC_REVENUE_USD'),
+    liquidityUsd: num('WATCHTOWER_ECONOMY_LIQUIDITY_USD'),
+    marketCapUsd: num('WATCHTOWER_ECONOMY_MARKETCAP_USD'),
+    sybilFlaggedWallets: num('WATCHTOWER_ECONOMY_SYBIL_FLAGGED'),
+    mainAsset: env.WATCHTOWER_ECONOMY_MAIN_ASSET || 'POTATO',
+    prices: env.WATCHTOWER_ECONOMY_PRICES ? Object.fromEntries(String(env.WATCHTOWER_ECONOMY_PRICES).split(',').map((pair) => pair.split(':').map((x) => x.trim())).filter((p) => p.length === 2).map(([k, v]) => [k, Number(v)])) : {},
+  }
+}
