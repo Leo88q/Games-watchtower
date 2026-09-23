@@ -70,6 +70,14 @@ const definitions = {
     campaigns: ['talkchart_seo', 'talkchart_social_x', 'talkchart_video_reels', 'talkchart_interactive_radar', 'tiplink_welcome_drop'],
     sources: ['x_twitter', 'perplexity_ai', 'chatgpt_search', 'google_search', 'short_video', 'tiplink_referral', 'direct_web', 'factory_pipeline'],
     pages: ['target_terminal', 'target_sixsec', 'target_duel', 'target_crash', 'target_quest', 'target_tiplink_claim'],
+    // Campaign → GameId mapping — какая кампания ведёт в какую игру
+    campaignGameMap: {
+      target_terminal: 'ares1',
+      target_sixsec: 'ares1',
+      target_duel: 'neonrelay',
+      target_crash: 'guttercaps',
+      target_quest: 'aof',
+    },
   },
 }
 
