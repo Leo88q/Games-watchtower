@@ -1,6 +1,13 @@
 # Промпты для работы игр в Arena с подключённым гид-хабом Watchtower
 
 Набор готовых промптов: один промпт на одну игру + один на сам хаб.
+
+> **Два уровня целей.** Этот каталог = **минимум** (подключить игру к экосистеме).
+> **Максимум** (довести до L3/L4, тёплый продукт и переплетение студии) — в
+> `prompts/arena/max/`: `PROMPT_MAX_HUB.md`, `PROMPT_MAX_ARES1.md`, `PROMPT_MAX_AOF.md`,
+> `PROMPT_MAX_NEONRELAY.md`, `PROMPT_MAX_GUTTERCAPS.md`, `PROMPT_MAX_TRAFFICGEN.md`,
+> `PROMPT_MAX_INVESTOR.md`. Индекс — `prompts/arena/max/README_MAX.md`.
+> Соответствие целей и требований — `docs/ECOSYSTEM_MAXIMUM_TARGET.md` + `docs/ecosystem-target.spec.json`.
 Каждый игровой промпт вставляется целиком как первое сообщение в сессию Arena
 Agent Mode, открытую на репозитории соответствующей игры, с подключённым GitHub.
 

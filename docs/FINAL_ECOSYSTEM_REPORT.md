@@ -185,6 +185,8 @@ GitHub (BL-12) — **вне зоны AI**, это решения операто�
 
 Готовый набор: `prompts/arena/` (индекс — `prompts/arena/README_ARENA.md`).
 
+**Минимум** (подключение к экосистеме):
+
 | Промпт | Игра | Главная цель сессии |
 |---|---|---|
 | `PROMPT_ARENA_WATCHTOWER_HUB.md` | хаб | целостность отчётов, реестр из паспортов, приём 5 tenant'ов, `/api/ecosystem/status` |
@@ -193,6 +195,19 @@ GitHub (BL-12) — **вне зоны AI**, это решения операто�
 | `PROMPT_ARENA_ARES1.md` | ares1 | реальный аудит (0 → факт), `verify-devnet`, exporter runtime, ingest в хаб |
 | `PROMPT_ARENA_AOF.md` | aof | 17 findings → 0 critical/high, события + emit!, `/watchtower/*` |
 | `PROMPT_ARENA_TRAFFICGEN.md` | trafficgen | 10 findings в `sixsec`, честное дозакрытие unavailable, живая приёмка |
+
+**Максимум** (доведение до L3/L4, тёплый продукт и переплетение): `prompts/arena/max/`
+(индекс — `prompts/arena/max/README_MAX.md`).
+
+| Промпт MAX | Объект | Цель |
+|---|---|---|
+| `max/PROMPT_MAX_HUB.md` | хаб | целостность отчётов, `/api/ecosystem/status`, панели на живых данных, proposal-flow, 12 контуров |
+| `max/PROMPT_MAX_GUTTERCAPS.md` | guttercaps | 86 critical → 0, property-инварианты, ledger, газлесс ECS до L4 |
+| `max/PROMPT_MAX_NEONRELAY.md` | neonrelay | сборка 4 программ, reward-контур без двойного claim, SLO/DR |
+| `max/PROMPT_MAX_ARES1.md` | ares1 | реальный аудит, session keys как продукт, custody, cross-game активы |
+| `max/PROMPT_MAX_AOF.md` | aof | 1 critical + 5 `init_if_needed`, ledger крафта/маркета, RLS-переплетение |
+| `max/PROMPT_MAX_TRAFFICGEN.md` | приложение TalkChart | `sixsec` → 0 critical, 12 unavailable честно закрыть, acquisition-контур L4 |
+| `max/PROMPT_MAX_INVESTOR.md` | приложение `investor` | ноль выдуманных чисел, бейджи dataQuality, снапшоты дивидендов с provenance |
 
 Общий контракт для всех — `prompts/arena/00_HUB_CONTRACT.md`: envelope событий, обязательные
 `/watchtower/*` endpoints, правила `complete|partial|unavailable`, запреты (main, секреты,

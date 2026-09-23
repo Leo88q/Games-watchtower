@@ -167,3 +167,7 @@ curl -s localhost:8787/api/ecosystem/status              # появится в �
 
 Требования по каждой позиции и доказательства — в `docs/ecosystem-target.spec.json`;
 формулировки задач для игр — в `prompts/arena/PROMPT_ARENA_*.md`.
+
+**MAX-промпты** (как довести каждый объект до L3/L4): `prompts/arena/max/` —
+`PROMPT_MAX_HUB.md`, `PROMPT_MAX_ARES1.md`, `PROMPT_MAX_AOF.md`, `PROMPT_MAX_NEONRELAY.md`,
+`PROMPT_MAX_GUTTERCAPS.md` (игры), `PROMPT_MAX_TRAFFICGEN.md` и `PROMPT_MAX_INVESTOR.md` (приложения).
