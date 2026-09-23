@@ -1,0 +1,2263 @@
+{
+  "findings": [
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `reward_escrow` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 135,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `wrapped_sol_mint` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 150,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut_signer` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 154,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 156,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `recent_slothashes` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 173,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `stats` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 187,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `recent_slothashes` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 193,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `reward_escrow` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 196,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `wrapped_sol_mint` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 201,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `reward_escrow` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 212,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `wrapped_sol_mint` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 223,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 225,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut_signer` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 228,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW003",
+      "severity": "critical",
+      "message": "CPI `invoke_signed` in `randomness_init` has no program ID check and passes signer privilege(s) (`payer, randomness`) into the callee — classic confused-deputy: a malicious program can act with those signers (e.g. extra transfers).",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 259,
+        "column": 8
+      },
+      "help": "Validate the CPI program ID (require! / Program<'info, T> / allowlist) before invoke. Do not forward buyer/authority Signers to untrusted programs.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW022",
+      "severity": "high",
+      "message": "Function `randomness_close` manually drains lamports to close an account without using Anchor's `close` constraint; account data is not zeroed and the account may be revived with stale data.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 332,
+        "column": 1
+      },
+      "help": "Replace manual lamport draining with #[account(mut, close = recipient)] to zero account data and prevent reinitialization attacks.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW025",
+      "severity": "medium",
+      "message": "`.unwrap()` on `data [off .. off + 32] . try_into ()` will panic on None/Err; use `?` or `.ok_or(ErrorCode::...)?` instead",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 95,
+        "column": 9
+      },
+      "help": "Use `?` to propagate errors or `.ok_or(ErrorCode::Foo)?` to convert Option to a typed program error.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW025",
+      "severity": "medium",
+      "message": "`.unwrap()` on `data [off .. off + 8] . try_into ()` will panic on None/Err; use `?` or `.ok_or(ErrorCode::...)?` instead",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 101,
+        "column": 27
+      },
+      "help": "Use `?` to propagate errors or `.ok_or(ErrorCode::Foo)?` to convert Option to a typed program error.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW025",
+      "severity": "medium",
+      "message": "`.unwrap()` on `hash (format ! (\"global:{name}\") . as_bytes ()) . to_bytes () [.. 8] . try_into ()` will panic on None/Err; use `?` or `.ok_or(ErrorCode::...)?` instead",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 367,
+        "column": 9
+      },
+      "help": "Use `?` to propagate errors or `.ok_or(ErrorCode::Foo)?` to convert Option to a typed program error.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW027",
+      "severity": "low",
+      "message": "Function `randomness_close` writes to account state but has no emit!() or msg!(); off-chain observers cannot track this state change.",
+      "location": {
+        "path": "./programs/sb_mock/src/lib.rs",
+        "line": 326,
+        "column": 1
+      },
+      "help": "Add emit!(MyEvent { ... }) or a structured msg!(\"...\") after state changes so indexers and dashboards can observe transitions.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `settlement` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 306,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `randomness` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 302,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `settlement` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 1260,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `vault` uses `vault` as a seed, but `vault` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 808,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `vault`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `open_compressed_pack` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 488,
+        "column": 12
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `fuse_compressed_claims` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 653,
+        "column": 4
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`BPS_DENOM as u64` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 952,
+        "column": 20
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW027",
+      "severity": "low",
+      "message": "Function `set_compressed_claim_listed` writes to account state but has no emit!() or msg!(); off-chain observers cannot track this state change.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 83,
+        "column": 1
+      },
+      "help": "Add emit!(MyEvent { ... }) or a structured msg!(\"...\") after state changes so indexers and dashboards can observe transitions.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW027",
+      "severity": "low",
+      "message": "Function `transfer_compressed_claim` writes to account state but has no emit!() or msg!(); off-chain observers cannot track this state change.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 137,
+        "column": 1
+      },
+      "help": "Add emit!(MyEvent { ... }) or a structured msg!(\"...\") after state changes so indexers and dashboards can observe transitions.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW027",
+      "severity": "low",
+      "message": "Function `set_compressed_claim_staked` writes to account state but has no emit!() or msg!(); off-chain observers cannot track this state change.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 183,
+        "column": 1
+      },
+      "help": "Add emit!(MyEvent { ... }) or a structured msg!(\"...\") after state changes so indexers and dashboards can observe transitions.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW027",
+      "severity": "low",
+      "message": "Function `fuse_compressed_claims` writes to account state but has no emit!() or msg!(); off-chain observers cannot track this state change.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/compressed.rs",
+        "line": 592,
+        "column": 1
+      },
+      "help": "Add emit!(MyEvent { ... }) or a structured msg!(\"...\") after state changes so indexers and dashboards can observe transitions.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `new_owner` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/chip.rs",
+        "line": 204,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/chip.rs",
+        "line": 43,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/chip.rs",
+        "line": 126,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/chip.rs",
+        "line": 197,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/chip.rs",
+        "line": 272,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `reward_escrow` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 49,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `queue` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 52,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut_signer` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 57,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 59,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `randomness` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 125,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `oracle` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 131,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `queue` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 133,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `stats` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 135,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `reward_escrow` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 138,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `owner` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 194,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `pending` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 209,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `reward_escrow` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 211,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 216,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut_signer` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 219,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `randomness` uses `owner` as a seed, but `owner` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/rng.rs",
+        "line": 197,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `owner`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `ledger` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/services.rs",
+        "line": 50,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `items` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/services.rs",
+        "line": 56,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `treasury` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/services.rs",
+        "line": 60,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `pity` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 121,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `pity` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 434,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `queue` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 147,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `oracle` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 149,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `queue` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 459,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `oracle` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 461,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `randomness` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 582,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `treasury` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 1063,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `vault` uses `vault` as a seed, but `vault` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 156,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `vault`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `vault` uses `vault` as a seed, but `vault` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 593,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `vault`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `vault` uses `vault` as a seed, but `vault` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 958,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `vault`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `vault` uses `vault` as a seed, but `vault` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 1060,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `vault`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `open_pack` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 778,
+        "column": 12
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `sweep_vault` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 1093,
+        "column": 12
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`(price as u128)` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 89,
+        "column": 13
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`BPS_DENOM as u64` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 261,
+        "column": 21
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`BPS_DENOM as u64` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 343,
+        "column": 26
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`BPS_DENOM as u64` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/packs.rs",
+        "line": 869,
+        "column": 24
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `items` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 72,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `randomness` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 632,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `result_asset` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 642,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `result_state` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 645,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `result_state` uses `result_asset` as a seed, but `result_asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 88,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `result_asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `vault` uses `vault` as a seed, but `vault` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 96,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `vault`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `vault` uses `vault` as a seed, but `vault` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 652,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `vault`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `vault` uses `vault` as a seed, but `vault` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 855,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `vault`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `fuse` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 384,
+        "column": 8
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `fuse_reveal` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 789,
+        "column": 8
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `cancel_stale_fusion` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/fusion.rs",
+        "line": 880,
+        "column": 8
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `items` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/admin.rs",
+        "line": 552,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `tree_config` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/admin.rs",
+        "line": 307,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `vault` uses `vault` as a seed, but `vault` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/admin.rs",
+        "line": 31,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `vault`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `items` uses `owner` as a seed, but `owner` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/admin.rs",
+        "line": 552,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `owner`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW027",
+      "severity": "low",
+      "message": "Function `create_collection` writes to account state but has no emit!() or msg!(); off-chain observers cannot track this state change.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/admin.rs",
+        "line": 113,
+        "column": 1
+      },
+      "help": "Add emit!(MyEvent { ... }) or a structured msg!(\"...\") after state changes so indexers and dashboards can observe transitions.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW027",
+      "severity": "low",
+      "message": "Function `set_pauser` writes to account state but has no emit!() or msg!(); off-chain observers cannot track this state change.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/admin.rs",
+        "line": 491,
+        "column": 1
+      },
+      "help": "Add emit!(MyEvent { ... }) or a structured msg!(\"...\") after state changes so indexers and dashboards can observe transitions.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW027",
+      "severity": "low",
+      "message": "Function `propose_admin` writes to account state but has no emit!() or msg!(); off-chain observers cannot track this state change.",
+      "location": {
+        "path": "./programs/chip_core/src/instructions/admin.rs",
+        "line": 519,
+        "column": 1
+      },
+      "help": "Add emit!(MyEvent { ... }) or a structured msg!(\"...\") after state changes so indexers and dashboards can observe transitions.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`top_mass` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/chip_core/src/economy.rs",
+        "line": 284,
+        "column": 19
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`RANGE` used as divisor in `%` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/chip_core/src/economy.rs",
+        "line": 309,
+        "column": 49
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`RANGE` used as divisor in `%` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/chip_core/src/economy.rs",
+        "line": 314,
+        "column": 21
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`RANGE` used as divisor in `%` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/chip_core/src/economy.rs",
+        "line": 320,
+        "column": 6
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`pool . len () . max (1)` used as divisor in `%` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/chip_core/src/economy.rs",
+        "line": 353,
+        "column": 24
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW026",
+      "severity": "high",
+      "message": "create_program_address accepts a caller-supplied bump and does not enforce canonical derivation; use find_program_address instead",
+      "location": {
+        "path": "./programs/chip_core/src/state.rs",
+        "line": 140,
+        "column": 17
+      },
+      "help": "Replace with Pubkey::find_program_address(&seeds, program_id) which returns the canonical bump, or use Anchor's seeds + bump constraint.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `stake` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 37,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `set_bonus` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 222,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `set_bonus` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 421,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `set_bonus` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 518,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `set_bonus` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 762,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `cstake` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 220,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `stake_auth` uses `stake_auth` as a seed, but `stake_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 224,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `stake_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 230,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `cstake` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 329,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `stake_auth` uses `stake_auth` as a seed, but `stake_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 331,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `stake_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 337,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `stake_auth` uses `stake_auth` as a seed, but `stake_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 423,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `stake_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `stake_auth` uses `stake_auth` as a seed, but `stake_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 520,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `stake_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `stake_auth` uses `stake_auth` as a seed, but `stake_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 633,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `stake_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `set_bonus` uses `owner` as a seed, but `owner` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 762,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `owner`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `stake_compressed_chip_v2` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 587,
+        "column": 8
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`ACC_PRECISION` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 102,
+        "column": 21
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`ACC_PRECISION` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 197,
+        "column": 21
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`ACC_PRECISION` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 303,
+        "column": 21
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`ACC_PRECISION` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 484,
+        "column": 21
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`ACC_PRECISION` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 605,
+        "column": 21
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`ACC_PRECISION` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/staking/src/instructions/stake.rs",
+        "line": 740,
+        "column": 21
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`DAY` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/staking/src/instructions/emission.rs",
+        "line": 212,
+        "column": 18
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`DAY as u64` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/staking/src/instructions/emission.rs",
+        "line": 241,
+        "column": 25
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`DAY as u64` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/staking/src/instructions/emission.rs",
+        "line": 243,
+        "column": 25
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW027",
+      "severity": "low",
+      "message": "Function `set_pauser` writes to account state but has no emit!() or msg!(); off-chain observers cannot track this state change.",
+      "location": {
+        "path": "./programs/staking/src/instructions/emission.rs",
+        "line": 142,
+        "column": 1
+      },
+      "help": "Add emit!(MyEvent { ... }) or a structured msg!(\"...\") after state changes so indexers and dashboards can observe transitions.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `pity` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/staking/src/instructions/vouchers.rs",
+        "line": 122,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `pending` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/staking/src/instructions/vouchers.rs",
+        "line": 125,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `randomness` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/staking/src/instructions/vouchers.rs",
+        "line": 128,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `rng_auth` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/staking/src/instructions/vouchers.rs",
+        "line": 132,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `queue` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/staking/src/instructions/vouchers.rs",
+        "line": 136,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `oracle` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/staking/src/instructions/vouchers.rs",
+        "line": 138,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `recent_slothashes` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/staking/src/instructions/vouchers.rs",
+        "line": 141,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `rewarder` uses `rewarder` as a seed, but `rewarder` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/vouchers.rs",
+        "line": 117,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `rewarder`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `items` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/staking/src/instructions/items.rs",
+        "line": 126,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `rewarder` uses `rewarder` as a seed, but `rewarder` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/staking/src/instructions/items.rs",
+        "line": 121,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `rewarder`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW010",
+      "severity": "critical",
+      "message": "Mutable token account `to` has no `token::authority` constraint; an attacker can pass a token account they own as the signer's account",
+      "location": {
+        "path": "./programs/staking/src/instructions/skr.rs",
+        "line": 171,
+        "column": 1
+      },
+      "help": "Add token::authority = <signer_field> to pin this account to the expected owner, or use associated_token::authority = <signer_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW024",
+      "severity": "high",
+      "message": "`self . total_weight` used as divisor in `/` without a zero-check; if zero at runtime the transaction will panic",
+      "location": {
+        "path": "./programs/staking/src/state.rs",
+        "line": 166,
+        "column": 26
+      },
+      "help": "Use checked_div() or checked_rem() and handle the None case, or add require!(divisor != 0, ...) before the operation.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `treasury` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 456,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `buyback_wallet` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 459,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `treasury` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 733,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `buyback_wallet` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 735,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW009",
+      "severity": "high",
+      "message": "Mutable token account `bidder_usdc` has no `token::mint` constraint; an attacker can substitute a token account for a different mint",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 668,
+        "column": 1
+      },
+      "help": "Add #[account(mut, token::mint = <mint_field>)] to pin this account to the expected mint, or use associated_token::mint = <mint_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `listing` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 256,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `market_auth` uses `market_auth` as a seed, but `market_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 258,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `market_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 265,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `listing` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 372,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `market_auth` uses `market_auth` as a seed, but `market_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 374,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `market_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 380,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `listing` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 438,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `market_auth` uses `market_auth` as a seed, but `market_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 440,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `market_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 447,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `offer` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 613,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `offer` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 714,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `market_auth` uses `market_auth` as a seed, but `market_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 718,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `market_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 724,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `market_auth` uses `market_auth` as a seed, but `market_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 932,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `market_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `market_auth` uses `market_auth` as a seed, but `market_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 998,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `market_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `market_auth` uses `market_auth` as a seed, but `market_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 1062,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `market_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `listing` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 1184,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `chip` uses `asset` as a seed, but `asset` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 1195,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `asset`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `market_auth` uses `market_auth` as a seed, but `market_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 1206,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `market_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `market_auth` uses `market_auth` as a seed, but `market_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 1291,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `market_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `market_auth` uses `market_auth` as a seed, but `market_auth` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 1371,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `market_auth`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `buy_compressed_asset_handler` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/market/src/lib.rs",
+        "line": 1459,
+        "column": 16
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `queue` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 466,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `oracle` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 468,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `queue` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 505,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `oracle` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 507,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `reward_escrow` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 663,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `queue` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 666,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut_signer` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 671,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 673,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `randomness` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 735,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `oracle` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 741,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `queue` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 743,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `stats` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 745,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `reward_escrow` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 748,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `challenger` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 805,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `reward_escrow` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 827,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 832,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW002",
+      "severity": "critical",
+      "message": "Account `lut_signer` has no owner constraint and no owner guard in instruction logic; any program-owned account can be passed.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 835,
+        "column": 1
+      },
+      "help": "Add #[account(owner = expected_program::ID)] or verify account.owner explicitly in the instruction handler.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW010",
+      "severity": "critical",
+      "message": "Mutable token account `winner_cg` has no `token::authority` constraint; an attacker can pass a token account they own as the signer's account",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 1021,
+        "column": 1
+      },
+      "help": "Add token::authority = <signer_field> to pin this account to the expected owner, or use associated_token::authority = <signer_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `randomness` uses `randomness` as a seed, but `randomness` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 657,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `randomness`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `rng_auth` uses `randomness` as a seed, but `randomness` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 660,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `randomness`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `rng_auth` uses `randomness` as a seed, but `randomness` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 738,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `randomness`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `randomness` uses `challenger` as a seed, but `challenger` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 808,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `challenger`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW013",
+      "severity": "high",
+      "message": "PDA `battle` uses `challenger` as a seed, but `challenger` is an unvalidated AccountInfo — an attacker can supply any account as the seed input",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 820,
+        "column": 1
+      },
+      "help": "Add `owner`, `address`, or `signer` constraint to `challenger`, or change its type to Signer<'info> or Program<'info, T>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `create_battle_v2_handler` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 558,
+        "column": 4
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `create_battle_handler` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 613,
+        "column": 4
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `accept_battle_v2_handler` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 945,
+        "column": 4
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW023",
+      "severity": "critical",
+      "message": "Function `accept_battle_handler` forwards `remaining_accounts` into a CPI; unvalidated accounts retain outer-transaction signer privileges inside the call.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 982,
+        "column": 4
+      },
+      "help": "Declare CPI accounts explicitly in the Accounts struct with typed constraints. If remaining_accounts is required, validate each account's owner, key, and is_signer before forwarding it.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW027",
+      "severity": "low",
+      "message": "Function `set_pauser_handler` writes to account state but has no emit!() or msg!(); off-chain observers cannot track this state change.",
+      "location": {
+        "path": "./programs/arena/src/lib.rs",
+        "line": 415,
+        "column": 1
+      },
+      "help": "Add emit!(MyEvent { ... }) or a structured msg!(\"...\") after state changes so indexers and dashboards can observe transitions.",
+      "suppressed": false
+    }
+  ],
+  "files_scanned": 27,
+  "files_parsed": 27,
+  "parse_failures": []
+}

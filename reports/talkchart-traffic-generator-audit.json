@@ -1,0 +1,127 @@
+{
+  "findings": [
+    {
+      "rule_id": "SW016",
+      "severity": "high",
+      "message": "Account `mint_reserve` uses `init_if_needed`; review for re-initialization or state-reset risk.",
+      "location": {
+        "path": "./programs/sixsec/src/lib.rs",
+        "line": 581,
+        "column": 1
+      },
+      "help": "Prefer #[account(init, ...)] when possible. If init_if_needed is necessary, confirm the account cannot be abused to reset state.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW009",
+      "severity": "high",
+      "message": "Mutable token account `prize_pool` has no `token::mint` constraint; an attacker can substitute a token account for a different mint",
+      "location": {
+        "path": "./programs/sixsec/src/lib.rs",
+        "line": 686,
+        "column": 1
+      },
+      "help": "Add #[account(mut, token::mint = <mint_field>)] to pin this account to the expected mint, or use associated_token::mint = <mint_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW009",
+      "severity": "high",
+      "message": "Mutable token account `worker_ata` has no `token::mint` constraint; an attacker can substitute a token account for a different mint",
+      "location": {
+        "path": "./programs/sixsec/src/lib.rs",
+        "line": 692,
+        "column": 1
+      },
+      "help": "Add #[account(mut, token::mint = <mint_field>)] to pin this account to the expected mint, or use associated_token::mint = <mint_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW009",
+      "severity": "high",
+      "message": "Mutable token account `skr_pool` has no `token::mint` constraint; an attacker can substitute a token account for a different mint",
+      "location": {
+        "path": "./programs/sixsec/src/lib.rs",
+        "line": 708,
+        "column": 1
+      },
+      "help": "Add #[account(mut, token::mint = <mint_field>)] to pin this account to the expected mint, or use associated_token::mint = <mint_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW009",
+      "severity": "high",
+      "message": "Mutable token account `worker_skr_ata` has no `token::mint` constraint; an attacker can substitute a token account for a different mint",
+      "location": {
+        "path": "./programs/sixsec/src/lib.rs",
+        "line": 710,
+        "column": 1
+      },
+      "help": "Add #[account(mut, token::mint = <mint_field>)] to pin this account to the expected mint, or use associated_token::mint = <mint_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW009",
+      "severity": "high",
+      "message": "Mutable token account `prize_pool` has no `token::mint` constraint; an attacker can substitute a token account for a different mint",
+      "location": {
+        "path": "./programs/sixsec/src/lib.rs",
+        "line": 735,
+        "column": 1
+      },
+      "help": "Add #[account(mut, token::mint = <mint_field>)] to pin this account to the expected mint, or use associated_token::mint = <mint_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW009",
+      "severity": "high",
+      "message": "Mutable token account `destination` has no `token::mint` constraint; an attacker can substitute a token account for a different mint",
+      "location": {
+        "path": "./programs/sixsec/src/lib.rs",
+        "line": 737,
+        "column": 1
+      },
+      "help": "Add #[account(mut, token::mint = <mint_field>)] to pin this account to the expected mint, or use associated_token::mint = <mint_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW010",
+      "severity": "critical",
+      "message": "Mutable token account `prize_pool` has no `token::authority` constraint; an attacker can pass a token account they own as the signer's account",
+      "location": {
+        "path": "./programs/sixsec/src/lib.rs",
+        "line": 686,
+        "column": 1
+      },
+      "help": "Add token::authority = <signer_field> to pin this account to the expected owner, or use associated_token::authority = <signer_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW010",
+      "severity": "critical",
+      "message": "Mutable token account `skr_pool` has no `token::authority` constraint; an attacker can pass a token account they own as the signer's account",
+      "location": {
+        "path": "./programs/sixsec/src/lib.rs",
+        "line": 708,
+        "column": 1
+      },
+      "help": "Add token::authority = <signer_field> to pin this account to the expected owner, or use associated_token::authority = <signer_field>.",
+      "suppressed": false
+    },
+    {
+      "rule_id": "SW010",
+      "severity": "critical",
+      "message": "Mutable token account `prize_pool` has no `token::authority` constraint; an attacker can pass a token account they own as the signer's account",
+      "location": {
+        "path": "./programs/sixsec/src/lib.rs",
+        "line": 735,
+        "column": 1
+      },
+      "help": "Add token::authority = <signer_field> to pin this account to the expected owner, or use associated_token::authority = <signer_field>.",
+      "suppressed": false
+    }
+  ],
+  "files_scanned": 3,
+  "files_parsed": 3,
+  "parse_failures": []
+}

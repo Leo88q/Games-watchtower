@@ -1,0 +1,11 @@
+{
+  "total": 10,
+  "critical": 3,
+  "high": 7,
+  "byRule": [
+    {
+      "rule": null,
+      "count": 10
+    }
+  ]
+}
