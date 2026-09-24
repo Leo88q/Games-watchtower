@@ -50,9 +50,12 @@ const PORT = Number(opt('port', 8787))
 const STAGE_TIMEOUT = Number(opt('timeout', 45 * 60 * 1000))
 const HUB = 'Games-watchtower'
 
+// Скрипт можно положить в корень студии (рядом с играми) или оставить в Games-watchtower/scripts/.
+// Каталог определяется по признаку: в Games-watchtower есть server/index.js.
 const HERE = path.dirname(realpathSync(fileURLToPath(import.meta.url)))
-const HUB_ROOT = path.resolve(HERE, '..')
-const STUDIO = path.resolve(opt('studio', path.dirname(HUB_ROOT)))
+const hasHub = (dir) => existsSync(path.join(dir, 'server', 'index.js'))
+const STUDIO = path.resolve(opt('studio', hasHub(path.join(HERE, HUB)) ? HERE : path.resolve(HERE, '..')))
+const HUB_ROOT = [path.join(STUDIO, HUB), HERE, path.resolve(HERE, '..')].find(hasHub) || path.join(STUDIO, HUB)
 const TS = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
 const RUN_ID = `${TS}-p${process.pid}`
 const LOG_DIR = path.resolve(opt('logs', path.join(os.tmpdir(), `leo-release-${RUN_ID}`)))
@@ -460,8 +463,8 @@ function discoverRepos() {
 
 // ───────────────────────────────────────────────────────────────── старт ──
 console.log(bold(`\nКаталог студии: ${STUDIO}`))
-if (!existsSync(path.join(HUB_ROOT, 'server', 'index.js'))) {
-  console.log(c('31', '✗ этот скрипт должен лежать в Games-watchtower/scripts/ (или укажите --studio=/путь)'))
+if (!hasHub(HUB_ROOT)) {
+  console.log(c('31', `✗ не найден ${HUB}/server/index.js рядом со скриптом. Положите файл в корень студии (рядом с ${HUB}/) или в ${HUB}/scripts/, либо укажите --studio=/путь`))
   process.exit(2)
 }
 const nodeVersion = spawnSync('/bin/sh', ['-c', 'node -v'], { encoding: 'utf8' }).stdout.trim()
