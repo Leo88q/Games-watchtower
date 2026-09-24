@@ -213,3 +213,17 @@ test('Dockerfile копирует всё, что нужно сборке и се
   assert.ok(dockerfile.includes('COPY prompts ./prompts'), 'промпты должны попадать в образ')
   assert.ok(!read('.dockerignore').split('\n').includes('prompts'), '.dockerignore не должен исключать prompts')
 })
+
+test('CI: файл workflow корректен (экранирование и обязательные шаги)', () => {
+  const workflow = read('.github/workflows/ci.yml')
+  // YAML ломается на неэкранированном «: » в скалярных значениях name/run — так уже случалось.
+  const broken = workflow.split('\n')
+    .filter((line) => /^\s*-?\s*(name|run):\s+\S.*:\s/.test(line))
+    .filter((line) => !/^\s*-?\s*(name|run):\s*['"]/.test(line))
+  assert.deepEqual(broken, [], `строки с неэкранированным двоеточием: ${broken.join(' | ')}`)
+  for (const step of ['npm run build', 'npm run test:ui', 'npm run test:mutation', 'docker build', 'test:smoke']) {
+    assert.ok(workflow.includes(step), `в CI нет шага «${step}»`)
+  }
+  // Образ обязан проверяться реальным запуском, а не только сборкой.
+  assert.ok(workflow.includes('/api/health'), 'CI обязан проверять запущенный образ')
+})
