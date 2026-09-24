@@ -27,3 +27,11 @@ git push -u origin x-tools-landing-posting      # дальше PR в main
 **Что должна сделать игра:** прочитать `wt_click` из URL и один раз отправить
 `{"eventType":"LandingReached","campaignId":…,"sourceId":…,"pageId":…,"sessionId":…,"seq":1,"payload":{"clickId":"<wt_click>"}}`
 на `POST <генератор>/api/track`. Без этого beacon'а переходы останутся нулём — честно.
+
+## 0003 — фикс для macOS (после PR #6)
+
+`0003-sqlite-close-connections-macos.patch`: соединения SQLite теперь закрываются.
+Без него на macOS (`ulimit -n 256`) падали 7 тестов с `unable to open database file`
+(3 из них падали и на исходном `main`). Применять поверх ветки PR #6:
+
+    git am /tmp/tcg-patches/0003-sqlite-close-connections-macos.patch
