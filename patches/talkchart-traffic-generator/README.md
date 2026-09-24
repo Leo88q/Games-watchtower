@@ -35,3 +35,9 @@ git push -u origin x-tools-landing-posting      # дальше PR в main
 (3 из них падали и на исходном `main`). Применять поверх ветки PR #6:
 
     git am /tmp/tcg-patches/0003-sqlite-close-connections-macos.patch
+
+## 0004 — /r/ ведёт в игры
+
+`0004-landing-absolute-game-targets.patch`: цель в `TALKCHART_LANDING_TARGETS` может быть
+полным https-адресом игры (раньше склеивалась с SITE_URL как `#маршрут`). Применяется
+скриптом `patches/games/apply.sh` вместе с патчами игр.
