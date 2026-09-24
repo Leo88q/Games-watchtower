@@ -84,18 +84,18 @@ def card_alloc(html, lang):
 
 def card_rounds(lang):
     ru = lang == 'ru'
-    im, d = base('Сбор $250 000 — три раунда' if ru else 'Raising $250,000 — three rounds',
+    im, d = base('Сбор $350 000 — три раунда' if ru else 'Raising $350,000 — three rounds',
                  'NFT-доля прибыли + два раунда токена' if ru else 'A profit-share NFT + two token rounds', lang)
     cards = [
         (PURPLE, 'Раунд 0 · Ecosystem Share' if ru else 'Round 0 · Ecosystem Share', 100000,
          ['100 NFT × $1 000' if ru else '100 NFTs × $1,000', '25% чистой прибыли' if ru else '25% of net profit',
           'USDC раз в квартал' if ru else 'USDC every quarter']),
-        (GREEN, 'Раунд 1 · Founders' if ru else 'Round 1 · Founders', 100000,
-         ['40 млн $WTWR' if ru else '40M $WTWR', '$0,0025' if ru else '$0.0025', '10% сразу, 10 мес.' if ru else '10% at TGE, 10 mo']),
-        ('#7af0c2', 'Раунд 2 · Builders' if ru else 'Round 2 · Builders', 50000,
-         ['12,5 млн $WTWR' if ru else '12.5M $WTWR', '$0,004' if ru else '$0.004', '15% сразу, 6 мес.' if ru else '15% at TGE, 6 mo']),
+        (GREEN, 'Раунд 1 · Founders' if ru else 'Round 1 · Founders', 150000,
+         ['60 млн $WTWR' if ru else '60M $WTWR', '$0,0025' if ru else '$0.0025', '10% сразу, 10 мес.' if ru else '10% at TGE, 10 mo']),
+        ('#7af0c2', 'Раунд 2 · Builders' if ru else 'Round 2 · Builders', 100000,
+         ['25 млн $WTWR' if ru else '25M $WTWR', '$0,004' if ru else '$0.004', '15% сразу, 6 мес.' if ru else '15% at TGE, 6 mo']),
     ]
-    assert sum(c[2] for c in cards) == 250000
+    assert sum(c[2] for c in cards) == 350000
     x = 60
     cw = (W - 120 - 2 * 30) // 3
     for color, title, usd, lines in cards:

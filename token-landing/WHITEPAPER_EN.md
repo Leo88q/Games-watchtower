@@ -16,7 +16,7 @@
   game analytics, traffic generation, control of Web3 products, and launching new games.
 - **Network.** Solana (SPL token), fixed supply of **1,000,000,000**, no further issuance
   (mint authority is revoked after minting).
-- **Raise.** Target **$250,000** in three rounds: Round 0 — 100 "Ecosystem Share" NFTs at $1,000 ($100,000, a separate instrument, see Part K); Rounds 1–2 — $WTWR: 40M at $0.0025 and 12.5M at $0.004 ($150,000).
+- **Raise.** Overall target **$350,000**: the $WTWR presale **$250,000** (60M at $0.0025 and 25M at $0.004) plus, separately, Round 0 — 100 "Ecosystem Share" NFTs at $1,000 (**$100,000**, a different instrument, see Part K).
 - **Rights.** $WTWR does **not** grant equity, dividends, shareholder votes, refunds
   or guaranteed income. It grants access to platform services, discounts, staking and Launchpad participation,
   and voting on ecosystem parameters.
@@ -85,16 +85,19 @@ afford such a stack, and players see scattered tokens with no connection between
 | Q4 2027 | Compute Grid operational, real-time AI analyst, VR prototype |
 | 2028 | first VR game, NFTs portable between 2D and VR |
 
-### D.6 Use of funds ($250,000: NFT $100,000 + $WTWR $150,000)
+### D.6 Use of funds ($350,000: $WTWR $250,000 + NFT $100,000)
 
 | Item | % | Amount |
 |---|---|---|
-| Development (salaries, monthly) | 35 | $87,500 |
-| Compute Grid — hardware | 20 | $50,000 |
-| Security audits | 15 | $37,500 |
-| DEX liquidity ($WTWR/USDC at the Round 2 price) | 15 | $37,500 |
-| Marketing | 10 | $25,000 |
-| Operating reserve (legal, infrastructure) | 5 | $12,500 |
+| Development (salaries, monthly) | 35.7 | $125,000 |
+| Compute Grid — hardware | 14.3 | $50,000 |
+| Security audits (games, CapsStake, NFT dividend contract) | 14.3 | $50,000 |
+| DEX liquidity ($WTWR/USDC at the Round 2 price) | 10.7 | $37,500 |
+| Marketing | 10 | $35,000 |
+| Real data in Watchtower (adapters, indexers) | 7.1 | $25,000 |
+| Legal and compliance (MiCA, NFT prospectus and Terms) | 4.3 | $15,000 |
+| Operating reserve (infrastructure) | 3.6 | $12,500 |
+| **Total** | **100** | **$350,000** |
 
 Compute Grid hardware (estimates as of this document): analytics & AI GPU node $18,000; build and
 render node $9,000; VR rig $6,000; storage and backups $5,000; Solana Seeker test farm $5,000; network,
@@ -106,8 +109,8 @@ and the treasury transaction.
 | Parameter | Round 1 · Founders | Round 2 · Builders |
 |---|---|---|
 | Price | $0.0025 | $0.0040 |
-| Volume | 40,000,000 $WTWR | 12,500,000 $WTWR |
-| Amount | $100,000 | $50,000 |
+| Volume | 60,000,000 $WTWR | 25,000,000 $WTWR |
+| Amount | $150,000 | $100,000 |
 | Unlock | 10% at TGE, 1-month cliff, 9 months linear | 15% at TGE, 6 months linear |
 | Payment currency | USDC, SOL **[TO FILL]** | USDC, SOL |
 | Min/max per participant | **[TO FILL]** | **[TO FILL]** |
@@ -138,11 +141,11 @@ and the treasury transaction.
 
 | Allocation | % | Tokens | Unlock |
 |---|---|---|---|
-| Presale, Round 1 | 4 | 40,000,000 | 10% TGE, 1-month cliff, 9 months linear |
-| Presale, Round 2 | 1.25 | 12,500,000 | 15% TGE, 6 months linear |
+| Presale, Round 1 | 6 | 60,000,000 | 10% TGE, 1-month cliff, 9 months linear |
+| Presale, Round 2 | 2.5 | 25,000,000 | 15% TGE, 6 months linear |
 | DEX liquidity | 4 | 40,000,000 | pool locked for 12 months |
 | CapsStake airdrop (GutterCaps) | 10 | 100,000,000 | 4 seasons × 25M |
-| Player rewards | 23.25 | 232,500,000 | 4-year decreasing emission |
+| Player rewards | 20 | 200,000,000 | 4-year decreasing emission |
 | Developer team | 15 | 150,000,000 | 12-month lock, then 24 months linear |
 | Builders fund | 8 | 80,000,000 | grants after milestone acceptance |
 | Treasury & Compute Grid | 19.5 | 195,000,000 | multisig, quarterly report |

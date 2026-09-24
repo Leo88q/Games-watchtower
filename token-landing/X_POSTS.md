@@ -67,8 +67,8 @@ EN
 
 **5. На что сбор**
 
-RU: Цель — $250 000 (NFT $100k + токен $150k). Разработка 35%, железо 20%, аудиты 15%, ликвидность 15%, маркетинг 10%, резерв 5%. Каждая покупка железа — с чеком и транзакцией казны. Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}
-EN: Target: $250,000 (NFT $100k + token $150k). Development 35%, hardware 20%, audits 15%, liquidity 15%, marketing 10%, reserve 5%. Every hardware purchase published with receipt and treasury tx. Ad. Not financial advice. You can lose everything. White paper: {WP}
+RU: Цель — $350 000: токен $250k + NFT $100k. Главное: разработка $125k, железо $50k, аудиты $50k. Каждая покупка железа — с чеком и транзакцией. Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}
+EN: Target: $350,000: token $250k + NFT $100k. Top items: dev $125k, hardware $50k, audits $50k. Every hardware purchase with receipt and tx. Ad. Not financial advice. You can lose everything. White paper: {WP}
 
 **6. Compute Grid (картинка списка железа, прогресс-бар)**
 
@@ -91,8 +91,8 @@ EN
 
 **8. Раунды**
 
-RU: Раунд 1: 40 млн по $0,0025, 10% сразу, остальное 10 мес. Раунд 2: 12,5 млн по $0,004, 15% сразу, 6 мес. Есть 14 дней на отказ. Не для США. Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}
-EN: Round 1: 40M at $0.0025, 10% at TGE, rest over 10 months. Round 2: 12.5M at $0.004, 15% at TGE, 6 months. 14-day withdrawal right. Not for US persons. Ad. Not financial advice. You can lose everything. White paper: {WP}
+RU: Раунд 1: 60 млн по $0,0025, 10% сразу, остальное 10 мес. Раунд 2: 25 млн по $0,004, 15% сразу, 6 мес. Есть 14 дней на отказ. Не для США. Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}
+EN: Round 1: 60M at $0.0025, 10% at TGE, rest over 10 months. Round 2: 25M at $0.004, 15% at TGE, 6 months. 14-day withdrawal right. Not for US persons. Ad. Not financial advice. You can lose everything. White paper: {WP}
 
 **9. Риски (закреплённый пост на время сбора)**
 
