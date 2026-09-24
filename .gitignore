@@ -4,3 +4,5 @@ dist/
 .env.*
 !.env.example
 dist-ui-smoke/
+# Отчёты прогонов prod-release.mjs (артефакт, не источник).
+reports/prod-release-*.md

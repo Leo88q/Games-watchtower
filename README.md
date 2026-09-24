@@ -99,6 +99,8 @@ npm run test:smoke          # дымовой прогон на запущенн�
 npm run test:economy        # синоним test:unit для экономического движка
 npm run test:mutation       # мутационная проверка тестов (порог 0.8, гейт G3)
 npm run verify              # всё вышеперечисленное + сборка
+npm run release:plan         # план прогона по всем репозиториям студии (без side-effects)
+npm run release:check        # pull + сборка + тесты по студии, docker-образ; деплой только с --deploy
 npm run ecosystem:target    # фактические уровни L0..L4 по tenant'ам
 ```
 
