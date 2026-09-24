@@ -1,0 +1,59 @@
+/* Watchtower 2035 skin — общий визуальный слой для лендинга $WTWR, как у watchtower-site.
+   Подключается после встроенных стилей и переопределяет только внешний вид: разметка и цифры не меняются. */
+@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Inter+Tight:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+@property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
+:root{--bg:#04060b;--panel:rgba(18,26,44,.45);--panel2:rgba(24,34,56,.55);--line:rgba(160,190,255,.12);--muted:#8793ab;--text:#eef3ff;
+  --blue:#5cc8ff;--mx:50vw;--my:30vh;color-scheme:dark}
+body{background:var(--bg);font-family:"Inter Tight",system-ui,sans-serif;font-size:17px;overflow-x:hidden}
+::selection{background:var(--green);color:#03110b}
+.mono,.num,.badge,.tk,.flow,.kpi b{font-family:"JetBrains Mono",ui-monospace,monospace!important}
+h1,h2,h3,.logo{font-family:Unbounded,sans-serif;letter-spacing:-.02em}
+h1{font-size:clamp(40px,7vw,96px);line-height:.98;font-weight:800}
+h2{font-size:clamp(30px,4.4vw,56px);line-height:1.04;font-weight:600}
+h3{font-weight:600}
+h1 span,h1 .num,h1 b,h1 em{background:linear-gradient(100deg,var(--green),var(--blue) 45%,var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent!important;font-style:normal}
+
+/* фон: частицы + свет за курсором (canvas добавляет skin-2035.js) */
+#wt-field{position:fixed;inset:0;z-index:0;pointer-events:none}
+#wt-glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(600px 600px at var(--mx) var(--my),rgba(92,200,255,.09),transparent 60%)}
+section,footer{position:relative;z-index:1;background:transparent!important;border-bottom:0!important}
+section{padding:110px 0}
+.hero{padding:150px 0 100px}
+
+/* шапка — плавающий стеклянный остров */
+header{top:14px;background:transparent!important;border:0!important;backdrop-filter:none!important;pointer-events:none}
+header .wrap{pointer-events:auto;max-width:1180px;height:60px;padding:0 10px 0 20px;border-radius:99px;background:rgba(10,14,24,.62);
+  backdrop-filter:blur(18px) saturate(1.6);-webkit-backdrop-filter:blur(18px) saturate(1.6);border:1px solid var(--line);box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.logo{font-size:15px}.logo i{border-radius:50%;width:12px;height:12px;font-size:0;box-shadow:0 0 12px var(--green);animation:wt-pulse 2.4s infinite}
+nav a{padding:6px 10px;border-radius:99px}nav a:hover{background:rgba(255,255,255,.05)}
+@keyframes wt-pulse{50%{opacity:.35}}
+
+/* стекло */
+.card,details,.node,.warn,.risk,.flow span,input{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.card{border-radius:26px;padding:28px;position:relative;transition:transform .25s ease,border-color .25s;transform-style:preserve-3d}
+.card::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;pointer-events:none;
+  background:conic-gradient(from var(--a),transparent 70%,var(--blue),var(--green),transparent);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .3s}
+.card:hover::before{opacity:1;animation:wt-spin 3s linear infinite}
+@keyframes wt-spin{to{--a:360deg}}
+.card.hl{box-shadow:0 0 0 1px rgba(55,229,160,.25) inset,0 30px 90px -40px rgba(55,229,160,.5)}
+.kpi b{background:linear-gradient(100deg,var(--green),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent;font-size:34px}
+details{border-radius:18px}
+.donut::after{background:#070a12}
+
+/* кнопки */
+.btn{border-radius:16px;padding:13px 22px;transition:transform .2s,box-shadow .2s;box-shadow:0 0 0 1px rgba(55,229,160,.4),0 18px 50px -12px rgba(55,229,160,.55)}
+.btn:hover{transform:translateY(-2px)}
+.btn.ghost{background:var(--panel);box-shadow:none;backdrop-filter:blur(10px)}
+header .btn{border-radius:99px;padding:9px 18px;font-size:14px}
+
+/* таблицы */
+th{font-family:"JetBrains Mono",monospace;text-transform:uppercase;letter-spacing:.08em;font-size:11.5px}
+tbody tr{transition:background .2s}tbody tr:hover{background:rgba(92,200,255,.05)}
+
+/* появление при скролле */
+.wt-rv{opacity:0;transform:translateY(28px);transition:opacity .8s,transform .8s cubic-bezier(.2,.7,.2,1)}
+.wt-rv.in{opacity:1;transform:none}
+
+@media (max-width:900px){header .wrap{border-radius:22px}.hero{padding-top:120px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.wt-rv{opacity:1;transform:none}}
