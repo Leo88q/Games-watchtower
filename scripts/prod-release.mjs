@@ -266,7 +266,7 @@ function processRepo(repo) {
   }
 
   // 5 · Программы.
-  if (repo === HUB) { hubContractStatus(repo); return }
+  if (repo === HUB) { hubContractStatus(repo); dockerStage(repo, sha); return }
   const workspaces = findAnchorWorkspace(dir)
   if (!workspaces.length) {
     warn('Anchor-воркспейс не найден (нет Anchor.toml в 3 уровнях) — программы не собираются')
@@ -307,17 +307,20 @@ function processRepo(repo) {
     deployStage(repo, ws, rel, ids)
   }
 
-  // 6 · Образ — только хаб.
-  if (repo === HUB) {
-    if (!DOCKER) { warn('docker пропущен (--docker=0)'); record(repo, 'docker', 'skip', '--docker=0') }
-    else if (spawnSync('/bin/sh', ['-c', 'docker info >/dev/null 2>&1'], { encoding: 'utf8', timeout: 20000 }).status !== 0) {
-      warn('docker-демон не отвечает — включите Docker Desktop и повторите (или --docker=0)')
-      record(repo, 'docker', 'warn', 'демон недоступен')
-    } else {
-      exec(repo, 'docker build + тег :current',
-        `docker build -q -t "watchtower-os:${sha}" . && docker tag "watchtower-os:${sha}" watchtower-os:current`)
-    }
+}
+
+/** Образ хаба: тег = SHA коммита, плюс :current для отката на предыдущий. */
+function dockerStage(repo, sha) {
+  if (!DOCKER) { warn('docker пропущен (--docker=0)'); record(repo, 'docker', 'skip', '--docker=0'); return }
+  const alive = spawnSync('/bin/sh', ['-c', 'docker info >/dev/null 2>&1'], { encoding: 'utf8', timeout: 20000 }).status === 0
+  if (!alive) {
+    warn('docker-демон не отвечает — включите Docker Desktop и повторите (или --docker=0)')
+    record(repo, 'docker', 'warn', 'демон недоступен')
+    return
   }
+  const built = exec(repo, 'docker build + тег :current',
+    `docker build -q -t "watchtower-os:${sha}" . && docker tag "watchtower-os:${sha}" watchtower-os:current`)
+  if (built.ok) ok(`образ: watchtower-os:${sha} → :current; запуск: docker run -d --name watchtower -p 8787:8787 --env-file .env -v watchtower-data:/app/data watchtower-os:${sha}`)
 }
 
 /**
