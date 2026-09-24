@@ -10,6 +10,17 @@
 - RU: `Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}`
 - EN: `Ad. Not financial advice. You can lose everything. White paper: {WP}`
 
+## Картинки (`x-cards/`, 1600×900, `-ru`/`-en`)
+Пересборка после правки цифр на лендинге: `python3 token-landing/x-cards/render.py` (нужен Pillow).
+
+| Пост | Карточка |
+|---|---|
+| 1, 2 | `1-tree` |
+| 4 | `2-alloc` |
+| 5, 8 | `3-rounds` |
+| 4 (3/3), 10 | `4-profit` |
+| 6 | `5-hardware` |
+
 ---
 
 ## Неделя 1 — «Что мы строим» (без цен)
