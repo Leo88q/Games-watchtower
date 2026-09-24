@@ -1,6 +1,8 @@
 /**
  * StealthSDK — framework for development AI-games on Solana with own ecosystem token STEALTH for building centralized game economy
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const STEALTHSDK_CONFIG = {
   sdk: 'stealthsdk',
   type: 'framework AI-games',
@@ -34,5 +36,6 @@ export function stealthsdkSetup({ gameId = 'generic' } = {}) {
 }
 
 export function stealthsdkHealth() {
-  return { configured: true, sdk: STEALTHSDK_CONFIG.sdk, free: true, bestFree: true, category: 'ai-agents', token: 'STEALTH' }
+  return { configured: dependencyInstalled('stealthsdk'),
+    configurationReason: 'Пакет stealthsdk не установлен', sdk: STEALTHSDK_CONFIG.sdk, free: true, bestFree: true, category: 'ai-agents', token: 'STEALTH' }
 }

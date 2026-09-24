@@ -1,3 +1,4 @@
+import { esc, escJson } from './escape.js'
 /**
  * Watchtower OS v3 — Панель управления для каждой функции
  * Что умеет наше SDK и что внедряем в игры (ares1, aof, neonrelay, guttercaps)
@@ -284,7 +285,7 @@ export const CONTROL_PANELS = [
         'Unity Solana.Unity-SDK com.solana.unity-sdk NFT RPC Candy Machine Phantom deep links WebGL MWA Session Keys из коробки + Preset Unity client scaffold + Core Attributes on-chain key-value readable programs — best free Unity',
         'Godot godot-solana-sdk GDExtension 4.3+ nodes SolanaClient Keypair SPLToken CandyMachine AnchorProgram WalletAdapter Candy Machine SPL builders session keys analog temporary keypair 0.01 SOL warning no audit mainnet caution repo Virus-Axel/godot-solana-sdk — best free Godot detailed',
         'Unreal VAR META open SDK + Bifrost C# Solnet C++ Blueprints Metaplex NFT minting in-game payments platforms Windows macOS iOS Android — best free Unreal',
-        'Turbo Turbo.Computer Rust lightweight full RPC AI tools generation Solana native http://Turbo.Computer — best free Rust engine',
+        'Turbo Turbo.Computer Rust lightweight full RPC AI tools generation Solana native — публичного эндпоинта нет, адрес задаёт оператор',
         'Web @solana/web3.js @solana/kit @solana/wallet-adapter @privy-io/react-auth @phantom/connect-kit + Gamba @gamba-labs/gamba-react UI provably fair + Husks @bytez3/husks-sdk AI autobattler + RitArena ritarena-sdk AI arena lifecycle retry events best free arena + relayzero relayzero-sdk agent economy + StealthSDK stealthsdk framework token STEALTH + RACE @race-foundation/sdk-solana multichain + @idosgames/wallet bridge EVM Solana RewardPool + Xandeum @xandeum/sdk scalable storage + PST @private-state-toolkit/sdk private verifiable + Core Attributes @metaplex-foundation/mpl-core on-chain key-value + Access Protocol @access-protocol/sdk stake-to-access + Security Auditing Skill + Sentio @sentio/cli + SolGuard solguard + SLAM solana-slam + Arcium @arcium/sdk confidential rollups — best free Web ideal stack',
         'Gamba SDK gamba-labs/gamba monorepo betting casino core React hooks UI framework provably fair house edge 5% jackpot server seed client seed nonce verifiable random hooks useGamba usePlay useWager UI GambaUi WagerInput GameResult Jackpot repo gamba-labs/gamba useFor GUTTERCAPS wager PvP Neon Relay prize pools AOF crafting gamble ARES-1 betting — best free betting',
         'Preset solana-developers/solana-game-preset npx create-solana-game templates farming racing casual strategy autobattler arena includes Anchor program Player score JS client Unity client IDL for Watchtower parser repo solana-developers/solana-game-preset useFor rapid prototyping scaffold Anchor Player score + JS Unity clients IDL for Watchtower parser extend studio_profile PDA session_keys cNFT L2 analytics solana_wallet — best free official scaffold, create-solana-game duplicate deprecated use preset + Solana SLAM LiteSVM Anchor Mocha best free testing',
@@ -597,13 +598,13 @@ export function renderControlPanels(container, osData = {}) {
           <h2>🎛️ Панель управления Watchtower OS v3 — 33 компонента ideal free stack</h2>
           <p>Что умеет наше SDK и что внедряем в игры (ares1, aof, neonrelay, guttercaps) — идеальный бесплатный стек без мусорки, дедуплицированный, лучший бесплатный для каждого действия</p>
         </div>
-        <span class="status-pill healthy"><i></i>OS v${config.version || '3.0.0'} — ${totalComponents} components — 19 layers — ideal free stack — duplicates deprecated: create-solana-game vs preset, Aureus vs RitArena, SolGuard vs SolShield</span>
+        <span class="status-pill healthy"><i></i>OS v${esc(config.version || '3.0.0')} — ${esc(totalComponents)} components — 19 layers — ideal free stack — duplicates deprecated: create-solana-game vs preset, Aureus vs RitArena, SolGuard vs SolShield</span>
       </div>
 
       <div style="margin-bottom:16px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px;">
         <div class="os-card" style="padding:12px;">
           <h3>📊 Всего компонентов</h3>
-          <b style="font-size:24px;">${totalComponents}</b>
+          <b style="font-size:24px;">${esc(totalComponents)}</b>
           <small>v1 8 layers + v2 12 products + v3 13 best free ideal stack deduplicated</small>
         </div>
         <div class="os-card" style="padding:12px;">
@@ -867,7 +868,7 @@ export function renderControlPanels(container, osData = {}) {
 
       <div style="margin-top:16px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
         <div class="os-mono">API Routes v3 33 components ideal free stack deduplicated best free per category not garbage:
-${JSON.stringify([
+${esc(JSON.stringify([
           "/api/os/config v3 33 components ideal free stack duplicates deprecated: create-solana-game vs preset best free preset official, Aureus vs RitArena best free RitArena lifecycle retry events, SolGuard vs SolShield best free SolGuard more established",
           "/api/os/health 19 layers",
           "/api/identity/* best free Privy Phantom FirstStep Altude Session Keys 0.01 SOL",
@@ -893,18 +894,18 @@ ${JSON.stringify([
           "/api/health watchtower-os-v3 osVersion 3.0.0 totalComponents 33 idealFreeStack best free per category not garbage deduplicated",
           "/api/readyz",
           "POST /api/ingest/solana solana_wallet external_id Late ID Binding"
-        ], null, 2)}</div>
+        ], null, 2))}</div>
         <div class="os-mono">Health v3 ideal free stack:
-${JSON.stringify(health?.summary || health || {}, null, 2).slice(0,1500)}
+${esc(JSON.stringify(health?.summary || health || {}, null, 2).slice(0,1500))}
 
 Architecture v1 7 steps + v2 7 steps + v3 6 steps ideal free = 20 steps:
-${JSON.stringify([...(arch.v1Steps||[]).map(s=>s.layer), ...(arch.v2Steps||[]).map(s=>s.layer), ...(arch.v3Steps||[]).map(s=>s.layer)], null, 2).slice(0,1500)}
+${esc(JSON.stringify([...(arch.v1Steps||[]).map(s=>s.layer), ...(arch.v2Steps||[]).map(s=>s.layer), ...(arch.v3Steps||[]).map(s=>s.layer)], null, 2).slice(0,1500))}
 
 Duplicates deprecated best free:
-${JSON.stringify(duplicates, null, 2).slice(0,1000)}
+${esc(JSON.stringify(duplicates, null, 2).slice(0,1000))}
 
 Ideal free per category:
-${JSON.stringify(v3Ideal.idealFreePerCategory || {}, null, 2).slice(0,1500)}</div>
+${esc(JSON.stringify(v3Ideal.idealFreePerCategory || {}, null, 2).slice(0,1500))}</div>
       </div>
 
       <div style="margin-top:16px;" class="os-mono">Security v3 ideal free: noPrivateKeys readOnly blockchain_writes_enabled 0 pseudonymous playerKey consent/opt-out Godot no audit mainnet caution Helika AI focus backup ME deprecated cNFT Tensor primary Session Keys 0.01 SOL risk only topUp scope denied withdraw_treasury RBAC 2FA multisig timelock audit log rollback + Best free security Security Auditing Skill AI instructions systematic audit + Sentio CLI AST scanner static + SolGuard AI auto audit 130+ patterns chosen over SolShield duplicate + Best free testing Solana SLAM LiteSVM Anchor Mocha + Preset official scaffold create-solana-game duplicate deprecated + Best free storage Xandeum exabyte scalable + PST private verifiable + Core Attributes on-chain key-value + Best free privacy PST private verifiable + Arcium confidential rollups + Best free monetization Access Protocol stake-to-access + @idosgames/wallet bridge EVM Solana RewardPool + Best free AI agents Husks INT8 + RitArena lifecycle retry events best free chosen over Aureus + relayzero agent economy + StealthSDK framework token STEALTH + Best free cross-chain RACE multichain + idosgames bridge + Best free L2 Sonic HyperGrid + MagicBlock ER sub-10ms + REPLA L3 + Arcium confidential privacy + Best free assets cNFT $110/M + Core Attributes on-chain key-value + Xandeum exabyte scalable — ideal free per category not garbage deduplicated ENV names without values WATCHTOWER_INTEGRATION.md game_id program_ids CgInv SessKeys STrEaSuRy + game program network stage prototype data_quality partial last_verified_at</div>
@@ -935,11 +936,11 @@ export function renderOSPanel(container, osData) {
 
   oldPanel.innerHTML = `
     <section class="panel" style="margin-top:8px;">
-      <div class="panel-head"><div><h2>Watchtower OS v3 — Краткий обзор 33 компонента</h2><p>7 слоёв v1 + 12 продуктов v2 + 13 лучших бесплатных v3 ideal free stack deduplicated</p></div><span class="status-pill healthy"><i></i>OS v${config.version || '3.0.0'} — ${totalComponents} components</span></div>
+      <div class="panel-head"><div><h2>Watchtower OS v3 — Краткий обзор 33 компонента</h2><p>7 слоёв v1 + 12 продуктов v2 + 13 лучших бесплатных v3 ideal free stack deduplicated</p></div><span class="status-pill healthy"><i></i>OS v${esc(config.version || '3.0.0')} — ${esc(totalComponents)} components</span></div>
       <div class="os-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:12px; margin-top:12px;">
-        ${Object.keys(layers).map(k=>`<div class="os-card" style="padding:10px;"><h3>${k}</h3><small>${JSON.stringify(layers[k]?.idealFreeStack || layers[k]?.layer || k).slice(0,200)}</small></div>`).join('')}
+        ${Object.keys(layers).map(k=>`<div class="os-card" style="padding:10px;"><h3>${esc(k)}</h3><small>${esc(JSON.stringify(layers[k]?.idealFreeStack || layers[k]?.layer || k).slice(0,200))}</small></div>`).join('')}
       </div>
-      <div style="margin-top:12px;" class="os-mono">Duplicates deprecated: ${JSON.stringify(v3Ideal.duplicates || config.duplicates || [], null, 2).slice(0,800)}</div>
+      <div style="margin-top:12px;" class="os-mono">Duplicates deprecated: ${esc(JSON.stringify(v3Ideal.duplicates || config.duplicates || [], null, 2).slice(0,800))}</div>
     </section>
   `
 

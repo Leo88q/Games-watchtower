@@ -17,7 +17,7 @@ export const GAMESIGHT_CONFIG = {
 export function gameSightConfig(env = process.env) {
   return {
     provider: 'gamesight',
-    apiKey: env.GAMESIGHT_API_KEY || null,
+    apiKeyConfigured: Boolean(env.GAMESIGHT_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     projectId: env.GAMESIGHT_PROJECT_ID || null,
     configured: Boolean(env.GAMESIGHT_API_KEY),
     endpoint: env.GAMESIGHT_ENDPOINT || 'https://api.gamesight.io',

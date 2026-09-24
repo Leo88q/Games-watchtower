@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      WATCHTOWER_PII_SALT: ci-salt-0123456789abcdef
+      WATCHTOWER_ALLOW_DEMO: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Установка зависимостей
+        run: npm ci --no-audit --no-fund
+      - name: Сборка интерфейса
+        run: npm run build
+      - name: Unit-тесты
+        run: npm run test:unit
+      - name: Интеграционные проверки API
+        run: npm run test:hardening
+      - name: Приватность игровых идентификаторов
+        run: npm run test:privacy
+      - name: Read-only инвариант
+        run: npm run test:readonly
+      - name: Согласованность документации и ENV
+        run: npm run test:docs
+      - name: DOM-проверка интерфейса (jsdom)
+        run: npm run test:ui
+      - name: Smoke-тест на живом сервере
+        run: |
+          node server/index.js & echo $! > /tmp/watchtower.pid
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/health >/dev/null && break; sleep 1; done
+          npm run test:smoke
+          kill "$(cat /tmp/watchtower.pid)"
+      - name: Мутационная проверка (гейт устойчивости математики)
+        run: npm run test:mutation
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Проверка сборки образа
+        run: docker build -t watchtower-os:ci .

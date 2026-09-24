@@ -5,6 +5,8 @@
  * Если хотите чтобы предметы или персонажи из одной игры легко использовались в другой, ARC — то что стоит изучить в первую очередь
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const ARC_CONFIG = {
   framework: 'ARC',
   repo: 'https://github.com/JumpCrypto/sol-arc',
@@ -152,7 +154,8 @@ export function arcHealth(env = process.env) {
     purpose: ARC_CONFIG.purpose,
     idealFor: ARC_CONFIG.idealFor,
     benefits: ['interoperability', 'composability', 'separation data/execution', 'studio-wide standard'],
-    configured: true,
+    configured: false,
+    configurationReason: 'Rust-крейт sol-arc в хаб не входит',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),

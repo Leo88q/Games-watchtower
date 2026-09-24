@@ -5,6 +5,8 @@
  * Интересно если хотите вынести часть игровых серверов в децентрализованную сеть
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const DEPIN_CONFIG = {
   project: 'DePIN for gaming workloads',
   repo: 'https://github.com/Beamable-Network/depin',
@@ -239,7 +241,8 @@ export function depinHealth(env = process.env) {
     type: DEPIN_CONFIG.type,
     programs: Object.keys(DEPIN_CONFIG.programs),
     benefits: Object.keys(DEPIN_CONFIG.benefits),
-    configured: true,
+    configured: false,
+    configurationReason: 'DePIN-интеграция не подключена',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),

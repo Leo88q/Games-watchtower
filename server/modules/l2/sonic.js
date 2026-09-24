@@ -82,7 +82,7 @@ export function sonicRushEcsConfig({ gameId } = {}) {
 export function sonicConfig(env = process.env) {
   return {
     provider: 'sonic-svm',
-    apiKey: env.SONIC_API_KEY || null,
+    apiKeyConfigured: Boolean(env.SONIC_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     configured: Boolean(env.SONIC_API_KEY),
     endpoints: SONIC_CONFIG.endpoints,
     components: {

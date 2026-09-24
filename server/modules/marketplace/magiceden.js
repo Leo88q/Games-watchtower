@@ -29,7 +29,7 @@ export const MAGIC_EDEN_CONFIG = {
 export function magicEdenConfig(env = process.env) {
   return {
     provider: 'magic-eden',
-    apiKey: env.MAGIC_EDEN_API_KEY || null,
+    apiKeyConfigured: Boolean(env.MAGIC_EDEN_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     configured: Boolean(env.MAGIC_EDEN_API_KEY),
     baseUrl: env.MAGIC_EDEN_BASE_URL || MAGIC_EDEN_CONFIG.baseUrl,
     rateLimit: MAGIC_EDEN_CONFIG.rateLimit,

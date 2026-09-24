@@ -38,20 +38,42 @@ node server/index.js   # один порт: API + интерфейс → http://
 - AI-панель с оценкой состояния экосистемы и объяснимыми инсайтами;
 - таблица игр с состояниями `Healthy / Watch / Critical`;
 - адаптивная тёмная панель управления;
-- интерактивные кнопки обновления, переходов и закрытия уведомления (пока mock-режим).
+- интерактивные кнопки обновления, переходов и закрытия уведомления; данные приходят из API, при отсутствии значений показывается «—», а не ноль.
 
 ## Запуск
 
+Разработка интерфейса (Vite, порт 5173) и API отдельно:
+
 ```bash
 npm install
-npm run dev
+npm run dev          # интерфейс
+npm run dev:api      # API на 8787 (read-маршруты открыты, пока не задан WATCHTOWER_READ_TOKEN)
 ```
 
-Сборка production:
+Локальный запуск с токенами — как в production:
 
 ```bash
-npm run build
+export WATCHTOWER_INGEST_TOKEN=$(openssl rand -hex 32)   # приём событий (write)
+export WATCHTOWER_READ_TOKEN=$(openssl rand -hex 32)     # чтение /api/*
+export WATCHTOWER_PII_SALT=$(openssl rand -hex 16)       # псевдонимизация игроков
+node server/index.js
 ```
+
+Production:
+
+```bash
+npm ci && npm run build
+NODE_ENV=production node server/index.js    # без секретов приёма сервер не стартует: fail-fast
+```
+
+Контейнер (сборка интерфейса + API, non-root, healthcheck, graceful shutdown):
+
+```bash
+docker build -t watchtower-os .
+docker run -p 8787:8787 --env-file .env -v watchtower-data:/app/data watchtower-os
+```
+
+Эксплуатация, ротация секретов, алерты и разбор инцидентов — `docs/OPERATIONS.md`.
 
 Независимый аудит — `prompts/audit/`:
 
@@ -63,13 +85,21 @@ npm run build
 | `PROMPT_AUDIT_FULL_STACK_V2.md` | вся экосистема (7 репозиториев), актуальная версия: к v1 добавлены домены монетизации (§4.M) и эмитентов ценности, мультисиг/таймлок и mint-власти, честность RNG/гачи, стресс-тест масштаба 1×/10×/100×/1000× |
 | `README_AUDIT.md` | протокол запуска (7 сессий + консолидатор) и общие правила для аудитора |
 
-Проверки:
+Проверки (все запускаются в CI — `.github/workflows/ci.yml`):
 
 ```bash
-npm run test:smoke                 # контракт API и safety-гейты
-npm run test:economy               # 13 тестов экономических метрик
-npm run ecosystem:target           # фактические уровни L0..L4 по tenant'ам
-npm run ecosystem:target:strict    # гейт: покрытие L3+ не ниже цели (сейчас падает — это честно)
+npm run test                # unit + интеграционные + приватность + read-only + docs + DOM-прогон интерфейса
+npm run test:unit           # математика экономических метрик (золотые значения)
+npm run test:hardening      # контракт API на живом сервере: auth, лимиты, retention, заголовки
+npm run test:privacy        # псевдонимизация игроков и удаление по запросу
+npm run test:readonly       # инвариант «хаб не пишет в блокчейн» по коду и зависимостям
+npm run test:docs           # числа/ENV в документации против рантайма
+npm run test:ui             # интерфейс в jsdom: экраны, карточка покрытия метрик, «—» вместо нулей
+npm run test:smoke          # дымовой прогон на запущенном сервере (нужны токены)
+npm run test:economy        # синоним test:unit для экономического движка
+npm run test:mutation       # мутационная проверка тестов (порог 0.8, гейт G3)
+npm run verify              # всё вышеперечисленное + сборка
+npm run ecosystem:target    # фактические уровни L0..L4 по tenant'ам
 ```
 
 ## Предлагаемая архитектура продукта
@@ -97,6 +127,11 @@ npm run ecosystem:target:strict    # гейт: покрытие L3+ не ниж�
 - `docs/integrations/aof.md` — read-only контракт для Age of Farming (AOF), с явной маркировкой неполных данных.
 - `docs/integrations/neon-relay.md` — read-only контракт для Neon Relay с разделением game server, backend и Solana data planes.
 - `docs/integrations/guttercaps.md` — read-only контракт для GUTTERCAPS с on-chain инвариантами, индексатором и антифродом.
+- `server/contracts/` — Anchor-программы студии (`cross_game_inventory`, `studio_treasury`, `session_keys`).
+  Это **спецификация с проверяемыми инвариантами, а не задеплоенный код**: toolchain в репозитории нет,
+  адреса-константы выдаёт деплой, хаб их не вызывает (`writes: false`). Детали — `server/contracts/README.md`.
+- `docs/INTERWEAVING_STATUS.md` — честный статус переплетения: что работает (измерение), что нет
+  (игровая механика «предмет из другой игры»), три уровня реализации и требования к ним.
 - `docs/INTEGRATION_TRAFFICGEN.md` — интеграция off-chain генератора трафика **TalkChart** (адаптер `trafficgen`, event envelope, pull/push ingestion, `/api/analytics/traffic`, UI-раздел «Трафик / Acquisition»); исходный контракт — `PROMPT_TRAFFIC_GENERATOR_INTEGRATION.md`.
 
 ### Этап 3 — интеграции и безопасность
@@ -109,4 +144,7 @@ npm run ecosystem:target:strict    # гейт: покрытие L3+ не ниж�
 
 ## Следующий шаг
 
-Текущий UI использует демонстрационные данные. Для подключения реальных игр нужно зафиксировать для каждой из 4 игр список источников данных/API, доступные административные действия, набор токенов/активов и желаемые каналы уведомлений. После этого можно реализовать backend-контракт и заменить mock-слой без переделки панели.
+Интерфейс читает живой read-model хаба: значения считаются по событиям event-inbox, а не подставляются на клиенте.
+Синтетический поток доступен только по `?demo=1` и помечен `DEMO DATA` (в production выключен флагом `WATCHTOWER_ALLOW_DEMO`).
+Для подключения реальных игр нужно зафиксировать для каждой игры источники данных/API, административные действия,
+набор токенов и каналы уведомлений — затем передать события на `POST /api/ingest/solana` по контракту `docs/GAME_ADAPTERS.md`.

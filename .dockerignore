@@ -1,0 +1,14 @@
+# Контекст сборки: ничего лишнего и ничего секретного.
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+data
+coverage
+*.log
+audit-*
+reports/*.tmp
+prompts

@@ -5,6 +5,8 @@
  * Если используете AI в разработке это может ускорить генерацию корректного кода
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const CLAUDE_SKILL_CONFIG = {
   skill: 'Solana Game Skill for Claude Code',
   repo: 'https://github.com/solanabr/solana-game-skill',
@@ -184,7 +186,8 @@ export function claudeSkillHealth(env = process.env) {
     purpose: CLAUDE_SKILL_CONFIG.purpose,
     patterns: Object.keys(CLAUDE_SKILL_CONFIG.patterns),
     benefit: CLAUDE_SKILL_CONFIG.benefit,
-    configured: true,
+    configured: false,
+    configurationReason: 'Скилл не входит в зависимости хаба',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),

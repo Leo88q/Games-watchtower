@@ -2,10 +2,12 @@
  * Turbo.Computer (Rust) — лёгкий движок с полной поддержкой RPC и AI-инструментами для генерации игр
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const TURBO_SDK_CONFIG = {
   engine: 'turbo',
   language: 'Rust',
-  url: 'http://Turbo.Computer',
+  url: null, // публичного HTTPS-эндпоинта нет; адрес задаёт оператор через конфигурацию
   features: {
     lightweight: true,
     fullRpcSupport: true,
@@ -65,7 +67,8 @@ export function turboHealth(env = process.env) {
     engine: 'turbo',
     sdk: 'Turbo.Computer',
     language: 'Rust',
-    configured: true,
+    configured: false,
+    configurationReason: 'Turbo CLI не входит в зависимости хаба',
     features: TURBO_SDK_CONFIG.features,
     writes: false,
     dataQuality: 'partial',

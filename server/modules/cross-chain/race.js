@@ -4,6 +4,8 @@
  * Если в планах есть экспансия за пределы Solana, это готовый слой для мультичейн-абстракции
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const RACE_PROTOCOL_CONFIG = {
   protocol: 'RACE Protocol',
   repo: 'https://github.com/race-6/race',
@@ -213,7 +215,8 @@ export function raceHealth(env = process.env) {
     purpose: RACE_PROTOCOL_CONFIG.purpose,
     components: Object.keys(RACE_PROTOCOL_CONFIG.components),
     features: Object.keys(RACE_PROTOCOL_CONFIG.features),
-    configured: true,
+    configured: false,
+    configurationReason: 'RACE SDK не установлен',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),

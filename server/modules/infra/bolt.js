@@ -3,6 +3,8 @@
  * Подходит для игр где вся логика должна быть прозрачной и проверяемой, без доверия к серверу
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const BOLT_CONFIG = {
   framework: 'Bolt',
   repo: 'https://github.com/magicblock-labs/bolt',
@@ -208,7 +210,8 @@ export function boltHealth(env = process.env) {
     keyIdea: BOLT_CONFIG.keyIdea,
     features: BOLT_CONFIG.features,
     benefits: ['fullyOnChain', 'highPerformance', 'autonomousWorlds', 'verifiable', 'magicBlock', 'arcCompatible'],
-    configured: true,
+    configured: false,
+    configurationReason: 'Rust-крейт bolt в хаб не входит',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),

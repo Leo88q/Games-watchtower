@@ -28,7 +28,7 @@ export const LASERSTREAM_CONFIG = {
 export function laserStreamGrpcConfig(env = process.env) {
   return {
     provider: 'helius-laserstream',
-    apiKey: env.HELIUS_API_KEY || null,
+    apiKeyConfigured: Boolean(env.HELIUS_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     configured: Boolean(env.HELIUS_API_KEY),
     endpoint: env.HELIUS_LASERSTREAM_ENDPOINT || LASERSTREAM_CONFIG.endpoints.grpc,
     websocketEndpoint: env.HELIUS_RPC_URL || LASERSTREAM_CONFIG.endpoints.websocket,
@@ -62,7 +62,7 @@ export function laserStreamGrpcConfig(env = process.env) {
 export function laserStreamWebSocketConfig(env = process.env) {
   return {
     provider: 'helius-websocket',
-    apiKey: env.HELIUS_API_KEY || null,
+    apiKeyConfigured: Boolean(env.HELIUS_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     configured: Boolean(env.HELIUS_API_KEY),
     endpoint: env.HELIUS_RPC_URL || LASERSTREAM_CONFIG.endpoints.websocket,
     suitableFor: 'UI и real-time приложения',
@@ -74,9 +74,11 @@ export function laserStreamWebSocketConfig(env = process.env) {
 export function heliusDasConfig(env = process.env) {
   return {
     provider: 'helius-das',
-    apiKey: env.HELIUS_API_KEY || null,
+    // Значение ключа не возвращается наружу ни в каком виде: только факт его наличия.
+    apiKeyConfigured: Boolean(env.HELIUS_API_KEY),
     configured: Boolean(env.HELIUS_API_KEY),
-    endpoint: env.HELIUS_API_KEY ? `https://mainnet.helius-rpc.com/?api-key=${env.HELIUS_API_KEY}` : null,
+    // Ключ никогда не собирается в URL: URL с секретом попадает в логи, ответы и скриншоты.
+    endpointTemplate: 'https://mainnet.helius-rpc.com/?api-key=<HELIUS_API_KEY>',
     methods: ['getAssetsByOwner', 'getAsset', 'getAssetsByGroup', 'searchAssets'],
     purpose: 'Нормализация метаданных NFT/cNFT, критично для Watchtower',
     writes: false,
@@ -86,7 +88,7 @@ export function heliusDasConfig(env = process.env) {
 export function heliusPriorityFeeConfig(env = process.env) {
   return {
     provider: 'helius-priority-fee',
-    apiKey: env.HELIUS_API_KEY || null,
+    apiKeyConfigured: Boolean(env.HELIUS_API_KEY),
     configured: Boolean(env.HELIUS_API_KEY),
     endpoint: LASERSTREAM_CONFIG.endpoints.priorityFee,
     purpose: 'Динамические priority fees для игровых транзакций',
@@ -97,7 +99,7 @@ export function heliusPriorityFeeConfig(env = process.env) {
 export function heliusWebhookConfig(env = process.env) {
   return {
     provider: 'helius-webhook',
-    apiKey: env.HELIUS_API_KEY || null,
+    apiKeyConfigured: Boolean(env.HELIUS_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     configured: Boolean(env.HELIUS_API_KEY && env.HELIUS_WEBHOOK_ID),
     webhookId: env.HELIUS_WEBHOOK_ID || null,
     types: ['account', 'transaction'],

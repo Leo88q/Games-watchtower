@@ -1,6 +1,8 @@
 /**
  * Access Protocol — integrates into game ecosystem Solana model stake-to-access (staking for access). Gives developers and communities new way to generate sustainable income
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const ACCESS_PROTOCOL_CONFIG = {
   protocol: 'access-protocol',
   type: 'stake-to-access',
@@ -31,5 +33,6 @@ export function accessProtocolSetup({ gameId = 'generic' } = {}) {
 }
 
 export function accessProtocolHealth() {
-  return { configured: true, protocol: ACCESS_PROTOCOL_CONFIG.protocol, free: true, bestFree: true, category: 'monetization' }
+  return { configured: dependencyInstalled('@access-protocol/sdk'),
+    configurationReason: 'Пакет @access-protocol/sdk не установлен', protocol: ACCESS_PROTOCOL_CONFIG.protocol, free: true, bestFree: true, category: 'monetization' }
 }

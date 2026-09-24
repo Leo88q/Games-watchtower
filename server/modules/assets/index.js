@@ -2,6 +2,8 @@
  * Assets Layer — cNFT + Standard NFT unified
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 import { cnftCollectionConfig, cnftMintPayload, cnftMarketplaceAdapter, cnftHealth, CNFT_CONFIG } from './cnft.js'
 import { standardNftCollection, assetStrategy, STANDARD_NFT_CONFIG } from './standard.js'
 
@@ -30,7 +32,8 @@ export function assetsHealth(env = process.env) {
     cnft: cnftHealth(env),
     standard: {
       program: STANDARD_NFT_CONFIG.programId,
-      configured: true,
+      configured: dependencyInstalled('@metaplex-foundation/mpl-bubblegum'),
+    configurationReason: 'Пакет @metaplex-foundation/mpl-bubblegum не установлен',
       dataQuality: 'partial',
     },
     strategy: {

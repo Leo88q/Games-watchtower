@@ -45,6 +45,7 @@ pub mod cross_game_inventory {
             added_at: Clock::get()?.unix_timestamp,
             used_in_games: Vec::new(),
         };
+        require!(profile.cross_game_items.len() < MAX_CROSS_GAME_ITEMS, ErrorCode::ProfileFull);
         profile.cross_game_items.push(item);
         Ok(())
     }
@@ -72,7 +73,8 @@ pub mod cross_game_inventory {
     /// Обновить количество игр — для аналитики Helika/GameSight
     pub fn increment_games_played(ctx: Context<UpdateProfile>) -> Result<()> {
         let profile = &mut ctx.accounts.profile;
-        profile.total_games_played += 1;
+        require!(profile.owner == ctx.accounts.owner.key(), ErrorCode::Unauthorized);
+        profile.total_games_played = profile.total_games_played.checked_add(1).ok_or(ErrorCode::MathOverflow)?;
         Ok(())
     }
 }
@@ -83,7 +85,7 @@ pub struct CreateProfile<'info> {
     #[account(
         init,
         payer = owner,
-        space = 8 + 32 + 32 + 8 + 4 + (4 + 100 * 10) + 1 + 8,
+        space = profile_space(),
         seeds = [b"studio_profile", owner.key().as_ref()],
         bump
     )]
@@ -91,6 +93,19 @@ pub struct CreateProfile<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+/// Предел числа кросс-игровых предметов: задаёт расчёт space (см. PROFILE_SPACE).
+pub const MAX_CROSS_GAME_ITEMS: usize = 20;
+
+fn cross_game_item_space() -> usize {
+    // asset_id(32) + 3 строки по 4+max_len + is_cnft(1) + added_at(8) + used_in_games(4 + 4*max_len)
+    32 + (4 + 32) * 3 + 1 + 8 + (4 + 4 * 32)
+}
+
+/// Точный размер аккаунта: 8 discriminator + поля + вектор предметов.
+pub fn profile_space() -> usize {
+    8 + 32 + (4 + 32) + 8 + 8 + (4 + MAX_CROSS_GAME_ITEMS * cross_game_item_space()) + 1
 }
 
 #[derive(Accounts)]
@@ -129,9 +144,11 @@ pub struct UpdateProfile<'info> {
 #[account]
 pub struct StudioProfile {
     pub owner: Pubkey, // wallet address — Privy/Phantom/FirstStep unified
+    #[max_len(32)]
     pub game_id: String, // first game
     pub created_at: i64,
     pub total_games_played: u64,
+    #[max_len(20)]
     pub cross_game_items: Vec<CrossGameItem>,
     pub bump: u8,
 }
@@ -139,11 +156,15 @@ pub struct StudioProfile {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct CrossGameItem {
     pub asset_id: Pubkey, // cNFT assetId or standard NFT mint
+    #[max_len(32)]
     pub source_game: String,
+    #[max_len(32)]
     pub item_type: String,
+    #[max_len(32)]
     pub rarity: String,
     pub is_cnft: bool, // true = cNFT (mass), false = standard (rare)
     pub added_at: i64,
+    #[max_len(4, 32)]
     pub used_in_games: Vec<String>, // games where item was used
 }
 
@@ -153,4 +174,8 @@ pub enum ErrorCode {
     Unauthorized,
     #[msg("Item not found in profile")]
     ItemNotFound,
+    #[msg("Profile holds the maximum number of cross-game items")]
+    ProfileFull,
+    #[msg("Math overflow")]
+    MathOverflow,
 }

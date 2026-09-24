@@ -1,6 +1,8 @@
 /**
  * Metaplex Core Attributes Plugin — allows storing game stats and characteristics as key-value directly on-chain in NFT. Data can be read by Solana programs and indexed via DAS
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const CORE_ATTRIBUTES_CONFIG = {
   project: 'metaplex-core-attributes-plugin',
   type: 'on-chain key-value in NFT',
@@ -33,5 +35,6 @@ export function coreAttributesSetup({ gameId = 'generic' } = {}) {
 }
 
 export function coreAttributesHealth() {
-  return { configured: true, project: CORE_ATTRIBUTES_CONFIG.project, free: true, bestFree: true, category: 'assets' }
+  return { configured: dependencyInstalled('@metaplex-foundation/mpl-core'),
+    configurationReason: 'Пакет @metaplex-foundation/mpl-core не установлен', project: CORE_ATTRIBUTES_CONFIG.project, free: true, bestFree: true, category: 'assets' }
 }

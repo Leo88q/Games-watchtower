@@ -1,6 +1,8 @@
 /**
  * SolGuard / SolShield — AI tools for automatic audit Solana smart contracts, checking 130+ vulnerability patterns (signer checks, rights bypass, flash-loan exploits)
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const SOLGUARD_CONFIG = {
   tool: 'solguard',
   alternatives: ['solshield'],
@@ -38,5 +40,6 @@ export function solguardSetup({ gameId = 'generic' } = {}) {
 }
 
 export function solguardHealth() {
-  return { configured: true, tool: SOLGUARD_CONFIG.tool, patterns: 130, free: true, bestFree: true, category: 'security' }
+  return { configured: false,
+    configurationReason: 'CLI SolGuard не установлен', tool: SOLGUARD_CONFIG.tool, patterns: 130, free: true, bestFree: true, category: 'security' }
 }

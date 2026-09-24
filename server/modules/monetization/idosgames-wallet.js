@@ -1,6 +1,8 @@
 /**
  * @idosgames/wallet — SDK for bridge between browser/mobile wallets (EVM and Solana) with ability to move tokens and NFTs into game and out. Includes custom Solana program RewardPool for deposits and withdrawals SPL tokens
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const IDOSGAMES_WALLET_CONFIG = {
   sdk: '@idosgames/wallet',
   type: 'bridge browser/mobile wallets EVM and Solana',
@@ -34,5 +36,6 @@ export function idosgamesWalletSetup({ gameId = 'generic' } = {}) {
 }
 
 export function idosgamesWalletHealth() {
-  return { configured: true, sdk: IDOSGAMES_WALLET_CONFIG.sdk, free: true, bestFree: true, category: 'payments bridge' }
+  return { configured: dependencyInstalled('@idosgames/wallet'),
+    configurationReason: 'Пакет @idosgames/wallet не установлен', sdk: IDOSGAMES_WALLET_CONFIG.sdk, free: true, bestFree: true, category: 'payments bridge' }
 }

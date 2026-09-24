@@ -98,9 +98,13 @@ export function listSessions({ walletAddress, gameId, status } = {}) {
   return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 }
 
+/**
+ * ВНИМАНИЕ: это НЕ подпись и НЕ отправка транзакции. Функция возвращает модель решения
+ * (scope/expiry/topup) для клиента; подпись выполняет SDK игры на стороне клиента.
+ * Ответ всегда содержит simulated: true, чтобы вызывающая сторона не считала транзакцию отправленной.
+ */
 export function signAndSendTransaction({ sessionToken, transaction, targetProgram } = {}) {
-  // This is a mock of what happens client-side in Unity SDK:
-  // sessionKeys.signAndSendTransaction подписывает транзакции, не раскрывая приватный ключ основного кошелька
+  // sessionKeys.signAndSendTransaction в Unity SDK подписывает транзакции, не раскрывая приватный ключ основного кошелька
   const session = getSession(sessionToken)
   if (!session) return { ok: false, error: 'session_not_found' }
   if (session.status !== 'active') return { ok: false, error: `session_${session.status}` }
@@ -110,6 +114,9 @@ export function signAndSendTransaction({ sessionToken, transaction, targetProgra
 
   return {
     ok: true,
+    simulated: true,
+    blockchainWrite: false,
+    note: 'Хаб не подписывает и не отправляет транзакции: ответ описывает, что сделал бы клиентский SDK.',
     sessionId: session.sessionId,
     temporaryPublicKey: session.temporaryPublicKey,
     walletAddress: session.walletAddress,
@@ -118,7 +125,7 @@ export function signAndSendTransaction({ sessionToken, transaction, targetProgra
       signedBy: 'session_key',
       mainWalletNotExposed: true,
       gasPaidFrom: 'session_topup',
-      topUpRemaining: session.topUpLamports - 5000, // mock fee
+      topUpRemaining: session.topUpLamports - 5000, // расчётная комиссия, не фактическая
     },
     transaction: transaction || 'base64_tx_placeholder',
     dataQuality: 'partial',
@@ -130,7 +137,8 @@ export function sessionKeysHealth(env = process.env) {
   const active = [...sessions.values()].filter(s => s.status === 'active').length
   return {
     layer: 'session-keys',
-    configured: true, // always available, no external dependency
+    configured: true, // реализация целиком в репозитории, внешних зависимостей нет
+    simulated: true,
     activeSessions: active,
     totalSessions: sessions.size,
     config: SESSION_KEYS_CONFIG,

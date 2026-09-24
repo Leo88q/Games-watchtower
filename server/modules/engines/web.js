@@ -2,6 +2,8 @@
  * Web/JS — @solana/web3.js, @solana/kit — база для браузерных игр и лендингов
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const WEB_SDK_CONFIG = {
   engine: 'web',
   packages: ['@solana/web3.js', '@solana/kit', '@solana/wallet-adapter', '@privy-io/react-auth', '@phantom/connect-kit'],
@@ -95,7 +97,8 @@ export function webHealth(env = process.env) {
   return {
     engine: 'web',
     packages: WEB_SDK_CONFIG.packages,
-    configured: true,
+    configured: dependencyInstalled('@solana/web3.js'),
+    configurationReason: 'Пакет @solana/web3.js не установлен в этом репозитории',
     features: WEB_SDK_CONFIG.features,
     writes: false,
     dataQuality: 'partial',

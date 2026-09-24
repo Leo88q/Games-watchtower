@@ -4,6 +4,8 @@
  * Готовый пример того как можно интегрировать AI-агентов в игровой процесс
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const HUSKS_SDK_CONFIG = {
   sdk: 'husks-sdk',
   repo: 'https://github.com/Bytez3/husks-sdk',
@@ -138,7 +140,8 @@ export function husksHealth(env = process.env) {
     purpose: HUSKS_SDK_CONFIG.purpose,
     features: Object.keys(HUSKS_SDK_CONFIG.features),
     example: HUSKS_SDK_CONFIG.example,
-    configured: true,
+    configured: dependencyInstalled('husks'),
+    configurationReason: 'Пакет husks не установлен',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),

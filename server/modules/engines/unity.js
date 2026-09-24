@@ -3,6 +3,8 @@
  * Поддерживает NFT, RPC, Candy Machine, Phantom deep links, WebGL, Mobile Wallet Adapter и сессионные ключи
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const UNITY_SDK_CONFIG = {
   engine: 'unity',
   sdk: 'Solana.Unity-SDK',
@@ -81,7 +83,8 @@ export function unityHealth(env = process.env) {
   return {
     engine: 'unity',
     sdk: UNITY_SDK_CONFIG.sdk,
-    configured: true, // SDK itself is always available, config depends on game
+    configured: false,
+    configurationReason: 'Unity-пакет (com.solana.unity-sdk) устанавливается в Unity-проект игры, а не в хаб', // SDK itself is always available, config depends on game
     platforms: UNITY_SDK_CONFIG.platforms,
     features: UNITY_SDK_CONFIG.features,
     integration: {

@@ -4,6 +4,8 @@
  * Analysis: solana-game-preset is official starter, includes Anchor JS Unity scaffold rapid prototyping, better free official. create-solana-game is similar template Jest Mocha Bankrun testing.
  * Ideal free stack picks solana-game-preset as scaffold (best free official) + Solana SLAM as testing framework (best free testing LiteSVM Anchor Mocha). Deprecate create-solana-game as duplicate.
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const CREATE_SOLANA_GAME_CONFIG = {
   template: 'create-solana-game',
   type: 'template quick start',
@@ -38,5 +40,6 @@ export function createSolanaGameSetup({ gameId = 'generic' } = {}) {
 }
 
 export function createSolanaGameHealth() {
-  return { configured: true, template: CREATE_SOLANA_GAME_CONFIG.template, free: true, duplicate: true, deprecated: true, bestFree: false, category: 'testing', recommendation: 'Use solana-game-preset + Solana SLAM instead' }
+  return { configured: false,
+    configurationReason: 'Пресет заменён на solana-game-preset', template: CREATE_SOLANA_GAME_CONFIG.template, free: true, duplicate: true, deprecated: true, bestFree: false, category: 'testing', recommendation: 'Use solana-game-preset + Solana SLAM instead' }
 }

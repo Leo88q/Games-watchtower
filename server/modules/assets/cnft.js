@@ -5,6 +5,8 @@
  * - Magic Eden прекращает индексацию новых cNFT — нужен Tensor и Bubblegum v2
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const CNFT_CONFIG = {
   // Bubblegum v2 is current standard
   programId: 'BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY', // Bubblegum
@@ -25,13 +27,20 @@ export const CNFT_CONFIG = {
 }
 
 export function cnftCollectionConfig({ collectionName, gameId, merkleTreeAddress, mccAddress, maxSupply = 1_000_000 } = {}) {
+  if (!collectionName || !gameId) {
+    return { ok: false, error: 'missing_required_fields: collectionName, gameId', writes: false, reason: 'Имя коллекции и gameId задаёт игра: хаб не придумывает их за неё' }
+  }
   return {
+    ok: true,
     collectionName,
     gameId,
     standard: 'cNFT',
     version: 'bubblegum-v2',
-    merkleTree: merkleTreeAddress || `mt_${gameId}_${Date.now()}`,
-    mcc: mccAddress || `mcc_${gameId}_${Date.now()}`, // Metaplex Certified Collection
+    // Адреса можно только объявить явно: Нельзя придумывать «похожий» адрес по времени — это ложный факт.
+    merkleTree: merkleTreeAddress || null,
+    mcc: mccAddress || null, // Metaplex Certified Collection
+    requiresOnChainAddresses: !(merkleTreeAddress && mccAddress),
+    reason: merkleTreeAddress && mccAddress ? null : 'Не переданы merkleTreeAddress и mccAddress: адреса выдаёт оператор после создания дерева и коллекции',
     maxSupply,
     estimatedCostUsd: (maxSupply / 1_000_000) * CNFT_CONFIG.economics.costPerMillion,
     storage: {
@@ -45,8 +54,10 @@ export function cnftCollectionConfig({ collectionName, gameId, merkleTreeAddress
       // Example for game items: common, rare, etc
       example: {
         name: `${collectionName} #123`,
-        symbol: gameId.toUpperCase(),
-        uri: `https://assets.${gameId}.watchtower.studio/metadata/123.json`,
+        symbol: String(gameId).toUpperCase(),
+        // URI метаданных выдаёт хранилище игры: у хаба нет «своего» домена ассетов.
+        uri: null,
+        uriRequiredFrom: 'игра/хранилище метаданных (arweave, shadow drive, irys)',
         collection: mccAddress,
         creators: [],
         uses: { useMethod: 'single', remaining: 1, total: 1 }, // for consumables
@@ -63,12 +74,15 @@ export function cnftCollectionConfig({ collectionName, gameId, merkleTreeAddress
 }
 
 export function cnftMintPayload({ merkleTree, mcc, owner, metadata, gameId } = {}) {
-  // This is what Unity/Godot/Unreal SDK would call
+  // Контракт вызова mintV2: адреса обязательны и приходят от оператора, а не «достраиваются» хабом.
+  const missing = ['merkleTree', 'mcc', 'owner', 'gameId'].filter((key) => !({ merkleTree, mcc, owner, gameId })[key])
+  if (missing.length) return { ok: false, error: `missing_required_fields: ${missing.join(', ')}`, writes: false }
   return {
+    ok: true,
     instruction: 'mintV2',
     program: CNFT_CONFIG.programId,
     accounts: {
-      merkleTree: merkleTree || `mt_${gameId}`,
+      merkleTree,
       treeAuthority: `auth_${merkleTree}`,
       leafOwner: owner,
       leafDelegate: owner,
@@ -139,7 +153,8 @@ export function cnftHealth(env = process.env) {
     bubblegumVersion: 'v2',
     economics: CNFT_CONFIG.economics,
     warnings: CNFT_CONFIG.warnings,
-    configured: true,
+    configured: dependencyInstalled('@metaplex-foundation/mpl-bubblegum'),
+    configurationReason: 'Пакет @metaplex-foundation/mpl-bubblegum не установлен',
     marketplaces: {
       tensor: cnftMarketplaceAdapter({ marketplace: 'tensor' }),
       magicEden: cnftMarketplaceAdapter({ marketplace: 'magic-eden' }),

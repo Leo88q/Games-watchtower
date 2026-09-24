@@ -1,6 +1,8 @@
 /**
  * Solana Security Auditing Skill — ready set of instructions for AI assistants (Claude) to systematically audit Anchor/Rust programs
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const SECURITY_AUDITING_SKILL_CONFIG = {
   skill: 'solana-security-auditing-skill',
   type: 'skill addon for Claude Code / AI assistants',
@@ -43,5 +45,6 @@ export function securityAuditingSkillSetup({ gameId = 'generic' } = {}) {
 }
 
 export function securityAuditingSkillHealth() {
-  return { configured: true, skill: SECURITY_AUDITING_SKILL_CONFIG.skill, free: true, bestFree: true, category: 'security' }
+  return { configured: false,
+    configurationReason: 'Скилл аудита не входит в зависимости хаба', skill: SECURITY_AUDITING_SKILL_CONFIG.skill, free: true, bestFree: true, category: 'security' }
 }

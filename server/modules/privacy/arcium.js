@@ -1,6 +1,8 @@
 /**
  * Arcium Rollups — mentioned in context gaming payments and architecture, offering solutions for confidential computing and rollups
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const ARCIUM_CONFIG = {
   project: 'arcium-rollups',
   type: 'confidential computing and rollups',
@@ -33,5 +35,6 @@ export function arciumSetup({ gameId = 'generic' } = {}) {
 }
 
 export function arciumHealth() {
-  return { configured: true, project: ARCIUM_CONFIG.project, free: true, bestFree: true, category: 'privacy rollup' }
+  return { configured: dependencyInstalled('@arcium/sdk'),
+    configurationReason: 'Пакет @arcium/sdk не установлен', project: ARCIUM_CONFIG.project, free: true, bestFree: true, category: 'privacy rollup' }
 }

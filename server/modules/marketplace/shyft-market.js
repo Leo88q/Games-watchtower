@@ -20,7 +20,7 @@ export const SHYFT_MARKET_CONFIG = {
 export function shyftMarketplaceConfig(env = process.env) {
   return {
     provider: 'shyft-marketplace',
-    apiKey: env.SHYFT_API_KEY || null,
+    apiKeyConfigured: Boolean(env.SHYFT_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     configured: Boolean(env.SHYFT_API_KEY),
     baseUrl: env.SHYFT_MARKET_BASE_URL || SHYFT_MARKET_CONFIG.baseUrl,
     model: SHYFT_MARKET_CONFIG.model,

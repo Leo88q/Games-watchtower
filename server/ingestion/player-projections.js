@@ -1,22 +1,16 @@
-import { createHash } from 'node:crypto'
 import { list } from './event-inbox.js'
+import { anonymizeIdentifier } from '../security/pii.js'
 
-// Cross-game inventory items — studio_profile PDA simulation
-const CROSS_GAME_ITEMS = [
-  { assetId: 'cgi_00001', sourceGame: 'ares1', itemType: 'potato_golden', rarity: 'legendary', isCnft: true, usedInGames: ['ares1'] },
-  { assetId: 'cgi_00002', sourceGame: 'ares1', itemType: 'speed_boost_potato', rarity: 'epic', isCnft: true, usedInGames: ['ares1', 'neonrelay'] },
-  { assetId: 'cgi_00003', sourceGame: 'aof', itemType: 'golden_plow', rarity: 'legendary', isCnft: true, usedInGames: ['aof'] },
-  { assetId: 'cgi_00004', sourceGame: 'aof', itemType: 'growth_elixir', rarity: 'epic', isCnft: true, usedInGames: ['aof', 'ares1'] },
-  { assetId: 'cgi_00005', sourceGame: 'neonrelay', itemType: 'nitro_boost', rarity: 'legendary', isCnft: true, usedInGames: ['neonrelay'] },
-  { assetId: 'cgi_00006', sourceGame: 'neonrelay', itemType: 'smoke_trail_skin', rarity: 'epic', isCnft: true, usedInGames: ['neonrelay', 'guttercaps'] },
-  { assetId: 'cgi_00007', sourceGame: 'guttercaps', itemType: 'golden_cap', rarity: 'legendary', isCnft: true, usedInGames: ['guttercaps'] },
-  { assetId: 'cgi_00008', sourceGame: 'guttercaps', itemType: 'laser_sight', rarity: 'epic', isCnft: true, usedInGames: ['guttercaps', 'ares1'] },
-]
+/**
+ * События, которыми игра сообщает о переносе предмета между играми.
+ * Хаб их только читает: он никогда не выдаёт предметы и не пишет в блокчейн (writes: false).
+ */
+const LINK_EVENTS = ['BridgeIn', 'BridgeOut', 'CrossGameLinked', 'CrossGameAssetGranted']
 
+/** Псевдоним игрока: та же функция и та же соль, что и в /api/events — идентификаторы не «разъезжаются». */
 function playerKey(event) {
   const raw = event.payload?.playerKey || event.payload?.walletHash || event.payload?.wallet || event.payload?.playerId
-  if (!raw) return null
-  return `p-${createHash('sha256').update(String(raw)).digest('hex').slice(0, 10)}`
+  return anonymizeIdentifier(raw)
 }
 
 function eventPlayers(events, predicate) {
@@ -57,51 +51,86 @@ export function crossGameSegments({ limit = 5000 } = {}) {
 }
 
 /**
- * Cross-game projection — отслеживает какие предметы из какой игры используются в других играх
- * Эмулирует PDA studio_profile с cross_game_items массивом
+ * Перенос предметов между играми: только наблюдение по фактам из inbox.
+ *
+ * Раньше здесь была заглушка: список предметов (`cgi_00001…`) и связки вида «neonrelay → guttercaps»
+ * были захардкожены, а ответ помечался `dataQuality: partial`. Теперь каждый перенос — это реальное
+ * событие игры (`BridgeIn`, `BridgeOut`, `CrossGameLinked`, `CrossGameAssetGranted`); если событий нет,
+ * ответ честно `unavailable` с перечнем нужных событий, а не пример переноса.
+ *
+ * Хаб остаётся read-only: он не выдаёт предметы и не переводит активы — это делает игра и контракт.
  */
 export function buildCrossGameProjection({ limit = 5000 } = {}) {
   const events = list({ limit })
-  const links = []
-  const usedItems = new Map() // gameId -> Set<assetId>
+  const links = new Map()
+  const players = new Set()
 
-  for (const item of CROSS_GAME_ITEMS) {
-    for (const targetGame of item.usedInGames) {
-      if (targetGame !== item.sourceGame) {
-        // Cross-game usage detected
-        links.push({
-          eventType: 'CrossGameLinked',
-          sourceGame: item.sourceGame,
-          targetGame,
-          assetId: item.assetId,
-          itemType: item.itemType,
-          rarity: item.rarity,
-          isCnft: item.isCnft,
-          linkedAt: new Date().toISOString(),
-          programId: 'CgInv111111111111111111111111111111111111111',
-          pda: `studio_profile_pda_${item.assetId}`,
-        })
-      }
+  for (const event of events) {
+    if (!LINK_EVENTS.includes(event.eventType)) continue
+    const payload = event.payload || {}
+    const gameId = event.gameId || payload.gameId || null
+    const counterpart = payload.targetGame || payload.toGame || payload.sourceGame || payload.fromGame || null
+    let sourceGame = null
+    let targetGame = null
+    if (event.eventType === 'BridgeIn') { sourceGame = counterpart; targetGame = gameId }
+    else if (event.eventType === 'BridgeOut') { sourceGame = gameId; targetGame = counterpart }
+    else { sourceGame = payload.sourceGame || payload.fromGame || gameId; targetGame = payload.targetGame || payload.toGame || gameId }
+    // Своя игра и контрагент должны различаться: событие внутри одной игры — не переплетение.
+    if (!sourceGame || !targetGame || sourceGame === targetGame) continue
+
+    const player = playerKey(event)
+    if (player) players.add(player)
+    const assetId = payload.assetId || payload.mint || payload.asset || null
+    // Один предмет, о котором сообщили два события (BridgeIn и CrossGameLinked), — это одна связка.
+    const key = `${sourceGame}→${targetGame}→${assetId || payload.itemType || payload.item || event.eventId}`
+    if (!links.has(key)) {
+      links.set(key, {
+        sourceGame,
+        targetGame,
+        assetId,
+        itemType: payload.itemType || payload.item || null,
+        rarity: payload.rarity || null,
+        isCnft: payload.isCnft === true,
+        eventTypes: [],
+        firstSeenAt: null,
+        lastSeenAt: null,
+      })
     }
-    if (!usedItems.has(item.sourceGame)) usedItems.set(item.sourceGame, new Set())
-    usedItems.get(item.sourceGame).add(item.assetId)
+    const link = links.get(key)
+    if (!link.eventTypes.includes(event.eventType)) link.eventTypes.push(event.eventType)
+    const seenAt = event.blockTime || event.observedAt || null
+    if (seenAt && (!link.firstSeenAt || seenAt < link.firstSeenAt)) link.firstSeenAt = seenAt
+    if (seenAt && (!link.lastSeenAt || seenAt > link.lastSeenAt)) link.lastSeenAt = seenAt
+  }
+
+  const linkList = [...links.values()]
+  const pairs = new Map()
+  for (const link of linkList) {
+    const key = `${link.sourceGame}→${link.targetGame}`
+    if (!pairs.has(key)) pairs.set(key, { from: link.sourceGame, to: link.targetGame, count: 0, items: new Set() })
+    const pair = pairs.get(key)
+    pair.count += 1
+    if (link.itemType) pair.items.add(link.itemType)
   }
 
   return {
-    totalItems: CROSS_GAME_ITEMS.length,
-    crossGameLinks: links,
-    linksCount: links.length,
-    crossGamePairs: [
-      { from: 'ares1', to: 'neonrelay', items: CROSS_GAME_ITEMS.filter(i => i.sourceGame === 'ares1' && i.usedInGames.includes('neonrelay')).map(i => i.itemType) },
-      { from: 'aof', to: 'ares1', items: CROSS_GAME_ITEMS.filter(i => i.sourceGame === 'aof' && i.usedInGames.includes('ares1')).map(i => i.itemType) },
-      { from: 'neonrelay', to: 'guttercaps', items: CROSS_GAME_ITEMS.filter(i => i.sourceGame === 'neonrelay' && i.usedInGames.includes('guttercaps')).map(i => i.itemType) },
-      { from: 'guttercaps', to: 'ares1', items: CROSS_GAME_ITEMS.filter(i => i.sourceGame === 'guttercaps' && i.usedInGames.includes('ares1')).map(i => i.itemType) },
-    ],
-    itemsPerGame: Object.fromEntries([...usedItems].map(([game, items]) => [game, [...items]])),
-    programId: 'CgInv111111111111111111111111111111111111111',
-    pdaSeeds: ['b"studio_profile"', 'owner.key().as_ref()'],
+    totalLinks: linkList.length,
+    links: linkList,
+    crossGamePairs: [...pairs.values()].map((pair) => ({ ...pair, items: [...pair.items] })),
+    playersInvolved: players.size,
+    // Контракт кросс-игрового инвентаря в репозитории — спецификация, а не задеплоенная программа.
+    contract: {
+      programId: 'CgInv111111111111111111111111111111111111111',
+      pdaSeeds: ['b"studio_profile"', 'owner.key().as_ref()'],
+      status: 'spec-only-not-deployed',
+      note: 'Хаб контракт не вызывает: он read-only. Проверка — npm run test:readonly.',
+    },
+    requiredEvents: LINK_EVENTS,
     privacy: 'anonymized-player-keys',
-    dataQuality: 'partial',
+    dataQuality: linkList.length ? 'partial' : 'unavailable',
+    reason: linkList.length
+      ? null
+      : `Ни одна игра не сообщила о переносе предмета между играми: нужны события ${LINK_EVENTS.join(', ')}. Пустой список означает отсутствие данных, а не отсутствие переплетения.`,
     writes: false,
     generatedAt: new Date().toISOString(),
   }

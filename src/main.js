@@ -7,16 +7,26 @@ import './investor-history.css'
 import './traffic.css'
 import './os.css'
 import './os/styles.css'
-import { aggregateOverview, buildAiReport } from './engine/analytics'
 import { fetchOS, renderOSPanel } from './os/index.js'
 import { CONTROL_PANELS, renderControlPanels } from './os/control-panels-v3.js'
 
-const games = [
-  { name: 'Neon District', tag: 'NEON', color: '#37e5a0', status: 'Live', players: '12.8K', change: '+18.4%', economy: 'Healthy', icon: '✦' },
-  { name: 'Aetheria', tag: 'AETH', color: '#a78bfa', status: 'Live', players: '8.4K', change: '+7.2%', economy: 'Watch', icon: '◈' },
-  { name: 'Void Protocol', tag: 'VOID', color: '#ffb85c', status: 'Beta', players: '4.1K', change: '+32.8%', economy: 'Healthy', icon: '⬡' },
-  { name: 'Drift Legends', tag: 'DRFT', color: '#ff6b8a', status: 'Live', players: '6.7K', change: '-2.1%', economy: 'Critical', icon: '✧' },
-]
+/**
+ * Тёмный дашборд — представление живого read-model.
+ *
+ * Правила:
+ *  - ни одного числа, выдуманного на клиенте: всё приходит из /api/read-model;
+ *  - если значения нет — показывается «—» и статус (partial/unavailable), а не ноль и не зелёный;
+ *  - данные API экранируются (esc) перед вставкой в DOM.
+ */
+
+const DASH = '—'
+
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
+const num = (value) => (value === null || value === undefined || !Number.isFinite(Number(value)) ? null : Number(value))
+const fmtInt = (value) => { const n = num(value); return n === null ? DASH : Math.round(n).toLocaleString('ru-RU') }
+const fmtUsd = (value) => { const n = num(value); return n === null ? DASH : `$${n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}` }
+const fmtPct = (value, digits = 1) => { const n = num(value); return n === null ? DASH : `${n.toFixed(digits)}%` }
+const qualityLabel = (quality) => ({ complete: 'полные', partial: 'частичные', unavailable: 'нет данных', limited: 'ограниченные' }[quality] || quality || 'нет данных')
 
 const icons = {
   overview: '<svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg>',
@@ -32,18 +42,10 @@ const icons = {
 }
 
 function navItem(icon, label, active = false, badge = '') {
-  return `<button class="nav-item ${active ? 'active' : ''}" data-view="${label}">${icons[icon]}<span>${label}</span>${badge ? `<b>${badge}</b>` : ''}</button>`
+  return `<button class="nav-item ${active ? 'active' : ''}" data-view="${esc(label)}">${icons[icon]}<span>${esc(label)}</span>${badge ? `<b>${esc(badge)}</b>` : ''}</button>`
 }
 
-function gameRow(game) {
-  const economyClass = game.economy === 'Healthy' ? 'healthy' : game.economy === 'Watch' ? 'watch' : 'critical'
-  return `<div class="game-row">
-    <div class="game-name"><span class="game-mark" style="--game-color:${game.color}">${game.icon}</span><div><strong>${game.name}</strong><small>${game.tag} · ${game.status}</small></div></div>
-    <div class="player-count"><strong>${game.players}</strong><span class="positive">${game.change}</span></div>
-    <div><span class="status-pill ${economyClass}"><i></i>${game.economy}</span></div>
-    <div class="row-action"><button class="icon-btn" aria-label="Открыть игру">${icons.arrow}</button></div>
-  </div>`
-}
+const state = { model: null, error: null }
 
 function app() {
   document.querySelector('#app').innerHTML = `
@@ -54,14 +56,14 @@ function app() {
         <nav class="main-nav">
           <div class="nav-label">WORKSPACE</div>
           ${navItem('overview', 'Обзор', true)}
-          ${navItem('games', 'Мои игры', false, '4')}
+          ${navItem('games', 'Мои игры')}
           ${navItem('users', 'Игроки')}
           ${navItem('economy', 'Экономика')}
           <div class="nav-label second">INTELLIGENCE</div>
-          ${navItem('bot', 'AI аналитик', false, '3')}
-          ${navItem('shield', 'Безопасность', false, '2')}
+          ${navItem('bot', 'AI аналитик')}
+          ${navItem('shield', 'Безопасность')}
           ${navItem('search', 'Трафик')}
-          ${navItem('bot', 'OS v3', false, '33')}
+          ${navItem('bot', 'OS v3')}
           ${navItem('settings', 'Настройки')}
           <div class="nav-label second">ДЛЯ КОМАНДЫ</div>
           ${navItem('economy', 'Инвесторы')}
@@ -69,48 +71,316 @@ function app() {
           ${navItem('games', 'Воронки')}
           ${navItem('bot', 'Смежная аналитика')}
         </nav>
-        <div class="sidebar-bottom"><div class="help-card"><span class="help-icon">?</span><div><strong>Нужна помощь?</strong><small>Открыть документацию</small></div>${icons.arrow}</div><div class="profile"><span class="profile-avatar">LK</span><div><strong>Леонид К.</strong><small>Владелец</small></div><span class="dots">•••</span></div></div>
+        <div class="sidebar-bottom"><div class="help-card"><span class="help-icon">?</span><div><strong>Нужна помощь?</strong><small>docs/OPERATIONS.md</small></div>${icons.arrow}</div><div class="profile"><span class="profile-avatar">LK</span><div><strong>Леонид К.</strong><small>Владелец</small></div><span class="dots">•••</span></div></div>
       </aside>
       <main class="main-content">
-        <header class="topbar"><div class="breadcrumb"><span>Workspace</span><b>/</b><strong>Обзор</strong></div><div class="top-actions"><button class="date-btn">${icons.economy} 01 — 07 октября 2024 <span>⌄</span></button><button class="circle-btn" aria-label="Уведомления">${icons.bell}<i></i></button><span class="top-avatar">LK</span></div></header>
-        <section class="page-heading"><div><p class="eyebrow">ПОНЕДЕЛЬНИК, 07 ОКТЯБРЯ 2024</p><h1>Добрый день, Леонид <span>✦</span></h1><p class="subtitle">Вот что происходит с вашей игровой экосистемой сегодня.</p></div><button class="primary-btn" id="refresh-btn">↻ <span>Обновить данные</span></button></section>
-        <div class="alert-banner"><span class="alert-symbol">✦</span><div><strong>AI заметил 3 важных изменения</strong><span>Проверка экономики Drift Legends требует вашего внимания</span></div><button class="alert-link" data-view="AI аналитик">Посмотреть анализ ${icons.arrow}</button><button class="close-alert">×</button></div>
+        <header class="topbar"><div class="breadcrumb"><span>Workspace</span><b>/</b><strong>Обзор</strong></div><div class="top-actions"><button class="date-btn" id="data-source-btn">${icons.economy} <span id="data-source">Источник: загрузка…</span></button><button class="circle-btn" aria-label="Уведомления">${icons.bell}<i></i></button><span class="top-avatar">LK</span></div></header>
+        <section class="page-heading"><div><p class="eyebrow" id="freshness">СОСТОЯНИЕ ДАННЫХ: ЗАГРУЗКА</p><h1>Экосистема студии</h1><p class="subtitle">Каждое число здесь приходит из API и сопровождается статусом качества данных.</p></div><button class="primary-btn" id="refresh-btn">↻ <span>Обновить данные</span></button></section>
+        <div class="alert-banner" id="alert-banner" hidden><span class="alert-symbol">!</span><div><strong id="alert-title">—</strong><span id="alert-detail"></span></div><button class="close-alert" id="close-alert">×</button></div>
         <section class="metrics-grid">
-          <article class="metric-card"><div class="metric-head"><span>Активные игроки</span><span class="metric-icon green">${icons.users}</span></div><div class="metric-value">32,041 <span class="trend up">↗ 12.8%</span></div><div class="sparkline green-line"><span></span><svg viewBox="0 0 220 42" preserveAspectRatio="none"><path d="M0 35 C18 31 19 34 31 28 S50 33 63 25 S84 31 98 18 S111 27 125 17 S142 22 153 11 S171 19 181 10 S198 14 220 2"/></svg></div><small>vs. предыдущая неделя</small></article>
-          <article class="metric-card"><div class="metric-head"><span>Объём экономики</span><span class="metric-icon purple">${icons.economy}</span></div><div class="metric-value">$1.24M <span class="trend up">↗ 8.4%</span></div><div class="sparkline purple-line"><svg viewBox="0 0 220 42" preserveAspectRatio="none"><path d="M0 32 C18 28 24 35 37 27 S55 28 68 31 S81 20 96 23 S110 15 126 20 S139 11 152 15 S170 16 185 8 S201 12 220 5"/></svg></div><small>транзакций за 7 дней</small></article>
-          <article class="metric-card"><div class="metric-head"><span>Средняя сессия</span><span class="metric-icon orange">${icons.games}</span></div><div class="metric-value">42m 18s <span class="trend up">↗ 4.1%</span></div><div class="sparkline orange-line"><svg viewBox="0 0 220 42" preserveAspectRatio="none"><path d="M0 29 C15 31 23 24 36 28 S48 35 64 27 S80 22 93 25 S108 19 124 22 S138 17 151 21 S168 13 183 18 S198 10 220 4"/></svg></div><small>среднее по всем играм</small></article>
-          <article class="metric-card"><div class="metric-head"><span>Риски безопасности</span><span class="metric-icon red">${icons.shield}</span></div><div class="metric-value">2 <span class="trend down">↑ 1</span></div><div class="risk-bar"><span></span><i></i><b></b></div><small>требуют внимания сегодня</small></article>
+          <article class="metric-card"><div class="metric-head"><span>Активные игроки (окно)</span><span class="metric-icon green">${icons.users}</span></div><div class="metric-value" id="kpi-players">${DASH}</div><small id="kpi-players-note">события event-inbox</small></article>
+          <article class="metric-card"><div class="metric-head"><span>Выпущено токенов</span><span class="metric-icon purple">${icons.economy}</span></div><div class="metric-value" id="kpi-minted">${DASH}</div><small id="kpi-minted-note">сумма событий mint</small></article>
+          <article class="metric-card"><div class="metric-head"><span>Сожжено токенов</span><span class="metric-icon orange">${icons.games}</span></div><div class="metric-value" id="kpi-burned">${DASH}</div><small id="kpi-burned-note">сумма событий burn</small></article>
+          <article class="metric-card"><div class="metric-head"><span>Критические сигналы</span><span class="metric-icon red">${icons.shield}</span></div><div class="metric-value" id="kpi-alerts">${DASH}</div><small id="kpi-alerts-note">из /api/alerts</small></article>
         </section>
-        <section class="content-grid"><article class="panel performance"><div class="panel-head"><div><h2>Производительность игр</h2><p>Ключевые показатели в динамике</p></div><div class="legend"><span><i class="dot green-dot"></i>Игроки</span><span><i class="dot purple-dot"></i>Сессии</span><button class="select-btn">7 дней ⌄</button></div></div><div class="chart"><div class="y-axis"><span>15K</span><span>10K</span><span>5K</span><span>0</span></div><div class="chart-area"><div class="grid-line l1"></div><div class="grid-line l2"></div><div class="grid-line l3"></div><div class="grid-line l4"></div><svg viewBox="0 0 700 220" preserveAspectRatio="none"><defs><linearGradient id="fillGreen" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#37e5a0" stop-opacity=".2"/><stop offset="1" stop-color="#37e5a0" stop-opacity="0"/></linearGradient></defs><path class="area-path" d="M0 170 C36 160 50 174 82 145 S125 154 160 129 S202 136 235 106 S274 126 310 100 S351 111 384 80 S424 97 459 69 S503 89 536 54 S573 76 607 41 S652 65 700 18 V220 H0Z"/><path class="chart-path green-path" d="M0 170 C36 160 50 174 82 145 S125 154 160 129 S202 136 235 106 S274 126 310 100 S351 111 384 80 S424 97 459 69 S503 89 536 54 S573 76 607 41 S652 65 700 18"/><path class="chart-path purple-path" d="M0 188 C40 179 60 189 93 168 S131 176 164 158 S201 162 236 140 S274 148 309 130 S351 146 385 117 S425 133 460 108 S495 118 532 91 S570 109 610 80 S660 95 700 61"/></svg><div class="x-axis"><span>01 окт</span><span>02 окт</span><span>03 окт</span><span>04 окт</span><span>05 окт</span><span>06 окт</span><span>07 окт</span></div></div></div></article>
-          <article class="panel ai-panel"><div class="ai-title"><span class="ai-orb">✦</span><div><h2>AI аналитик</h2><p>Последнее обновление 8 мин назад</p></div><span class="live-dot">LIVE</span></div><div class="ai-score"><div class="score-ring"><strong>84</strong><small>/ 100</small></div><div><strong>Состояние экосистемы</strong><p>Выше среднего за последние 30 дней</p></div></div><div class="ai-divider"></div><div class="ai-insight"><span class="insight-icon">↗</span><div><strong>Рост удержания в Neon District</strong><p>День 7 вырос на 6.2% после последнего обновления.</p></div></div><div class="ai-insight warning"><span class="insight-icon">!</span><div><strong>Аномалия в экономике Drift Legends</strong><p>Вывод токенов превышает ввод на 18%.</p></div></div><button class="full-analysis" data-view="AI аналитик">Открыть полный анализ ${icons.arrow}</button></article></section>
-        <section class="panel games-panel"><div class="panel-head"><div><h2>Состояние игр</h2><p>Обзор по всем вашим проектам</p></div><button class="text-btn" data-view="Мои игры">Все игры ${icons.arrow}</button></div><div class="game-table"><div class="table-labels"><span>ИГРА</span><span>ОНЛАЙН</span><span>ЭКОНОМИКА</span><span></span></div>${games.map(gameRow).join('')}</div></section>
-        <section class="expanded-grid"><article class="panel detail-table"><div class="panel-head"><div><h2>Игроки и удержание</h2><p>Показатели поведения по всем доступным источникам</p></div><button class="select-btn">7 дней ⌄</button></div><div class="quick-metrics"><div><span>Игроки сегодня</span><b>32 041</b><small>+12,8%</small></div><div><span>Новые игроки</span><b>374</b><small>+8,1%</small></div><div><span>Удержание D1</span><b>58,4%</b><small>частично</small></div><div><span>Удержание D7</span><b>34,5%</b><small>нужен backfill</small></div><div><span>Средняя сессия</span><b>21 мин</b><small>по событиям</small></div><div><span>Риск нескольких аккаунтов</span><b>17</b><small>на проверке</small></div></div></article><article class="panel detail-table"><div class="panel-head"><div><h2>Экономика и казна</h2><p>Выпуск, расходование и обязательства</p></div><button class="select-btn">Все игры ⌄</button></div><div class="quick-metrics"><div><span>Объём экономики</span><b>$1,24 млн</b><small>за 7 дней</small></div><div><span>Чистый выпуск</span><b>162 тыс.</b><small>выпуск минус сжигание</small></div><div><span>Расходование</span><b>41%</b><small>соотношение расходования и источников</small></div><div><span>Обязательства</span><b>$6 тыс.</b><small>нужна сверка</small></div><div><span>Топ-10 владельцев</span><b>62%</b><small>концентрация</small></div><div><span>Запас казны</span><b>14 дней</b><small>предварительно</small></div></div></article></section><section class="panel control-panel"><div class="panel-head"><div><h2>Центр управления</h2><p>Безопасные запросы без прямой записи в блокчейн</p></div><span class="status-pill healthy"><i></i>Защищено</span></div><div class="control-grid"><button class="control-btn" data-control="sync">↻ <strong>Запросить обновление</strong><small>Обновить данные игры и индексатора</small></button><button class="control-btn" data-control="reconcile">✓ <strong>Запросить сверку</strong><small>Сравнить подтверждённые и финальные данные</small></button><button class="control-btn" data-control="pause">Ⅱ <strong>Подготовить паузу</strong><small>Только через цепочку согласований</small></button><button class="control-btn" data-control="review">⚑ <strong>Отправить на проверку</strong><small>Создать задачу оператору</small></button></div></section><section id="adjacent-analytics-section" class="panel adjacent-panel"><div class="panel-head"><div><h2>Смежная аналитика</h2><p>Показатели, которые помогают понять причины роста, падения и рисков</p></div><button class="select-btn" id="refresh-adjacent">Обновить</button></div><div class="adjacent-grid"><article><span>Вовлечённость</span><b>32 041</b><small>активных игроков · переходы между играми</small></article><article><span>Монетизация</span><b>$38,60</b><small>оборот на активного игрока</small></article><article><span>Устойчивость экономики</span><b>41%</b><small>расходование к выпуску</small></article><article><span>Надёжность</span><b>2 / 4</b><small>игры с рабочим источником данных</small></article><article><span>Риск и доверие</span><b>2</b><small>критических сигнала</small></article><article><span>Качество данных</span><b>Частичное</b><small>часть программ ещё не подключена</small></article></div><div class="adjacent-insights"><div><strong>Что это значит</strong><p>Даже при росте игроков экономика может ухудшаться, если выпуск токенов опережает расходование, а новые игроки не возвращаются на 7-й день.</p></div><div><strong>Что проверить дальше</strong><p>Сравнить стоимость привлечения с удержанием, проверить задержку RPC и отдельно посмотреть игроков, которые перешли во вторую игру.</p></div></div></section><section id="funnels-section" class="panel funnel-panel"><div class="panel-head"><div><h2>Воронки и динамика</h2><p>От первого входа до возвращения, покупки и перехода в другую игру</p></div><div class="funnel-actions"><button class="select-btn" data-funnel-period="7">7 дней</button><button class="select-btn" data-funnel-period="30">30 дней</button><button class="select-btn" data-funnel-period="90">90 дней</button></div></div><div class="funnel-layout"><div class="funnel-steps"><div class="funnel-step"><span>1</span><div><strong>Первый вход</strong><small>100% · 48 200 игроков</small></div><b>100%</b></div><div class="funnel-step"><span>2</span><div><strong>Начали игру</strong><small>73% · 35 186 игроков</small></div><b>73%</b></div><div class="funnel-step"><span>3</span><div><strong>Вернулись на 1-й день</strong><small>58% · 27 956 игроков</small></div><b>58%</b></div><div class="funnel-step"><span>4</span><div><strong>Вернулись на 7-й день</strong><small>34% · 16 388 игроков</small></div><b>34%</b></div><div class="funnel-step"><span>5</span><div><strong>Сделали покупку</strong><small>8,7% · 4 193 игрока</small></div><b>8,7%</b></div><div class="funnel-step"><span>6</span><div><strong>Открыли вторую игру</strong><small>6,2% · 2 990 игроков</small></div><b>6,2%</b></div></div><div class="trend-chart"><div class="chart-legend"><span><i class="dot green-dot"></i>Активные игроки</span><span><i class="dot purple-dot"></i>Новые игроки</span></div><svg viewBox="0 0 620 220" preserveAspectRatio="none"><defs><linearGradient id="funnelFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#37e5a0" stop-opacity=".22"/><stop offset="1" stop-color="#37e5a0" stop-opacity="0"/></linearGradient></defs><path class="funnel-area" d="M0 172 C45 160 68 169 102 143 S160 151 198 126 S244 142 285 105 S334 121 374 95 S425 111 461 74 S510 91 550 47 S585 54 620 24 V220 H0Z"/><path class="funnel-line green-path" d="M0 172 C45 160 68 169 102 143 S160 151 198 126 S244 142 285 105 S334 121 374 95 S425 111 461 74 S510 91 550 47 S585 54 620 24"/><path class="funnel-line purple-path" d="M0 190 C45 183 68 187 102 174 S160 179 198 161 S244 171 285 146 S334 157 374 139 S425 147 461 124 S510 134 550 111 S585 114 620 96"/></svg><div class="chart-labels"><span>01 окт</span><span>07 окт</span><span>14 окт</span><span>21 окт</span><span>30 окт</span></div></div></div><div class="funnel-note"><strong>Главная точка потерь:</strong> между первым входом и возвращением на 7-й день теряется 66% игроков. Следующий тест — персональное предложение после второй сессии, только для согласившихся игроков.</div></section><section id="investors-section" class="panel investor-panel"><div class="panel-head"><div><h2>Страница для инвесторов</h2><p>Понятная сводка о росте, деньгах, рисках и качестве данных</p></div><button class="primary-btn" data-snapshot="true">Сохранить снимок отчёта</button></div><div class="investor-grid"><div><span>Игроки сегодня / месяц</span><b>32 041 / 78 420</b><small>DAU / MAU</small></div><div><span>Удержание на 7-й день</span><b>34,5%</b><small>частичные данные</small></div><div><span>Доля платящих игроков</span><b>8,7%</b><small>по доступным операциям</small></div><div><span>Средний доход с игрока</span><b>$3,84</b><small>оценка за 30 дней</small></div><div><span>Оборот за 30 дней</span><b>$1,24 млн</b><small>без оценки будущего</small></div><div><span>Запас казны</span><b>14 дней</b><small>предварительная оценка</small></div><div><span>Чистый выпуск токенов</span><b>162 тыс.</b><small>выпуск минус сжигание</small></div><div><span>Риски и инциденты</span><b>2 критичных</b><small>есть план проверки</small></div><div><span>Надёжность данных</span><b>Частичная</b><small>не все программы подключены</small></div></div><div class="investor-history"><div class="history-head"><strong>История отчётов</strong><span id="investor-trend-status">Загрузка сохранённых снимков...</span></div><div class="history-bars" id="investor-history-bars"><i style="height:32%"></i><i style="height:45%"></i><i style="height:40%"></i><i style="height:64%"></i><i style="height:58%"></i><i style="height:78%"></i><i style="height:86%"></i></div><div class="history-labels"><span>старые</span><span>последний отчёт</span></div></div><div class="investor-note"><strong>Принцип отчётности:</strong> инвесторам отправляются только агрегированные показатели без персональных данных игроков. Каждая цифра сопровождается периодом, источником и оценкой достоверности.</div></section><section id="players-network-section" class="panel network-panel"><div class="panel-head"><div><h2>Связи игроков между играми</h2><p>Помогаем игрокам открыть другие проекты, не раскрывая их личности</p></div><button class="select-btn">Последние 30 дней ⌄</button></div><div class="cross-game-grid"><div><span>Играют в 1 игру</span><b>68%</b><small>главная аудитория для приглашений</small></div><div><span>Играют в 2 игры</span><b>24%</b><small>лучший сегмент для связующих предложений</small></div><div><span>Играют в 3–4 игры</span><b>8%</b><small>ядро экосистемы</small></div></div><div class="player-segment-table"><div><span>Обезличенная группа</span><span>Игр</span><span>Интерес</span><span>Предложение</span><span>Статус</span></div><div><span>Группа A-1042</span><b>1</b><span>ARES-1</span><span>Стартовый бонус Neon Relay</span><em>готово к проверке</em></div><div><span>Группа N-2088</span><b>2</b><span>Neon Relay · ARES-1</span><span>Приглашение в GUTTERCAPS</span><em>нужно согласие</em></div><div><span>Группа G-4410</span><b>1</b><span>GUTTERCAPS</span><span>Пробный доступ в AOF</span><em>черновик</em></div></div><div class="investor-note"><strong>Правило безопасности:</strong> предложения строятся по обезличенным группам и игровым интересам. Автоматическая рассылка, передача личных данных и выдача наград без согласования запрещены.</div></section><section id="traffic-section" class="panel traffic-panel"><div class="panel-head"><div><h2>Трафик / Acquisition</h2><p>TalkChart Traffic Generator · off-chain: SEO/GEO, X/Twitter и Blinks, короткие видео, китовый радар, TipLink</p></div><button class="select-btn" id="refresh-traffic">Обновить</button></div><div class="adjacent-grid traffic-grid"><article><span>Просмотры страниц</span><b id="traffic-pageviews">—</b><small>события PageView</small></article><article><span>Сессии</span><b id="traffic-sessions">—</b><small>события SessionStarted</small></article><article><span>Уникальные посетители</span><b id="traffic-visitors">—</b><small>псевдонимные sessionId</small></article><article><span>Клики по CTA</span><b id="traffic-cta">—</b><small>промо-слоты, Blinks, TipLink</small></article><article><span>Дошли до игры</span><b id="traffic-landing">—</b><small>события LandingReached</small></article><article><span>Качество данных</span><b id="traffic-quality">—</b><small id="traffic-quality-note">адаптер ожидает событий</small></article></div><div class="funnel-steps traffic-funnel"><div class="funnel-step"><span>1</span><div><strong>Кампания запущена</strong><small id="traffic-step-0">—</small></div><b id="traffic-pct-0">—</b></div><div class="funnel-step"><span>2</span><div><strong>Сессия</strong><small id="traffic-step-1">—</small></div><b id="traffic-pct-1">—</b></div><div class="funnel-step"><span>3</span><div><strong>Просмотр страницы</strong><small id="traffic-step-2">—</small></div><b id="traffic-pct-2">—</b></div><div class="funnel-step"><span>4</span><div><strong>Клик по CTA</strong><small id="traffic-step-3">—</small></div><b id="traffic-pct-3">—</b></div><div class="funnel-step"><span>5</span><div><strong>Дошёл до игры</strong><small id="traffic-step-4">—</small></div><b id="traffic-pct-4">—</b></div></div><div class="traffic-meta"><div><span>Кампании</span><div class="chips" id="traffic-campaigns">—</div></div><div><span>Источники трафика</span><div class="chips" id="traffic-sources">—</div></div><div><span>Целевые страницы</span><div class="chips" id="traffic-pages">—</div></div><div><span>Тип трафика</span><div id="traffic-type">—</div><small>real / bot / hybrid по событиям</small></div></div><div class="traffic-status" id="traffic-status">Ожидание событий от TalkChart… Watchtower не управляет трафиком — только read-only аналитика.</div></section><section id="os-section" class="panel os-panel" style="margin-top:24px;"><div id="os-panel-container"><div class="panel-head"><div><h2>🔧 Watchtower OS v3 — Панель управления</h2><p>33 компонента · 7 слоёв v1 + 12 продуктов v2 + 13 лучших бесплатных v3 идеальный стек</p></div><span class="status-pill healthy"><i></i>OS v3.0.0 — 33 компонента</span><button class="select-btn" id="refresh-os">Обновить OS v3</button></div><div class="os-v3-summary"><article><span>Компонентов</span><b>33</b><small>v1 8 слоёв + v2 12 продуктов + v3 13 best free</small></article><article><span>Панелей управления</span><b>${CONTROL_PANELS.length}</b><small>identity → utils · capabilities, api, npm, games, actions</small></article><article><span>Игры — tenants</span><b>4</b><small>ares1 · aof · neonrelay · guttercaps</small></article><article><span>Дубликаты deprecated</span><b>3</b><small>preset ← create-solana-game · RitArena ← Aureus · SolGuard ← SolShield</small></article></div><div id="os-panel-content" style="padding:12px; color:#8892b0;">Загрузка панели управления OS v3...</div><div id="os-panels-content"></div></div></section><footer><span>Watchtower Pro · Все системы работают</span><span><i class="online-dot"></i> Данные обновлены 2 минуты назад</span></footer>
+        <section class="content-grid">
+          <article class="panel performance">
+            <div class="panel-head"><div><h2>Состояние игр</h2><p>Данные каждой игры по отдельности, без усреднения отсутствующих</p></div></div>
+            <div class="game-table" id="games-table"><div class="table-labels"><span>ИГРА</span><span>ИГРОКИ</span><span>ВЫПУСК</span><span>СТАТУС</span></div><div class="game-row"><div class="game-name"><strong>Загрузка…</strong></div></div></div>
+          </article>
+          <article class="panel ai-panel">
+            <div class="ai-title"><span class="ai-orb">✦</span><div><h2>AI аналитик</h2><p id="ai-updated">Ожидание данных</p></div><span class="live-dot">LIVE</span></div>
+            <div class="ai-score"><div class="score-ring"><strong id="ai-score">${DASH}</strong><small>/ 100</small></div><div><strong>Надёжность данных</strong><p id="ai-reliability">—</p></div></div>
+            <div class="ai-divider"></div>
+            <div id="ai-conclusions"><div class="ai-insight"><span class="insight-icon">!</span><div><strong>Данные ещё не загружены</strong><p>Выводы появятся после ответа /api/ai/report.</p></div></div></div>
+            <button class="full-analysis" data-view="AI аналитик">Открыть полный анализ ${icons.arrow}</button>
+          </article>
+        </section>
+        <section class="expanded-grid">
+          <article class="panel detail-table"><div class="panel-head"><div><h2>Потоки экономики</h2><p>Источники, стоки, боты и качество данных окна</p></div></div><div class="quick-metrics" id="economy-quick"></div></article>
+          <article class="panel detail-table"><div class="panel-head"><div><h2>Сбор данных</h2><p>Сколько событий реально принято и когда</p></div></div><div class="quick-metrics" id="ingestion-quick"></div></article>
+        </section>
+        <section class="panel control-panel"><div class="panel-head"><div><h2>Центр управления</h2><p>Безопасные запросы без прямой записи в блокчейн</p></div><span class="status-pill watch"><i></i>Записей в блокчейн: нет</span></div><div class="control-grid"><button class="control-btn" data-control="sync">↻ <strong>Запросить обновление</strong><small>Обновить данные игры и индексатора</small></button><button class="control-btn" data-control="reconcile">✓ <strong>Запросить сверку</strong><small>Сравнить подтверждённые и финальные данные</small></button><button class="control-btn" data-control="pause">Ⅱ <strong>Подготовить паузу</strong><small>Только через цепочку согласований</small></button><button class="control-btn" data-control="review">⚑ <strong>Отправить на проверку</strong><small>Создать задачу оператору</small></button></div></section>
+        <section id="adjacent-analytics-section" class="panel adjacent-panel"><div class="panel-head"><div><h2>Смежная аналитика</h2><p>Показатели, рассчитанные только по принятым событиям</p></div><button class="select-btn" id="refresh-adjacent">Обновить</button></div><div class="adjacent-grid" id="adjacent-grid">
+          <article><span>Вовлечённость</span><b>${DASH}</b><small>активных игроков</small></article>
+          <article><span>Монетизация</span><b>${DASH}</b><small>оборот на активного игрока</small></article>
+          <article><span>Устойчивость экономики</span><b>${DASH}</b><small>сжигание к выпуску</small></article>
+          <article><span>Надёжность</span><b>${DASH}</b><small>игры с данными</small></article>
+          <article><span>Риск и доверие</span><b>${DASH}</b><small>критических сигналов</small></article>
+          <article><span>Качество данных</span><b>${DASH}</b><small id="adjacent-quality-note">—</small></article>
+        </div></section>
+        <section id="funnels-section" class="panel funnel-panel"><div class="panel-head"><div><h2>Воронки</h2><p>Этапы из событий; отсутствующие этапы помечены как «нет данных»</p></div></div><div class="funnel-layout"><div class="funnel-steps" id="funnel-steps"><div class="funnel-step"><span>1</span><div><strong>Нет данных</strong><small>ожидание событий</small></div><b>${DASH}</b></div></div></div></section>
+        <section id="investors-section" class="panel investor-panel"><div class="panel-head"><div><h2>Страница для инвесторов</h2><p>Только агрегаты из event-inbox; персональных данных нет</p></div><button class="primary-btn" data-snapshot="true">Сохранить снимок отчёта</button></div><div class="investor-grid" id="investor-grid">
+          <div><span>Активные игроки</span><b>${DASH}</b><small>за окно</small></div>
+          <div><span>Новые игроки</span><b>${DASH}</b><small>первое появление в окне</small></div>
+          <div><span>Объём экономики</span><b>${DASH}</b><small>сделки и стоки</small></div>
+          <div><span>Выпущено / сожжено</span><b>${DASH}</b><small>mint / burn</small></div>
+          <div><span>Критические сигналы</span><b>${DASH}</b><small>из /api/alerts</small></div>
+          <div><span>Качество данных</span><b>${DASH}</b><small id="investor-quality-note">—</small></div>
+        </div><div class="investor-history"><div class="history-head"><strong>История отчётов</strong><span id="investor-trend-status">Загрузка сохранённых снимков…</span></div><div class="history-bars" id="investor-history-bars"></div><div class="history-labels"><span>старые</span><span>последний отчёт</span></div></div><div class="investor-note"><strong>Принцип отчётности:</strong> инвесторам отправляются только агрегированные показатели без персональных данных игроков; каждое число сопровождается периодом, источником и оценкой достоверности.</div></section>
+        <section id="players-network-section" class="panel network-panel"><div class="panel-head"><div><h2>Связи игроков между играми</h2><p>Обезличенные группы по событиям нескольких игр</p></div></div><div class="cross-game-grid" id="cross-game-grid"><div><span>Групп с 1 игрой</span><b>${DASH}</b><small>—</small></div><div><span>Групп с 2 играми</span><b>${DASH}</b><small>—</small></div><div><span>Групп с 3+ играми</span><b>${DASH}</b><small>—</small></div></div></section>
+        <section id="traffic-section" class="panel traffic-panel"><div class="panel-head"><div><h2>Трафик / Acquisition</h2><p>События off-chain приложений (trafficgen); хаб не управляет трафиком</p></div><button class="select-btn" id="refresh-traffic">Обновить</button></div><div class="adjacent-grid traffic-grid"><article><span>Просмотры страниц</span><b id="traffic-pageviews">${DASH}</b><small>события PageView</small></article><article><span>Сессии</span><b id="traffic-sessions">${DASH}</b><small>события SessionStarted</small></article><article><span>Уникальные посетители</span><b id="traffic-visitors">${DASH}</b><small>псевдонимные sessionId</small></article><article><span>Клики по CTA</span><b id="traffic-cta">${DASH}</b><small>промо-слоты</small></article><article><span>Дошли до игры</span><b id="traffic-landing">${DASH}</b><small>события LandingReached</small></article><article><span>Качество данных</span><b id="traffic-quality">${DASH}</b><small id="traffic-quality-note">адаптер ожидает событий</small></article></div><div class="funnel-steps traffic-funnel" id="traffic-funnel"></div><div class="traffic-meta"><div><span>Кампании</span><div class="chips" id="traffic-campaigns">${DASH}</div></div><div><span>Источники трафика</span><div class="chips" id="traffic-sources">${DASH}</div></div><div><span>Целевые страницы</span><div class="chips" id="traffic-pages">${DASH}</div></div><div><span>Тип трафика</span><div id="traffic-type">${DASH}</div><small>real / bot по событиям</small></div></div><div class="traffic-status" id="traffic-status">Ожидание событий…</div></section>
+        <section id="os-section" class="panel os-panel" style="margin-top:24px;"><div id="os-panel-container"><div class="panel-head"><div><h2>Watchtower OS v3 — панель управления</h2><p>Состав стека из studio.config.json и server/modules/os.js</p></div><span class="status-pill watch"><i></i><span id="os-summary-pill">загрузка…</span></span><button class="select-btn" id="refresh-os">Обновить</button></div><div id="os-panel-content" style="padding:12px; color:#8892b0;">Загрузка панели управления…</div><div id="os-panels-content"></div></div></section>
+        <footer><span id="footer-status">Watchtower · read-only API</span><span id="footer-freshness">Данные: —</span></footer>
       </main>
     </div>
   `
   bindEvents()
-  hydrateDashboard()
-  syncFromApi()
+  refresh()
 }
 
-function hydrateDashboard() {
-  const overview = aggregateOverview()
-  const report = buildAiReport()
-  const values = document.querySelectorAll('.metric-value')
-  if (values[0]) values[0].innerHTML = `${overview.activePlayers.toLocaleString('en-US')} <span class="trend up">↗ live</span>`
-  if (values[1]) values[1].innerHTML = `$${(overview.minted / 1000).toFixed(1)}K <span class="trend up">↗ flow</span>`
-  if (values[2]) values[2].innerHTML = `${overview.games.filter((game) => game.health.dataQuality !== 'unavailable').length} / 4 <span class="trend up">↗ sources</span>`
-  if (values[3]) values[3].innerHTML = `${overview.alerts.filter((alert) => alert.severity === 'critical').length} <span class="trend down">↑ critical</span>`
-  const score = document.querySelector('.score-ring strong')
-  if (score) score.textContent = report.ecosystemScore
-  const aiDescription = document.querySelector('.ai-score p')
-  if (aiDescription) aiDescription.textContent = `${report.criticalCount} критических сигналов · ${new Date(report.generatedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
-  const alert = overview.alerts.find((item) => item.severity === 'critical')
-  const banner = document.querySelector('.alert-banner div')
-  if (alert && banner) banner.innerHTML = `<strong>${alert.title}</strong><span>${alert.gameId.toUpperCase()} · ${alert.detail}</span>`
+function setText(selector, value) {
+  const element = document.querySelector(selector)
+  if (element) element.textContent = value === null || value === undefined || value === '' ? DASH : String(value)
+}
 
-  // Загрузка OS v3 панели
+function setPill(selector, quality) {
+  const element = document.querySelector(selector)
+  if (element) element.textContent = qualityLabel(quality)
+}
+
+async function refresh() {
+  try {
+    const response = await fetch('/api/read-model')
+    if (response.status === 401) throw new Error('нужен токен чтения (WATCHTOWER_READ_TOKEN)')
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const model = await response.json()
+    state.model = model
+    state.error = null
+    renderModel(model)
+  } catch (error) {
+    state.error = error.message
+    showBanner(`API недоступен: ${error.message}`, 'Значения не подставляются нулями — разделы помечены как «нет данных».')
+    document.querySelector('.eyebrow').textContent = 'ДАННЫЕ НЕ ЗАГРУЖЕНЫ · API НЕДОСТУПЕН'
+    setText('#footer-status', `Watchtower · API недоступен: ${error.message}`)
+  }
+}
+
+function showBanner(title, detail) {
+  const banner = document.querySelector('#alert-banner')
+  if (!banner) return
+  banner.hidden = false
+  setText('#alert-title', title)
+  setText('#alert-detail', detail)
+}
+
+function renderModel(model) {
+  const overview = model.overview || {}
+  const generatedAt = model.generatedAt ? new Date(model.generatedAt) : null
+  const sourceLabel = model.demo ? 'DEMO DATA' : 'event-inbox'
+  setText('#data-source', `Источник: ${sourceLabel}`)
+  setText('#freshness', `ДАННЫЕ ОТ ${generatedAt ? generatedAt.toLocaleString('ru-RU') : '—'} · ИСТОЧНИК ${sourceLabel.toUpperCase()}`)
+  setText('#footer-freshness', `Обновлено: ${generatedAt ? generatedAt.toLocaleTimeString('ru-RU') : '—'}`)
+  setText('#footer-status', model.demo ? 'Watchtower · демо-данные (DEMO DATA)' : 'Watchtower · живые данные event-inbox')
+
+  const criticals = (model.funnel?.dataQuality === 'unavailable') ? null : null
+  setText('#kpi-players', fmtInt(overview.activePlayers))
+  setText('#kpi-players-note', overview.activePlayers === null || overview.activePlayers === undefined ? 'нет данных за окно' : `за ${overview.windowDays || 7} дн. · источник event-inbox`)
+  setText('#kpi-minted', fmtInt(overview.minted))
+  setText('#kpi-minted-note', overview.minted === null || overview.minted === undefined ? 'событий mint не было' : 'сумма событий mint')
+  setText('#kpi-burned', fmtInt(overview.burned))
+  setText('#kpi-burned-note', overview.burned === null || overview.burned === undefined ? 'событий burn не было' : 'сумма событий burn')
+
+  renderAlerts(model)
+  renderGames(overview.games || [])
+  renderAdjacent(model.adjacent)
+  renderEconomyQuick(model)
+  renderIngestion(model.ingestion, overview)
+  renderFunnel(model.funnel)
+  renderInvestor(model)
+  renderCrossGame(model.crossGame)
+  renderTraffic(model.traffic)
+  loadAiReport()
   loadOSPanel()
+  if (criticals === null) {
+    /* критических сигналов из funnel не выводим — источник только /api/alerts */
+  }
+}
+
+function renderAlerts(model) {
+  const alerts = model.alerts || model.overview?.alerts || []
+  const criticalAlerts = alerts.filter((alert) => alert.severity === 'critical')
+  setText('#kpi-alerts', fmtInt(alerts.length))
+  setText('#kpi-alerts-note', alerts.length ? `${criticalAlerts.length} критических · ${alerts.length - criticalAlerts.length} высоких` : 'сигналов нет')
+  if (alerts.length) {
+    const first = criticalAlerts[0] || alerts[0]
+    showBanner(`${first.title}`, `${first.gameId ? `${String(first.gameId).toUpperCase()} · ` : ''}${first.detail || ''}`)
+  }
+}
+
+function renderGames(games) {
+  const container = document.querySelector('#games-table')
+  if (!container) return
+  if (!games.length) {
+    container.innerHTML = '<div class="table-labels"><span>ИГРА</span><span>ИГРОКИ</span><span>ВЫПУСК</span><span>СТАТУС</span></div><div class="game-row"><div class="game-name"><strong>Игры не подключены</strong><small>нет данных за окно</small></div></div>'
+    return
+  }
+  container.innerHTML = `<div class="table-labels"><span>ИГРА</span><span>ИГРОКИ</span><span>ВЫПУСК</span><span>СТАТУС</span></div>` + games.map((game) => {
+    const quality = game.health?.dataQuality || 'unavailable'
+    const pillClass = quality === 'complete' ? 'healthy' : quality === 'partial' ? 'watch' : 'critical'
+    return `<div class="game-row">
+      <div class="game-name"><span class="game-mark" style="--game-color:#37e5a0">◆</span><div><strong>${esc(game.name)}</strong><small>${esc(game.id)} · ${esc(game.stage || '—')}</small></div></div>
+      <div class="player-count"><strong>${fmtInt(game.players)}</strong><span>${game.health?.lastEventAt ? `последнее: ${new Date(game.health.lastEventAt).toLocaleString('ru-RU')}` : 'событий нет'}</span></div>
+      <div><strong>${fmtInt(game.minted)}</strong> <small>/ ${fmtInt(game.burned)}</small></div>
+      <div><span class="status-pill ${pillClass}"><i></i>${esc(qualityLabel(quality))}</span></div>
+    </div>`
+  }).join('')
+}
+
+function renderAdjacent(adjacent) {
+  if (!adjacent) return
+  const sections = adjacent.sections || {}
+  const values = [
+    fmtInt(sections.engagement?.metrics?.activePlayers),
+    fmtUsd(sections.monetization?.metrics?.volumePerActivePlayer),
+    sections.sustainability?.metrics?.burnToMintRatio === null || sections.sustainability?.metrics?.burnToMintRatio === undefined ? DASH : `${Math.round(sections.sustainability.metrics.burnToMintRatio * 100)}%`,
+    `${fmtInt(sections.reliability?.metrics?.connectedGames)} / ${fmtInt(sections.reliability?.metrics?.totalGames)}`,
+    fmtInt(sections.risk?.metrics?.criticalIncidents),
+    qualityLabel(adjacent.dataQuality),
+  ]
+  document.querySelectorAll('#adjacent-grid article b').forEach((element, index) => { if (values[index] !== undefined) element.textContent = values[index] })
+  setText('#adjacent-quality-note', adjacent.reason || `источник: ${adjacent.source || 'event-inbox'}`)
+}
+
+function renderEconomyQuick(model) {
+  const container = document.querySelector('#economy-quick')
+  if (!container) return
+  const adjacent = model.adjacent?.sections || {}
+  const rows = [
+    ['Активные игроки', fmtInt(adjacent.engagement?.metrics?.activePlayers)],
+    ['Новые игроки (доля)', adjacent.engagement?.metrics?.newPlayerShare === null ? DASH : fmtPct(adjacent.engagement?.metrics?.newPlayerShare)],
+    ['Выпущено', fmtInt(adjacent.sustainability?.metrics?.minted)],
+    ['Сожжено', fmtInt(adjacent.sustainability?.metrics?.burned)],
+    ['Стоки к источникам', (() => {
+      const metric = (model.economy?.metrics || []).find((item) => item.id === 'sink_source_ratio')
+      return metric && metric.value !== null && metric.value !== undefined ? metric.value.toFixed(2) : DASH
+    })()],
+    ['Качество данных', qualityLabel(model.adjacent?.dataQuality)],
+  ]
+  container.innerHTML = rows.map(([label, value]) => `<div><span>${esc(label)}</span><b>${esc(value)}</b><small>${esc(model.adjacent?.source || 'event-inbox')}</small></div>`).join('')
+}
+
+function renderIngestion(ingestion, overview) {
+  const container = document.querySelector('#ingestion-quick')
+  if (!container) return
+  const rows = [
+    ['Событий в inbox', fmtInt(ingestion?.events)],
+    ['Из них дубликатов', fmtInt(ingestion?.duplicates)],
+    ['Отклонено валидацией', fmtInt(ingestion?.rejected)],
+    ['Вытеснено retention', fmtInt((ingestion?.evictedByLimit || 0) + (ingestion?.evictedByTtl || 0))],
+    ['Последнее событие', ingestion?.lastEventAt ? new Date(ingestion.lastEventAt).toLocaleString('ru-RU') : 'данных не было'],
+    ['Событий в окне', fmtInt(overview?.eventsInWindow)],
+  ]
+  container.innerHTML = rows.map(([label, value]) => `<div><span>${esc(label)}</span><b>${esc(value)}</b><small>${esc(ingestion?.storage || '—')}</small></div>`).join('')
+}
+
+function renderFunnel(funnel) {
+  const container = document.querySelector('#funnel-steps')
+  if (!container || !funnel) return
+  const stages = funnel.stages || []
+  if (!stages.length) {
+    container.innerHTML = '<div class="funnel-step"><span>1</span><div><strong>Нет данных</strong><small>события воронки не поступали</small></div><b>—</b></div>'
+    return
+  }
+  container.innerHTML = stages.map((stage, index) => `<div class="funnel-step"><span>${index + 1}</span><div><strong>${esc(stage.label || stage.id || `Этап ${index + 1}`)}</strong><small>${fmtInt(stage.players)} игроков</small></div><b>${stage.conversionRate === null || stage.conversionRate === undefined ? DASH : `${(stage.conversionRate).toFixed(1)}%`}</b></div>`).join('')
+}
+
+function renderInvestor(model) {
+  const investor = model.investor || {}
+  const metrics = investor.metrics || {}
+  const values = [
+    fmtInt(metrics.activePlayers),
+    fmtInt(metrics.newPlayers),
+    fmtUsd(metrics.volume),
+    `${fmtInt(metrics.minted)} / ${fmtInt(metrics.burned)}`,
+    fmtInt(metrics.criticalIncidents),
+    qualityLabel(metrics.dataQuality),
+  ]
+  document.querySelectorAll('#investor-grid > div b').forEach((element, index) => { if (values[index] !== undefined) element.textContent = values[index] })
+  setText('#investor-quality-note', `источник: ${investor.source || 'event-inbox'} · период ${investor.period || '—'}`)
+  const trend = model.investorTrend || { points: [] }
+  setText('#investor-trend-status', trend.points?.length ? `${trend.points.length} сохранённых отчётов · качество ${qualityLabel(trend.dataQuality)}` : 'Сохранённых снимков нет')
+  const bars = document.querySelector('#investor-history-bars')
+  if (bars) {
+    const points = trend.points || []
+    const max = Math.max(1, ...points.map((point) => Number(point.activePlayers) || 0))
+    bars.innerHTML = points.length
+      ? points.map((point) => `<i style="height:${Math.max(8, Math.round((Number(point.activePlayers) || 0) / max * 100))}%" title="${esc(point.createdAt || '')}"></i>`).join('')
+      : '<i style="height:8%"></i>'
+  }
+  renderEcosystemQuick()
+}
+
+async function renderEcosystemQuick() {
+  try {
+    const [investorResponse, ingestionResponse] = await Promise.all([fetch('/api/investors/report'), fetch('/api/ingestion/status')])
+    if (investorResponse.ok) {
+      const report = await investorResponse.json()
+      setText('#investor-quality-note', `источник: ${report.source || 'event-inbox'} · период ${report.period || '—'}`)
+    }
+    if (ingestionResponse.ok) {
+      const status = await ingestionResponse.json()
+      setText('#ingestion-quick small:last-child', status.storage || '—')
+    }
+  } catch {
+    /* сетевые сбои не превращаются в нули: значения остаются «—» */
+  }
+}
+
+function renderCrossGame(crossGame) {
+  const container = document.querySelector('#cross-game-grid')
+  if (!container || !crossGame) return
+  const counts = crossGame.counts || {}
+  const values = [fmtInt(counts.oneGame), fmtInt(counts.twoGames), fmtInt(counts.threeOrMore)]
+  container.querySelectorAll('b').forEach((element, index) => { if (values[index] !== undefined) element.textContent = values[index] })
+  const note = container.querySelectorAll('small')
+  if (note[0]) note[0].textContent = crossGame.privacy || 'обезличенные ключи'
+  if (note[1]) note[1].textContent = `качество: ${qualityLabel(crossGame.dataQuality)}`
+  if (note[2]) note[2].textContent = crossGame.generatedAt ? new Date(crossGame.generatedAt).toLocaleTimeString('ru-RU') : ''
+}
+
+function renderTraffic(traffic) {
+  if (!traffic) return
+  const totals = traffic.totals || {}
+  const fmt = (value) => (value === null || value === undefined ? DASH : Number(value).toLocaleString('ru-RU'))
+  setText('#traffic-pageviews', fmt(totals.pageViews))
+  setText('#traffic-sessions', fmt(totals.sessions))
+  setText('#traffic-visitors', fmt(totals.uniquePseudoVisitors))
+  setText('#traffic-cta', fmt(totals.ctaClicks))
+  setText('#traffic-landing', fmt(totals.landingReached))
+  setText('#traffic-quality', qualityLabel(traffic.dataQuality))
+  setText('#traffic-quality-note', traffic.reason || `dataQuality: ${traffic.dataQuality} · confidence ${traffic.confidence}`)
+  const funnel = document.querySelector('#traffic-funnel')
+  if (funnel) {
+    funnel.innerHTML = (traffic.funnel || []).map((step, index) => `<div class="funnel-step"><span>${index + 1}</span><div><strong>${esc(step.label || step.id || `Этап ${index + 1}`)}</strong><small>${fmt(step.count)} событий</small></div><b>${step.conversionFromPrevious === null || step.conversionFromPrevious === undefined ? (index === 0 ? '100%' : DASH) : `${(step.conversionFromPrevious * 100).toFixed(1)}%`}</b></div>`).join('')
+  }
+  const chips = (selector, values) => {
+    const element = document.querySelector(selector)
+    if (!element) return
+    element.innerHTML = values && values.length ? values.slice(0, 8).map((value) => `<span class="chip">${esc(value)}</span>`).join('') : DASH
+  }
+  chips('#traffic-campaigns', traffic.campaigns)
+  chips('#traffic-sources', traffic.sources)
+  chips('#traffic-pages', traffic.pages)
+  setText('#traffic-type', (totals.realEvents || totals.botEvents) ? `real ${fmt(totals.realEvents)} · bot ${fmt(totals.botEvents)}` : DASH)
+  setText('#traffic-status', traffic.reason || `Событий в inbox: ${fmt(totals.events)} · read-only · ${traffic.generatedAt ? new Date(traffic.generatedAt).toLocaleTimeString('ru-RU') : '—'}`)
+}
+
+async function loadAiReport() {
+  try {
+    const response = await fetch('/api/ai/report')
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const report = await response.json()
+    setText('#ai-updated', `Обновлено ${report.generatedAt ? new Date(report.generatedAt).toLocaleTimeString('ru-RU') : '—'} · источник ${report.source || 'event-inbox'}`)
+    setText('#ai-score', report.dataReliability === null || report.dataReliability === undefined ? DASH : Math.round(report.dataReliability * 100))
+    setText('#ai-reliability', `${report.criticalCount} критических, ${report.highCount} высоких сигналов`)
+    const container = document.querySelector('#ai-conclusions')
+    if (container) {
+      container.innerHTML = (report.conclusions || []).map((text, index) => `<div class="ai-insight${index ? ' warning' : ''}"><span class="insight-icon">${index ? '!' : '↗'}</span><div><strong>Вывод ${index + 1}</strong><p>${esc(text)}</p></div></div>`).join('') || '<div class="ai-insight"><span class="insight-icon">!</span><div><strong>Выводов нет</strong><p>События не поступали.</p></div></div>'
+    }
+  } catch (error) {
+    setText('#ai-updated', `Не удалось получить /api/ai/report: ${error.message}`)
+  }
 }
 
 let osPanelState = 'idle'
@@ -126,8 +396,10 @@ async function loadOSPanel({ force = false } = {}) {
     const osData = await fetchOS()
     if (container && osData.config) {
       renderOSPanel(container, osData)
+      setText('#os-summary-pill', `компонентов: ${osData.config.totalComponents ?? '—'}`)
     } else if (container) {
-      container.innerHTML = `<p>OS API недоступен — запустите API сервер на порту 8787</p>`
+      container.innerHTML = '<p>OS API недоступен — запустите API сервер</p>'
+      setText('#os-summary-pill', 'OS API недоступен')
     }
     if (panelsContainer) {
       if (osData.config) renderControlPanels(panelsContainer, osData)
@@ -135,95 +407,66 @@ async function loadOSPanel({ force = false } = {}) {
     }
     osPanelState = 'loaded'
   } catch {
-    if (container) container.innerHTML = `<p>Ошибка загрузки OS v3 панели</p>`
+    if (container) container.innerHTML = '<p>Ошибка загрузки OS v3 панели</p>'
     osPanelState = 'idle'
-  }
-}
-
-async function syncFromApi() {
-  try {
-    const response = await fetch('/api/read-model')
-    if (!response.ok) return
-    const readModel = await response.json()
-    const overview = readModel.overview
-    const adjacent = readModel.adjacent
-    const source = document.querySelector('.eyebrow')
-    if (source) source.textContent = `ЖИВАЯ МОДЕЛЬ ДАННЫХ · ${new Date(readModel.generatedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
-    const adjacentValues = [adjacent.sections.engagement.metrics.activePlayers, adjacent.sections.monetization.metrics.volumePerActivePlayer ? `$${adjacent.sections.monetization.metrics.volumePerActivePlayer}` : 'нет данных', adjacent.sections.sustainability.metrics.burnToMintRatio === null ? 'нет данных' : `${Math.round(adjacent.sections.sustainability.metrics.burnToMintRatio * 100)}%`, `${adjacent.sections.reliability.metrics.connectedGames} / ${adjacent.sections.reliability.metrics.totalGames}`, adjacent.sections.risk.metrics.criticalIncidents, `${adjacent.sections.risk.metrics.dataCoverage}%`]
-    document.querySelectorAll('.adjacent-grid article b').forEach((value, index) => { if (adjacentValues[index] !== undefined) value.textContent = adjacentValues[index] })
-    const trendStatus = document.querySelector('#investor-trend-status')
-    if (trendStatus) trendStatus.textContent = readModel.investorTrend.points.length ? `${readModel.investorTrend.points.length} сохранённых отчётов · качество ${readModel.investorTrend.dataQuality}` : 'Пока нет сохранённых снимков'
-    const investorMetrics = readModel.investor.metrics
-    const investorValues = [investorMetrics.activePlayers, 'частично', investorMetrics.payerConversion === 'partial' ? 'частично' : investorMetrics.payerConversion, investorMetrics.volume ? `$${investorMetrics.volume}` : 'нет данных', investorMetrics.volume ? `$${investorMetrics.volume}` : 'нет данных', 'частично', investorMetrics.minted ? `${investorMetrics.minted}` : 'нет данных', `${investorMetrics.criticalIncidents}`, investorMetrics.dataQuality === 'partial' ? 'частичное' : investorMetrics.dataQuality]
-    document.querySelectorAll('.investor-grid > div b').forEach((value, index) => { if (investorValues[index] !== undefined) value.textContent = investorValues[index] })
-    const funnelStages = readModel.funnel.stages || []
-    document.querySelectorAll('.funnel-step > b').forEach((value, index) => { if (funnelStages[index]?.conversionRate !== null && funnelStages[index]?.conversionRate !== undefined) value.textContent = `${funnelStages[index].conversionRate}%` })
-    const bars = document.querySelectorAll('#investor-history-bars i')
-    const points = readModel.investorTrend.points
-    const maxPlayers = Math.max(1, ...points.map((point) => Number(point.activePlayers) || 0))
-    bars.forEach((bar, index) => { const point = points[index]; if (point) bar.style.height = `${Math.max(12, Math.round((Number(point.activePlayers) || 0) / maxPlayers * 100))}%` })
-    document.querySelectorAll('.game-row').forEach((row, index) => {
-      const game = overview.games[index]
-      if (!game) return
-      const label = row.querySelector('.game-name small')
-      if (label) label.textContent = `${game.id.toUpperCase()} · ${game.stage} · ${game.dataQuality}`
-    })
-    const traffic = readModel.traffic
-    if (traffic) {
-      const set = (selector, value) => { const element = document.querySelector(selector); if (element) element.textContent = value === null || value === undefined ? '—' : value }
-      const fmt = (value) => Number(value || 0).toLocaleString('en-US')
-      const metric = (value) => value ? fmt(value) : '—'
-      set('#traffic-pageviews', metric(traffic.totals.pageViews))
-      set('#traffic-sessions', metric(traffic.totals.sessions))
-      set('#traffic-visitors', metric(traffic.totals.uniquePseudoVisitors))
-      set('#traffic-cta', metric(traffic.totals.ctaClicks))
-      set('#traffic-landing', metric(traffic.totals.landingReached))
-      set('#traffic-quality', { complete: 'Полное', partial: 'Частичное', unavailable: 'Нет данных' }[traffic.dataQuality] || traffic.dataQuality)
-      set('#traffic-quality-note', traffic.reason || `dataQuality: ${traffic.dataQuality} · confidence ${traffic.confidence}`)
-      ;(traffic.funnel || []).forEach((step, index) => {
-        set(`#traffic-step-${index}`, `${fmt(step.count)} событий`)
-        set(`#traffic-pct-${index}`, step.conversionFromPrevious === null ? (index === 0 ? '100%' : '—') : `${(step.conversionFromPrevious * 100).toFixed(1)}%`)
-      })
-      const chips = (selector, values) => { const element = document.querySelector(selector); if (element) element.innerHTML = values.length ? values.slice(0, 8).map((value) => `<span class="chip">${value}</span>`).join('') : '—' }
-      chips('#traffic-campaigns', traffic.campaigns)
-      chips('#traffic-sources', traffic.sources)
-      chips('#traffic-pages', traffic.pages)
-      set('#traffic-type', (traffic.totals.realEvents || traffic.totals.botEvents) ? `real ${fmt(traffic.totals.realEvents)} · bot ${fmt(traffic.totals.botEvents)}` : '—')
-      set('#traffic-status', traffic.reason || `Событий в inbox: ${fmt(traffic.totals.events)} · read-only · синхронизация ${new Date(traffic.generatedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`)
-    }
-  } catch {
-    const source = document.querySelector('.eyebrow')
-    if (source) source.textContent = 'LOCAL MOCK READ MODEL'
   }
 }
 
 function bindEvents() {
   document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === button.dataset.view))
-    if (!button.classList.contains('nav-item')) showToast(`Раздел «${button.dataset.view}» будет доступен в следующем модуле`)
   }))
-  document.querySelectorAll('[data-control]').forEach((button) => button.addEventListener('click', () => showToast('Запрос создан. Прямое изменение отключено до подтверждения безопасности.')))
-  document.querySelectorAll('[data-snapshot]').forEach((button) => button.addEventListener('click', async () => { try { const response = await fetch('/api/investors/snapshots', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ period: '7d UTC', createdBy: 'dashboard-operator' }) }); if (!response.ok) throw new Error('snapshot_failed'); button.textContent = 'Снимок сохранён'; showToast('Инвесторский отчёт сохранён') } catch { showToast('Не удалось сохранить снимок') } }))
-  document.querySelectorAll('[data-funnel-period]').forEach((button) => button.addEventListener('click', () => { document.querySelectorAll('[data-funnel-period]').forEach((item) => item.classList.remove('selected')); button.classList.add('selected'); showToast(`Период воронки: ${button.dataset.funnelPeriod} дней`) }))
-  document.querySelector('#refresh-adjacent')?.addEventListener('click', async () => { try { await fetch('/api/analytics/adjacent'); showToast('Смежная аналитика обновлена') } catch { showToast('Источник аналитики пока недоступен') } })
-  document.querySelector('#refresh-traffic')?.addEventListener('click', async () => { try { const response = await fetch('/api/analytics/traffic'); if (!response.ok) throw new Error('traffic_failed'); await syncFromApi(); showToast('Трафик-аналитика обновлена') } catch { showToast('Источник трафика пока недоступен') } })
+  document.querySelectorAll('[data-control]').forEach((button) => button.addEventListener('click', async () => {
+    try {
+      const response = await fetch('/api/control/requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: button.dataset.control, reason: 'оператор из дашборда' }) })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      showToast('Запрос создан: прямое изменение отключено до подтверждения.')
+    } catch (error) {
+      showToast(`Не удалось создать запрос: ${error.message}`)
+    }
+  }))
+  document.querySelectorAll('[data-snapshot]').forEach((button) => button.addEventListener('click', async () => {
+    try {
+      const response = await fetch('/api/investors/snapshots', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ period: '7d UTC', createdBy: 'dashboard-operator' }) })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      button.textContent = 'Снимок сохранён'
+      showToast('Инвесторский отчёт сохранён')
+      refresh()
+    } catch (error) {
+      showToast(`Не удалось сохранить снимок: ${error.message}`)
+    }
+  }))
+  document.querySelector('#refresh-adjacent')?.addEventListener('click', async () => { await refresh(); showToast('Смежная аналитика обновлена из event-inbox') })
+  document.querySelector('#refresh-traffic')?.addEventListener('click', async () => { await refresh(); showToast('Трафик-аналитика обновлена') })
   document.querySelector('#refresh-os')?.addEventListener('click', async (event) => {
     const button = event.currentTarget
     button.textContent = 'Обновляем…'
     await loadOSPanel({ force: true })
-    button.textContent = 'Обновить OS v3'
-    showToast(`OS v3 обновлён: 33 компонента · 19 слоёв · ${CONTROL_PANELS.length} панелей управления`)
+    button.textContent = 'Обновить'
+    showToast('Панель OS v3 обновлена')
   })
   document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => {
     const target = button.dataset.view === 'Инвесторы' ? '#investors-section' : button.dataset.view === 'Связи игроков' ? '#players-network-section' : button.dataset.view === 'Воронки' ? '#funnels-section' : button.dataset.view === 'Смежная аналитика' ? '#adjacent-analytics-section' : button.dataset.view === 'Трафик' ? '#traffic-section' : button.dataset.view === 'OS v3' ? '#os-section' : null
     if (target) document.querySelector(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }))
-  document.querySelector('#refresh-btn').addEventListener('click', (event) => {
+  document.querySelector('#refresh-btn').addEventListener('click', async (event) => {
     const button = event.currentTarget
-    button.classList.add('loading'); button.querySelector('span').textContent = 'Обновляем...'
-    setTimeout(async () => { await syncFromApi(); button.classList.remove('loading'); button.querySelector('span').textContent = 'Данные обновлены'; showToast('Метрики синхронизированы') }, 900)
+    button.classList.add('loading')
+    button.querySelector('span').textContent = 'Обновляем...'
+    await refresh()
+    button.classList.remove('loading')
+    button.querySelector('span').textContent = 'Обновить данные'
+    showToast('Данные перечитаны из API')
   })
-  document.querySelector('.close-alert').addEventListener('click', (event) => event.currentTarget.closest('.alert-banner').remove())
+  document.querySelector('#close-alert')?.addEventListener('click', (event) => { event.currentTarget.closest('.alert-banner').hidden = true })
 }
-function showToast(message) { const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; document.body.append(toast); setTimeout(() => toast.remove(), 2400) }
+
+function showToast(message) {
+  const toast = document.createElement('div')
+  toast.className = 'toast'
+  toast.textContent = message
+  document.body.append(toast)
+  setTimeout(() => toast.remove(), 2400)
+}
+
 app()

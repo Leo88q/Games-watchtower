@@ -6,6 +6,8 @@
  * Хороший референс для построения собственного высокопроизводительного бэкенда
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const SOLANA_GAME_API_RUST_CONFIG = {
   project: 'Solana Game API Rust',
   repo: 'https://github.com/dariusjvc/solana-game-api-rust',
@@ -230,7 +232,8 @@ export function solanaGameApiRustHealth(env = process.env) {
     purpose: SOLANA_GAME_API_RUST_CONFIG.purpose,
     features: Object.keys(SOLANA_GAME_API_RUST_CONFIG.features),
     reference: SOLANA_GAME_API_RUST_CONFIG.reference,
-    configured: true,
+    configured: false,
+    configurationReason: 'Внешний Rust-сервис, хаб его не запускает',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),

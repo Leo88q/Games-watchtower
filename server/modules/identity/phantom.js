@@ -9,7 +9,7 @@ export function phantomConfig(env = process.env) {
   return {
     provider: PROVIDER_ID,
     appId: env.PHANTOM_APP_ID || null,
-    apiKey: env.PHANTOM_API_KEY || null,
+    apiKeyConfigured: Boolean(env.PHANTOM_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     configured: Boolean(env.PHANTOM_APP_ID || env.PHANTOM_API_KEY),
     chainType: 'solana',
     features: {

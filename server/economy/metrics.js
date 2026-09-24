@@ -11,6 +11,22 @@
 
 export const TIMEZONE = 'UTC'
 
+/**
+ * Метрики, которые считаются только из подтверждённых финансовых фактов студии:
+ * события игр для них не нужны. Они остаются видимыми, даже если в окне нет потока событий,
+ * но помечаются quality=partial и получают note — это заявленные факты, а не измеренная активность.
+ */
+export const FINANCE_FACT_METRICS = Object.freeze(new Set([
+  'gross_revenue', 'dividend_pool_coverage', 'stablecoin_share', 'cosmetic_share',
+  'cap_utilization', 'treasury_runway_days', 'liquidity_to_mcap', 'price_impact_1k',
+]))
+
+/**
+ * Период, за который студия задаёт финансовые факты (выручка, расходы, их разбивка).
+ * Значения приводятся к выбранному окну пропорционально дням — см. WATCHTOWER_ECONOMY_* в .env.example.
+ */
+export const CONFIG_PERIOD_DAYS = 30
+
 export const WINDOWS = [
   { id: '24h', days: 1, label: '24 часа' },
   { id: '7d', days: 7, label: '7 дней' },
@@ -132,7 +148,11 @@ function metric(def) {
   // Честность: у любой недоступной метрики обязана быть причина, иначе её нельзя проверить.
   const reasonText = reason || (quality === 'unavailable'
     ? (needs.length ? `Нет данных: нужны события ${needs.join(', ')}` : 'Нет данных: события за окно не поступали')
-    : null)
+    : quality === 'partial'
+      ? (needs.length
+        ? `Частичные данные: не хватает входов — ${needs.join(', ')}`
+        : 'Частичные данные: часть входов отсутствует в окне наблюдения (события неполные или не передаются играми)')
+      : null)
   return {
     id, label, family,
     value: quality === 'unavailable' ? null : value,
@@ -155,7 +175,10 @@ const U = (id, label, family, formula, source, needs, extra = {}) =>
 const ok = (id, label, family, value, unit, formula, source, extra = {}) =>
   metric({ id, label, family, value, unit, formula, source, quality: extra.quality || 'complete', ...extra })
 
-export function computeEconomy({ events = [], window = '7d', now = Date.now(), config = {}, demo = false } = {}) {
+export function computeEconomy({ events = [], window = '7d', now = Date.now(), config = {}, demo = false, retention = {} } = {}) {
+  const scanned = events.length
+  const retainedTotal = Number.isFinite(retention.eventsRetained) ? retention.eventsRetained : events.length
+  const truncated = Boolean(retention.truncated)
   const win = WINDOWS.find((w) => w.id === window) || WINDOWS[1]
   const from = now - win.days * DAY_MS
   const inWindow = events.filter((event) => {
@@ -205,7 +228,16 @@ export function computeEconomy({ events = [], window = '7d', now = Date.now(), c
   const prices = config.prices || {}
   const usd = (amount, asset = 'GAME') => Number((amount * (Number(prices[asset]) || 0)).toFixed(2))
   const tradedUsd = Number(config.tradedVolumeUsd) || usd(acc.trade, config.mainAsset || 'GAME')
-  const revenueUsd = Number(config.revenueUsd) || null
+  // Финансовые факты (выручка, расходы, их разбивка) студия считает за календарный месяц —
+  // CONFIG_PERIOD_DAYS дней. Для выбранного окна значение приводится пропорционально дням,
+  // а метрика помечается quality: 'partial' и указывает это в источнике, чтобы приведённую цифру
+  // нельзя было принять за измеренную за окно.
+  const windowFactor = win.days / CONFIG_PERIOD_DAYS
+  const scaled = (value) => (Number(value) ? Number((Number(value) * windowFactor).toFixed(2)) : null)
+  const revenueUsd = scaled(config.revenueUsd)
+  const costsUsd = scaled(config.costsUsd)
+  const stablecoinRevenueUsd = scaled(config.stablecoinRevenueUsd)
+  const cosmeticRevenueUsd = scaled(config.cosmeticRevenueUsd)
   const dau = activeWallets.size
 
   const metrics = []
@@ -294,9 +326,9 @@ export function computeEconomy({ events = [], window = '7d', now = Date.now(), c
         'среднее (t_первая_награда − t_первое_появление)', 'связка identity→reward событий', { window: win.id, quality: 'partial' })
     : U('time_to_first_earn_hours', 'Время до первой награды', 'players', 'среднее t_reward − t_first_seen', 'нужна связка по кошельку', ['PlayerJoined', 'RewardGranted']))
   metrics.push(dau && revenueUsd
-    ? ok('arpdau', 'Выручка на активного игрока (ARPDAU)', 'revenue', Number((revenueUsd / dau).toFixed(4)), 'USD',
-        'выручка за окно / активные кошельки / дни', 'config.revenueUsd + события', { window: win.id })
-    : U('arpdau', 'Выручка на активного игрока (ARPDAU)', 'revenue', 'выручка / DAU', 'нужна выручка', ['config.revenueUsd', 'FeeCharged']))
+    ? ok('arpdau', 'Выручка на активного игрока (ARPDAU)', 'revenue', Number((revenueUsd / (dau * win.days)).toFixed(4)), 'USD',
+        'выручка за окно / активные кошельки / дни окна', `config.revenueUsd / ${CONFIG_PERIOD_DAYS} дней × ${win.days}`, { window: win.id, quality: 'partial' })
+    : U('arpdau', 'Выручка на активного игрока (ARPDAU)', 'revenue', 'выручка за окно / активные кошельки / дни', 'нужна выручка', ['config.revenueUsd', 'FeeCharged']))
   metrics.push(circulating && earningsTotal
     ? ok('cost_of_emission_share', 'Доля эмиссии в предложении', 'revenue', Number((earningsTotal / circulating * 100).toFixed(2)), '%',
         'заработанное игроками / circulating × 100', 'награды + circulating', { window: win.id, quality: 'partial' })
@@ -304,23 +336,23 @@ export function computeEconomy({ events = [], window = '7d', now = Date.now(), c
 
   // ------------------------------------------------------------- Казна и выручка
   metrics.push(revenueUsd
-    ? ok('gross_revenue', 'Валовая выручка за окно', 'revenue', Number(revenueUsd.toFixed(2)), 'USD', 'сумма подтверждённой выручки', 'config.revenueUsd / FeeCharged', { window: win.id })
+    ? ok('gross_revenue', 'Валовая выручка за окно', 'revenue', Number(revenueUsd.toFixed(2)), 'USD', 'подтверждённая выручка, приведённая к окну', `config.revenueUsd / ${CONFIG_PERIOD_DAYS} дней × ${win.days}`, { window: win.id, quality: 'partial' })
     : U('gross_revenue', 'Валовая выручка за окно', 'revenue', 'Σ подтверждённой выручки', 'нужна выручка', ['FeeCharged', 'config.revenueUsd']))
   metrics.push(config.stablecoinRevenueUsd
-    ? ok('stablecoin_share', 'Доля выручки в стейблкоинах', 'revenue', Number((config.stablecoinRevenueUsd / (revenueUsd || config.stablecoinRevenueUsd) * 100).toFixed(2)), '%',
-        'USDC-выручка / общая выручка × 100', 'config.stablecoinRevenueUsd', { window: win.id, novelties: ['stablecoin-first monetization 2026'] })
+    ? ok('stablecoin_share', 'Доля выручки в стейблкоинах', 'revenue', Number((stablecoinRevenueUsd / (revenueUsd || stablecoinRevenueUsd) * 100).toFixed(2)), '%',
+        'USDC-выручка / общая выручка × 100', `config.stablecoinRevenueUsd / ${CONFIG_PERIOD_DAYS} дней`, { window: win.id, novelties: ['stablecoin-first monetization 2026'] })
     : U('stablecoin_share', 'Доля выручки в стейблкоинах', 'revenue', 'USDC / всего', 'нужна разбивка выручки', ['config.stablecoinRevenueUsd'], { reason: 'Нет данных: не задана выручка в стейблкоинах (USDC)' }))
   metrics.push(config.cosmeticRevenueUsd
-    ? ok('cosmetic_share', 'Доля косметики в выручке', 'revenue', Number((config.cosmeticRevenueUsd / (revenueUsd || config.cosmeticRevenueUsd) * 100).toFixed(2)), '%',
-        'выручка от косметики / общая × 100; признак устойчивой модели', 'config.cosmeticRevenueUsd', { window: win.id, novelties: ['cosmetic-led economies'] })
+    ? ok('cosmetic_share', 'Доля косметики в выручке', 'revenue', Number((cosmeticRevenueUsd / (revenueUsd || cosmeticRevenueUsd) * 100).toFixed(2)), '%',
+        'выручка от косметики / общая × 100; признак устойчивой модели', `config.cosmeticRevenueUsd / ${CONFIG_PERIOD_DAYS} дней`, { window: win.id, novelties: ['cosmetic-led economies'] })
     : U('cosmetic_share', 'Доля косметики в выручке', 'revenue', 'косметика / всего', 'нет разбивки выручки', ['config.cosmeticRevenueUsd'], { reason: 'Нет данных: разбивка выручки по типам не задана' }))
   metrics.push(treasuryBalance && dailyBurn
     ? ok('treasury_runway_days', 'Запас казны (дней)', 'revenue', Number((treasuryBalance / dailyBurn).toFixed(1)), 'days',
         'баланс казны / средний дневной расход', 'config.treasuryBalance + config.dailyBurn', { window: win.id, novelties: ['runway discipline'] })
     : U('treasury_runway_days', 'Запас казны (дней)', 'revenue', 'казна / дневной расход', 'нужны баланс и расход казны', ['config.treasuryBalance', 'config.dailyBurn'], { reason: 'Не заданы баланс казны или дневной расход' }))
   metrics.push(revenueUsd
-    ? ok('dividend_pool_coverage', 'Покрытие дивидендного пула', 'revenue', Number((Math.max(0, revenueUsd - (Number(config.costsUsd) || 0)) * 0.25).toFixed(2)), 'USD',
-        '(выручка − расходы) × 25% — пул Ecosystem Share за окно', 'config.revenueUsd − config.costsUsd, правило 25% из INVESTOR_LANDING_BRIEF', { window: win.id, novelties: ['revenue-share NFT'] })
+    ? ok('dividend_pool_coverage', 'Покрытие дивидендного пула', 'revenue', Number((Math.max(0, revenueUsd - (costsUsd || 0)) * 0.25).toFixed(2)), 'USD',
+        '(выручка − расходы) × 25% — пул Ecosystem Share за окно', `config.revenueUsd − config.costsUsd, приведено из ${CONFIG_PERIOD_DAYS} дней, правило 25% из INVESTOR_LANDING_BRIEF`, { window: win.id, quality: 'partial', novelties: ['revenue-share NFT'] })
     : U('dividend_pool_coverage', 'Покрытие дивидендного пула', 'revenue', '(выручка − расходы) × 25%', 'нужны выручка и расходы', ['config.revenueUsd', 'config.costsUsd'], { reason: 'Нет подтверждённой выручки и расходов за окно' }))
 
   // ------------------------------------------------------------- Справедливость
@@ -379,6 +411,9 @@ export function computeEconomy({ events = [], window = '7d', now = Date.now(), c
     window: win.id,
     windowDays: win.days,
     eventsTotal: inWindow.length,
+    eventsScanned: scanned,
+    eventsRetained: retainedTotal,
+    truncated,
     eventsHuman: human.length,
     eventsExcludedAsBot: botEvents,
     assets: [...assets].slice(0, 20),
@@ -389,6 +424,7 @@ export function computeEconomy({ events = [], window = '7d', now = Date.now(), c
       prices: Object.keys(prices).length > 0,
       treasuryBalance: treasuryBalance !== null,
       revenueUsd: revenueUsd !== null,
+      configPeriodDays: CONFIG_PERIOD_DAYS,
       liquidityUsd: Boolean(config.liquidityUsd),
     },
     demo,
@@ -400,14 +436,19 @@ export function computeEconomy({ events = [], window = '7d', now = Date.now(), c
     if (!m.timezone) m.timezone = TIMEZONE
   }
 
-  // Честность: если в окне не было событий, ни одна метрика не считается — ноль не подставляется.
+  // Честность: если в окне не было событий, активность не считается — ноль не подставляется.
+  // Исключение — метрики из подтверждённых финансовых фактов студии: им события не нужны.
   if (inWindow.length === 0) {
     for (const m of metrics) {
-      if (m.quality !== 'unavailable') {
-        m.quality = 'unavailable'
-        m.value = null
-        m.reason = 'Нет событий в окне наблюдения: игры не подключены или события не поступали'
+      if (m.quality === 'unavailable') continue
+      if (FINANCE_FACT_METRICS.has(m.id) && m.value !== null && m.value !== undefined) {
+        m.quality = 'partial'
+        m.note = 'Из подтверждённых финансовых фактов студии: события игр для этой метрики не требуются'
+        continue
       }
+      m.quality = 'unavailable'
+      m.value = null
+      m.reason = 'Нет событий в окне наблюдения: игры не подключены или события не поступали'
     }
   }
 
@@ -477,8 +518,23 @@ export function economyIndex(metrics, inputs) {
   }
   const weightSum = components.reduce((a, c) => a + c.weight, 0)
   const score = Math.round((components.reduce((a, c) => a + c.score * c.weight, 0) / weightSum) * 100)
-  const status = score >= 70 ? 'healthy' : score >= 45 ? 'watch' : 'critical'
-  return { score, status, components, missing: [] }
+  let status = score >= 70 ? 'healthy' : score >= 45 ? 'watch' : 'critical'
+
+  // Вето-правила: сильные компоненты не должны маскировать катастрофический сигнал.
+  const vetoes = []
+  const fairness = components.find((c) => c.id === 'fairness')
+  if (fairness && fairness.score <= 0.25) vetoes.push({ id: 'fairness_veto', reason: `Концентрация заработка: Gini = ${(1 - fairness.score).toFixed(4)} (вето при Gini ≥ 0.75)`, maxStatus: fairness.score <= 0.1 ? 'critical' : 'watch' })
+  const organic = components.find((c) => c.id === 'organic')
+  if (organic && organic.score <= 0.5) vetoes.push({ id: 'bot_veto', reason: `Доля ботов ≥ 50% (органичность ${organic.score.toFixed(2)})`, maxStatus: 'watch' })
+  const playExtract = components.find((c) => c.id === 'play_vs_extract')
+  if (playExtract && playExtract.score <= 0.3) vetoes.push({ id: 'extraction_veto', reason: `Индекс извлечения ≥ 0.7`, maxStatus: 'watch' })
+  const sinks = components.find((c) => c.id === 'sink_strength')
+  if (sinks && sinks.score <= 0.1) vetoes.push({ id: 'sink_veto', reason: `Стоки почти отсутствуют (стоки/источники = ${sinks.score.toFixed(2)})`, maxStatus: 'watch' })
+  const rank = { critical: 0, watch: 1, healthy: 2 }
+  for (const veto of vetoes) {
+    if (rank[status] > rank[veto.maxStatus]) status = veto.maxStatus
+  }
+  return { score, status, components, vetoes, missing: [] }
 }
 
 const clamp = (x) => Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0))
@@ -495,13 +551,46 @@ export const FAMILIES = [
   { id: 'cross', label: 'Переплетение', why: 'Игроки в нескольких играх и потоки активов между играми — измеримый результат интеграции.' },
 ]
 
-export function metricCatalog() {
+/** Тексты в needs, которые не являются именами событий («любые события», «нужны …»). */
+const GENERIC_NEEDS = /^(любые|нужен|нужны)/
+
+/**
+ * Покрытие каталога: какие метрики уже можно посчитать из событий, которые принимают адаптеры игр,
+ * для каких нужны новые события от игр, а какие требуют конфигурации студии (supply, выручка, казна).
+ * Это не оценка «сколько было бы красиво», а точный ответ на вопрос «почему метрика пустая».
+ */
+export function metricCoverage({ acceptedEvents = [] } = {}) {
+  const accepted = new Set(acceptedEvents)
   const base = computeEconomy({ events: [], window: '7d', config: {} })
+  const fromEvents = []
+  const needEvents = []
+  const needConfig = []
+  for (const metric of base.metrics) {
+    const needs = metric.needs || []
+    const missing = needs.filter((need) => !need.startsWith('config.') && !GENERIC_NEEDS.test(need) && !accepted.has(need))
+    const config = needs.filter((need) => need.startsWith('config.'))
+    if (missing.length) needEvents.push({ id: metric.id, family: metric.family, events: missing, config })
+    else if (config.length) needConfig.push({ id: metric.id, family: metric.family, config })
+    else fromEvents.push({ id: metric.id, family: metric.family })
+  }
+  return {
+    total: base.metrics.length,
+    fromEvents: fromEvents.map((m) => m.id),
+    needEvents,
+    needConfig,
+  }
+}
+
+export function metricCatalog(options = {}) {
+  const base = computeEconomy({ events: [], window: '7d', config: {} })
+  const acceptedEvents = options.acceptedEvents || []
   return {
     engine: base.engine,
     timezone: TIMEZONE,
     windows: WINDOWS,
     families: FAMILIES,
     metrics: base.metrics.map(({ id, label, family, unit, formula, source, needs }) => ({ id, label, family, unit, formula, source, needs })),
+    acceptedEvents,
+    coverage: metricCoverage({ acceptedEvents }),
   }
 }

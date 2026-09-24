@@ -4,6 +4,8 @@
  * Легковесный движок с полным контролем над ончейн-логикой
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const GODOT_SOLANA_SDK_DETAILED = {
   engine: 'godot',
   sdk: 'godot-solana-sdk',
@@ -148,7 +150,8 @@ export function godotSolanaSdkHealth(env = process.env) {
     minVersion: GODOT_SOLANA_SDK_DETAILED.minVersion,
     nodes: Object.keys(GODOT_SOLANA_SDK_DETAILED.nodes),
     builders: GODOT_SOLANA_SDK_DETAILED.builders,
-    configured: true,
+    configured: false,
+    configurationReason: 'GDExtension для Godot устанавливается в проект игры, а не в хаб',
     warning: GODOT_SOLANA_SDK_DETAILED.warning,
     writes: false,
     dataQuality: 'partial',

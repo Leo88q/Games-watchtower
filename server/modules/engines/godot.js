@@ -4,6 +4,8 @@
  * Требует осторожности при работе с mainnet из-за отсутствия аудита безопасности
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const GODOT_SDK_CONFIG = {
   engine: 'godot',
   sdk: 'godot-solana-sdk',
@@ -79,7 +81,8 @@ export function godotHealth(env = process.env) {
     sdk: GODOT_SDK_CONFIG.sdk,
     type: GODOT_SDK_CONFIG.type,
     minVersion: GODOT_SDK_CONFIG.minVersion,
-    configured: true,
+    configured: false,
+    configurationReason: 'GDExtension для Godot устанавливается в проект игры, а не в хаб',
     nodes: GODOT_SDK_CONFIG.nodes,
     warning: GODOT_SDK_CONFIG.warning,
     writes: false,

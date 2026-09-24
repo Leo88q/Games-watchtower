@@ -8,7 +8,7 @@ export const PROVIDER_ID = 'firststep'
 export function firststepConfig(env = process.env) {
   return {
     provider: PROVIDER_ID,
-    apiKey: env.FIRSTSTEP_API_KEY || null,
+    apiKeyConfigured: Boolean(env.FIRSTSTEP_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     projectId: env.FIRSTSTEP_PROJECT_ID || null,
     configured: Boolean(env.FIRSTSTEP_API_KEY),
     features: {

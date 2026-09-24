@@ -8,7 +8,7 @@ export const PROVIDER_ID = 'altude'
 export function altudeConfig(env = process.env) {
   return {
     provider: PROVIDER_ID,
-    apiKey: env.ALTUDE_API_KEY || null,
+    apiKeyConfigured: Boolean(env.ALTUDE_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     endpoint: env.ALTUDE_ENDPOINT || 'https://api.altude.io',
     configured: Boolean(env.ALTUDE_API_KEY),
     features: {

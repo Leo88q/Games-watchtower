@@ -3,6 +3,8 @@
  * Может служить референсом для создания собственных турнирных механик с участием ИИ
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const AUREUS_ARENA_SDK_CONFIG = {
   sdk: 'aureus-arena-sdk',
   package: '@aureus-arena/sdk',
@@ -139,7 +141,8 @@ export function aureusHealth(env = process.env) {
     purpose: AUREUS_ARENA_SDK_CONFIG.purpose,
     reference: AUREUS_ARENA_SDK_CONFIG.reference,
     features: Object.keys(AUREUS_ARENA_SDK_CONFIG.features),
-    configured: true,
+    configured: false,
+    configurationReason: 'Пакет Aureus заменён на RitArena',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),
