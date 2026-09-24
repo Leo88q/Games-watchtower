@@ -46,18 +46,18 @@ EN: Which cross-game link should ship first? · $POTATO → AOF · Neon Relay tr
 
 RU
 1/ $WTWR: 1 млрд, эмиссия фиксированная, право на выпуск отзывается. Игрокам и airdrop — 30%, команде — 15% с локом на 12 мес. и разблокировкой 24 мес.
-2/ Разработчики зарабатывают двумя путями: доля команды с вестингом и 20% выручки платформы — в пул разработчиков. Фонд билдеров 8% — гранты за принятые этапы.
-3/ Выручки пока нет. Когда появится: 40% — выкуп $WTWR (половина сжигается). Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}
+2/ Разработчики зарабатывают двумя путями: доля команды с вестингом и 15% чистой прибыли — в пул разработчиков. Фонд билдеров 8% — гранты за принятые этапы.
+3/ Выручки пока нет. С прибыли: 30% — выкуп $WTWR (половина сжигается). Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}
 
 EN
 1/ $WTWR: 1B fixed supply, mint authority revoked. 30% to players and airdrops; team 15% with a 12-month lock and 24-month unlock.
-2/ Developers earn two ways: vested team share and 20% of platform revenue to a developer pool. Builders fund 8% — grants per accepted milestone.
-3/ No revenue yet. Once there is: 40% buys back $WTWR (half burned). Ad. Not financial advice. You can lose everything. White paper: {WP}
+2/ Developers earn two ways: vested team share and 15% of net profit to a developer pool. Builders fund 8% — grants per accepted milestone.
+3/ No revenue yet. From profit: 30% buys back $WTWR (half burned). Ad. Not financial advice. You can lose everything. White paper: {WP}
 
 **5. На что сбор**
 
-RU: Цель — $250 000. Разработка 35%, железо 20%, аудиты 15%, ликвидность 15%, маркетинг 10%, резерв 5%. Каждая покупка железа — с чеком и транзакцией казны. Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}
-EN: Target: $250,000. Development 35%, hardware 20%, audits 15%, liquidity 15%, marketing 10%, reserve 5%. Every hardware purchase published with receipt and treasury tx. Ad. Not financial advice. You can lose everything. White paper: {WP}
+RU: Цель — $250 000 (NFT $100k + токен $150k). Разработка 35%, железо 20%, аудиты 15%, ликвидность 15%, маркетинг 10%, резерв 5%. Каждая покупка железа — с чеком и транзакцией казны. Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}
+EN: Target: $250,000 (NFT $100k + token $150k). Development 35%, hardware 20%, audits 15%, liquidity 15%, marketing 10%, reserve 5%. Every hardware purchase published with receipt and treasury tx. Ad. Not financial advice. You can lose everything. White paper: {WP}
 
 **6. Compute Grid (картинка списка железа, прогресс-бар)**
 
@@ -80,8 +80,8 @@ EN
 
 **8. Раунды**
 
-RU: Раунд 1: 60 млн по $0,0025, 10% сразу, остальное 10 мес. Раунд 2: 25 млн по $0,004, 15% сразу, 6 мес. Есть 14 дней на отказ. Не для США. Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}
-EN: Round 1: 60M at $0.0025, 10% at TGE, rest over 10 months. Round 2: 25M at $0.004, 15% at TGE, 6 months. 14-day withdrawal right. Not for US persons. Ad. Not financial advice. You can lose everything. White paper: {WP}
+RU: Раунд 1: 40 млн по $0,0025, 10% сразу, остальное 10 мес. Раунд 2: 12,5 млн по $0,004, 15% сразу, 6 мес. Есть 14 дней на отказ. Не для США. Реклама. Не инвестсовет. Можно потерять всё. White paper: {WP}
+EN: Round 1: 40M at $0.0025, 10% at TGE, rest over 10 months. Round 2: 12.5M at $0.004, 15% at TGE, 6 months. 14-day withdrawal right. Not for US persons. Ad. Not financial advice. You can lose everything. White paper: {WP}
 
 **9. Риски (закреплённый пост на время сбора)**
 
@@ -89,6 +89,11 @@ RU: Прежде чем участвовать: игры на ранних ст�
 EN: Before you join: games are early, there is no revenue, contracts are still in audit, the price can go to zero. Only put in what you can afford to lose. White paper, Part I — risks: {WP}
 
 ---
+
+**10. Ecosystem Share NFT** — только после заключения юриста и публикации Terms/проспекта; по правилам о ценных бумагах реклама может быть ограничена ещё сильнее.
+
+RU: Раунд 0: 100 NFT Ecosystem Share по $1 000. Вместе — 25% чистой прибыли студии, выплата в USDC раз в квартал смарт-контрактом. Нет прибыли — нет выплаты. Условия: {TERMS}
+EN: Round 0: 100 Ecosystem Share NFTs at $1,000. Together they carry 25% of studio net profit, paid quarterly in USDC by smart contract. No profit, no payout. Terms: {TERMS}
 
 ## Чего не писать (стоп-лист)
 «гарантированный доход», «APY», «x10/x100», «to the moon», «не упустите», «последний шанс», «цена будет расти»,

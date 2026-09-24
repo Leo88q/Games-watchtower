@@ -16,7 +16,7 @@
   game analytics, traffic generation, control of Web3 products, and launching new games.
 - **Network.** Solana (SPL token), fixed supply of **1,000,000,000**, no further issuance
   (mint authority is revoked after minting).
-- **Raise.** Two-round presale, target **$250,000**: 60M at $0.0025 and 25M at $0.004.
+- **Raise.** Target **$250,000** in three rounds: Round 0 — 100 "Ecosystem Share" NFTs at $1,000 ($100,000, a separate instrument, see Part K); Rounds 1–2 — $WTWR: 40M at $0.0025 and 12.5M at $0.004 ($150,000).
 - **Rights.** $WTWR does **not** grant equity, dividends, shareholder votes, refunds
   or guaranteed income. It grants access to platform services, discounts, staking and Launchpad participation,
   and voting on ecosystem parameters.
@@ -73,7 +73,7 @@ afford such a stack, and players see scattered tokens with no connection between
 2. **GutterCaps trophies:** Neon Relay wins and ARES-1 Epic modules unlock unique caps.
 3. **Watchtower Passport:** a non-transferable NFT recording achievements across all games; raises the
    staking multiplier and grants early access.
-4. **$WTWR buyback:** 40% of platform revenue goes to market buybacks; 50% of bought tokens are burned, 50% go to stakers.
+4. **$WTWR buyback:** 30% of net profit goes to market buybacks; 50% of bought tokens are burned, 50% go to stakers.
 
 ### D.5 Roadmap
 
@@ -85,7 +85,7 @@ afford such a stack, and players see scattered tokens with no connection between
 | Q4 2027 | Compute Grid operational, real-time AI analyst, VR prototype |
 | 2028 | first VR game, NFTs portable between 2D and VR |
 
-### D.6 Use of funds ($250,000)
+### D.6 Use of funds ($250,000: NFT $100,000 + $WTWR $150,000)
 
 | Item | % | Amount |
 |---|---|---|
@@ -106,8 +106,8 @@ and the treasury transaction.
 | Parameter | Round 1 · Founders | Round 2 · Builders |
 |---|---|---|
 | Price | $0.0025 | $0.0040 |
-| Volume | 60,000,000 $WTWR | 25,000,000 $WTWR |
-| Amount | $150,000 | $100,000 |
+| Volume | 40,000,000 $WTWR | 12,500,000 $WTWR |
+| Amount | $100,000 | $50,000 |
 | Unlock | 10% at TGE, 1-month cliff, 9 months linear | 15% at TGE, 6 months linear |
 | Payment currency | USDC, SOL **[TO FILL]** | USDC, SOL |
 | Min/max per participant | **[TO FILL]** | **[TO FILL]** |
@@ -138,11 +138,11 @@ and the treasury transaction.
 
 | Allocation | % | Tokens | Unlock |
 |---|---|---|---|
-| Presale, Round 1 | 6 | 60,000,000 | 10% TGE, 1-month cliff, 9 months linear |
-| Presale, Round 2 | 2.5 | 25,000,000 | 15% TGE, 6 months linear |
+| Presale, Round 1 | 4 | 40,000,000 | 10% TGE, 1-month cliff, 9 months linear |
+| Presale, Round 2 | 1.25 | 12,500,000 | 15% TGE, 6 months linear |
 | DEX liquidity | 4 | 40,000,000 | pool locked for 12 months |
 | CapsStake airdrop (GutterCaps) | 10 | 100,000,000 | 4 seasons × 25M |
-| Player rewards | 20 | 200,000,000 | 4-year decreasing emission |
+| Player rewards | 23.25 | 232,500,000 | 4-year decreasing emission |
 | Developer team | 15 | 150,000,000 | 12-month lock, then 24 months linear |
 | Builders fund | 8 | 80,000,000 | grants after milestone acceptance |
 | Treasury & Compute Grid | 19.5 | 195,000,000 | multisig, quarterly report |
@@ -173,8 +173,8 @@ buyback or refund (except the Art. 13 withdrawal right and shortfall refunds).
 ### G.2 Platform revenue and its distribution
 Sources (as launched): Studio API subscriptions, 3–5% of Launchpad raises, 1% of in-game NFT
 marketplace volume, TalkChart traffic campaigns for third parties, Compute Grid rental.
-Distribution: 40% $WTWR buyback (½ burned, ½ to stakers), 20% developer pool, 40% treasury.
-Buybacks are made only from revenue actually received; as of this document there is no revenue.
+Distribution of **net profit** (revenue minus documented expenses): 25% to Ecosystem Share NFT holders (USDC, Part K), 30% $WTWR buyback (½ burned, ½ to stakers), 15% developer pool, 30% treasury.
+Buybacks are made only from profit actually received; as of this document there is no revenue.
 
 ### G.3 Compute Patron
 A voluntary contribution toward a specific hardware item via a separate public wallet. Grants a
@@ -209,6 +209,23 @@ Solana consensus is Proof of Stake. **[TO FILL]** energy consumption indicators 
 the EU delegated regulation on sustainability indicators (usually sourced from a network data provider). Own
 Compute Grid hardware: **[TO FILL]** consumption estimate once the site is chosen.
 
+## Part K. Ecosystem Share NFT (Round 0) — outside MiCA scope
+
+A profit-share right is a financial instrument (security), so MiCA does not apply to it (Art. 2(4)(a)).
+This part only describes its link to $WTWR; sale terms are set by separate Terms and, unless an exemption applies,
+a prospectus under Regulation (EU) 2017/1129. **[TO FILL with counsel]**.
+
+| Parameter | Value |
+|---|---|
+| Issue | 100 NFTs, one class, one-time drop, mint closed afterwards |
+| Price / raise | $1,000 / $100,000 |
+| Right | 0.25% of quarterly studio net profit per NFT (25% total) + read-only investor dashboard access |
+| Payout | USDC, quarterly, by smart contract per holder snapshot |
+| Limit | 10 NFTs per wallet |
+| Link to $WTWR | grants no tokens; the NFT pool is paid from profit before the $WTWR buyback (Part G.2) |
+
+A quarter with no profit pays 0. The dividend contract requires a separate audit before the sale.
+
 ---
 
 ## Appendix: what remains before publication
@@ -218,4 +235,4 @@ Compute Grid hardware: **[TO FILL]** consumption estimate once the site is chose
 3. Decide dates, per-participant min/max, soft cap and refund procedure.
 4. Set up the treasury multisig and publish the addresses.
 5. Review Part G (rights) and marketing materials with counsel (Art. 7: consistency with the white paper).
-6. Choose one raise: this presale **or** the "Ecosystem Share" NFT from `INVESTOR_LANDING_BRIEF.md` — not both.
+6. For the "Ecosystem Share" NFT (Part K), obtain a securities-law opinion and prepare a prospectus or an exemption analysis; Terms before the NFT sale opens.
