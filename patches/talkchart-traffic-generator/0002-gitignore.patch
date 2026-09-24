@@ -1,0 +1,30 @@
+From 2c0d20ef40316df661fb7ba853000f8f843044d7 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Thu, 24 Sep 2026 15:11:46 +0000
+Subject: [PATCH 2/2] =?UTF-8?q?gitignore:=20=D0=BF=D0=BE=D0=BF=D1=80=D0=B0?=
+ =?UTF-8?q?=D0=B2=D0=B8=D1=82=D1=8C=20=D0=BA=D0=BE=D0=BC=D0=BC=D0=B5=D0=BD?=
+ =?UTF-8?q?=D1=82=D0=B0=D1=80=D0=B8=D0=B9?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .gitignore | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.gitignore b/.gitignore
+index 97b9e06..6234c4c 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -84,7 +84,7 @@ site/data/prune-report.json
+ 
+ # Локальное состояние журнала кликов LandingReached: бинарный sqlite, пересоздаётся,
+ # в git не нужен (CI коммитит весь site/ — из-за этого файл разрастался бы каждый прогон).
+-# x_posts.json, наоборот,.trackается: это журналAlready-published, его CI обязан сохранять.
++# x_posts.json, наоборот, в git: это журнал уже опубликованного, CI обязан его сохранять.
+ site/data/landings.sqlite3
+ site/data/landings.sqlite3-*
+ site/data/watchtower.db
+-- 
+2.39.5
+
