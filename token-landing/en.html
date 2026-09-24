@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchtower Coin ($WTWR) — the ecosystem token of Leo Games Studio</title>
+<meta name="description" content="$WTWR is the token of the Watchtower platform: analytics, traffic and control for Web3 games. Presale target $250,000. Tokenomics, staking in GutterCaps, Compute Grid hardware, roadmap to VR.">
+<meta property="og:title" content="Watchtower Coin ($WTWR)">
+<meta property="og:description" content="One coin, the whole ecosystem: 4 games, analytics, traffic, a path to VR. Presale $250,000.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#090c12;--panel:#10151e;--panel2:#131923;--line:#222b38;--muted:#7f8a9c;--text:#ecf2f7;--green:#37e5a0;--purple:#a78bfa;--orange:#ffb85c;--red:#ff6b8a;--blue:#5cc8ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 Manrope,system-ui,sans-serif}
+a{color:var(--green);text-decoration:none}
+.mono,.num{font-family:"DM Mono",ui-monospace,monospace}
+.wrap{max-width:1160px;margin:0 auto;padding:0 20px}
+header{position:sticky;top:0;z-index:20;background:rgba(9,12,18,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:18px;height:62px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--text)}
+.logo i{width:30px;height:30px;border-radius:8px;background:var(--green);color:#06120d;display:grid;place-items:center;font-style:normal;font-weight:800}
+nav{display:flex;gap:18px;margin-left:auto;font-size:14px}nav a{color:var(--muted)}nav a:hover{color:var(--text)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:12px;background:var(--green);color:#06120d;font-weight:800;border:0;cursor:pointer;font-size:15px}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+section{padding:84px 0;border-bottom:1px solid var(--line)}
+h1{font-size:clamp(38px,6vw,68px);line-height:1.05;margin:18px 0;letter-spacing:-.02em}
+h2{font-size:clamp(28px,4vw,42px);line-height:1.15;margin:0 0 14px;letter-spacing:-.01em}
+h3{margin:0 0 8px;font-size:19px}
+.lead{font-size:19px;color:#c4cdd8;max-width:760px}
+.muted{color:var(--muted)}
+.badge{display:inline-block;font:500 12px "DM Mono",monospace;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.badge.g{color:var(--green);border-color:rgba(55,229,160,.4)}.badge.o{color:var(--orange);border-color:rgba(255,184,92,.4)}.badge.p{color:var(--purple);border-color:rgba(167,139,250,.4)}.badge.r{color:var(--red);border-color:rgba(255,107,138,.4)}
+.grid{display:grid;gap:16px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}nav{display:none}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px}
+.card.hl{border-color:rgba(55,229,160,.45);box-shadow:0 0 0 1px rgba(55,229,160,.12) inset}
+.kpi b{display:block;font:500 30px "DM Mono",monospace;color:var(--green)}.kpi span{color:var(--muted);font-size:14px}
+.hero{padding:96px 0 84px;background:radial-gradient(900px 400px at 80% -10%,rgba(55,229,160,.13),transparent),radial-gradient(700px 380px at 0% 20%,rgba(167,139,250,.10),transparent)}
+.hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin:28px 0 36px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:13px}td.num,th.num{text-align:right}
+.dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:middle}
+.donut{width:280px;height:280px;border-radius:50%;margin:auto;position:relative}
+.donut::after{content:"";position:absolute;inset:58px;border-radius:50%;background:var(--panel)}
+.donut-center{position:absolute;inset:0;display:grid;place-items:center;z-index:2;text-align:center}
+.bar{height:10px;background:var(--panel2);border-radius:99px;overflow:hidden;border:1px solid var(--line)}.bar>i{display:block;height:100%;background:var(--green)}
+/* tree */
+.tree{font-size:15px}
+.tree ul{list-style:none;margin:0;padding-left:26px;position:relative}
+.tree ul::before{content:"";position:absolute;left:10px;top:0;bottom:14px;border-left:1px dashed var(--line)}
+.tree li{position:relative;margin:10px 0}
+.tree li::before{content:"";position:absolute;left:-16px;top:22px;width:14px;border-top:1px dashed var(--line)}
+.node{display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.node.root{border-color:var(--green);font-weight:800;font-size:18px}
+.node.game{border-color:rgba(92,200,255,.4)}.node.svc{border-color:rgba(167,139,250,.45)}.node.stake{border-color:rgba(255,184,92,.55)}
+.tk{font:500 12px "DM Mono",monospace;padding:2px 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line)}
+.tk.w{color:var(--green)}.tk.nft{color:var(--purple)}.tk.x{color:var(--orange)}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font:500 14px "DM Mono",monospace}
+.flow span{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px}.flow em{color:var(--muted);font-style:normal}
+.step{display:grid;grid-template-columns:120px 1fr;gap:18px;padding:18px 0;border-bottom:1px dashed var(--line)}
+@media(max-width:700px){.step{grid-template-columns:1fr}}
+.warn{background:rgba(255,184,92,.07);border:1px solid rgba(255,184,92,.35);border-radius:14px;padding:16px 18px;color:#f3d9b4}
+.risk{background:rgba(255,107,138,.06);border:1px solid rgba(255,107,138,.3);border-radius:14px;padding:16px 18px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin:10px 0}summary{cursor:pointer;font-weight:700}
+footer{padding:40px 0 60px;color:var(--muted);font-size:13px}
+input{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:12px 14px;border-radius:12px;font:inherit;min-width:260px}
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <a class="logo" href="#top"><i>W</i> watchtower <span class="badge g">$WTWR</span></a>
+  <nav>
+    <a href="#why">Why</a><a href="#tree">Ecosystem</a><a href="#tokenomics">Tokenomics</a><a href="#presale">Presale</a><a href="#staking">Staking</a><a href="#hardware">Hardware</a><a href="#devs">Developers</a><a href="#roadmap">Roadmap</a><a href="#risks">Risks</a>
+  </nav>
+  <span class="mono" style="font-size:13px;margin-left:12px"><a href="index.html">RU</a> | <b>EN</b></span>
+  <a class="btn" href="#presale">Presale</a>
+</div></header>
+
+<!-- HERO -->
+<section class="hero" id="top"><div class="wrap">
+  <span class="badge o">Presale in preparation · figures below are a plan, not a fact</span>
+  <h1>One coin for the whole<br>gaming ecosystem. <span style="color:var(--green)">$WTWR</span></h1>
+  <p class="lead">Watchtower is the operating system of Leo Games Studio: it collects analytics across all games, brings traffic and gives full control over Web3 products. $WTWR is its token: platform access, staking, new game launches and a share of buybacks funded by real revenue.</p>
+  <div class="hero-cta">
+    <a class="btn" href="#presale">Round 1 terms →</a>
+    <a class="btn ghost" href="#tree">Ecosystem tree</a>
+  </div>
+  <div class="grid g4">
+    <div class="card kpi"><b>$250,000</b><span>presale target, 2 rounds</span></div>
+    <div class="card kpi"><b>4</b><span>games on Solana: beta, alpha, 2 prototypes</span></div>
+    <div class="card kpi"><b>−37.5%</b><span>round 1 price vs round 2</span></div>
+    <div class="card kpi"><b>10%</b><span>of supply — airdrop to GutterCaps stakers</span></div>
+  </div>
+</div></section>
+
+<!-- WHY -->
+<section id="why"><div class="wrap">
+  <span class="badge p">Why $WTWR</span>
+  <h2>Games come and go. The platform that builds them stays.</h2>
+  <p class="lead">Each game has its own token and economy. What they share is analytics, traffic, security, launch and links to each other. Watchtower provides that, and it is paid in $WTWR.</p>
+  <div class="grid g3" style="margin-top:28px">
+    <div class="card"><h3>📊 Analytics</h3><p class="muted">One event stream from on-chain and off-chain, funnels, cross-game segments, alerts. Every number carries a quality flag: <span class="mono">complete / partial / unavailable</span> — no made-up figures.</p><span class="badge g">live</span></div>
+    <div class="card"><h3>🚀 Traffic</h3><p class="muted">The TalkChart engine: SEO and AI search, X/Twitter with Solana Blinks, short videos, TipLink onboarding without a seed phrase. A "post → game" visit is confirmed, not guessed.</p><span class="badge o">launching</span></div>
+    <div class="card"><h3>🛡 Control</h3><p class="muted">Game parameters change only through two-signature proposals, with an audit log and an emergency pause. The hub cannot sign a transaction by itself — this is checked automatically.</p><span class="badge g">live</span></div>
+  </div>
+</div></section>
+
+<!-- TREE -->
+<section id="tree"><div class="wrap">
+  <span class="badge g">Hierarchy</span>
+  <h2>Ecosystem tree</h2>
+  <p class="lead">On top: the platform and $WTWR. Below it: services and games, each game with its own token and NFTs. Links between branches turn a set of games into an ecosystem.</p>
+  <div class="tree card" style="margin-top:26px;overflow-x:auto">
+    <ul style="padding-left:0"><li style="margin:0">
+      <div class="node root">🗼 Watchtower OS <span class="tk w">$WTWR</span><span class="tk nft">Watchtower Passport (NFT)</span></div>
+      <ul>
+        <li><div class="node svc">Platform services</div>
+          <ul>
+            <li><div class="node svc">📊 Analytics and Studio API <span class="badge g">live</span></div></li>
+            <li><div class="node svc">🚀 TalkChart — traffic engine <span class="badge o">launching</span></div></li>
+            <li><div class="node svc">🧪 Launchpad — new game launches in $WTWR <span class="badge">planned</span></div></li>
+            <li><div class="node svc">🖥 Compute Grid — own hardware: AI, rendering, VR <span class="badge">funding</span></div></li>
+          </ul>
+        </li>
+        <li><div class="node game">🥔 ARES-1 · Potato Colony <span class="tk">$POTATO</span><span class="tk nft">module NFTs: Common / Rare / Epic</span><span class="tk x">licenses in SKR</span><span class="badge g">beta</span></div></li>
+        <li><div class="node game">🧢 GutterCaps <span class="tk">$CG</span><span class="tk nft">cap NFTs (10 collections)</span><span class="badge g">alpha</span></div>
+          <ul><li><div class="node stake">🔒 CapsStake — accepts <span class="tk">$CG</span><span class="tk">$POTATO</span><span class="tk x">SKR</span> → points → airdrop <span class="tk w">$WTWR</span></div></li></ul>
+        </li>
+        <li><div class="node game">🌾 Age of Farming <span class="tk">harvest token</span><span class="tk nft">land and tool NFTs</span><span class="badge">prototype</span></div></li>
+        <li><div class="node game">🏁 Neon Relay <span class="tk">season token</span><span class="tk nft">car and skin NFTs</span><span class="badge">prototype</span></div></li>
+        <li><div class="node game" style="border-style:dashed">🥽 New games → VR line <span class="badge">2027–2028</span></div></li>
+      </ul>
+    </li></ul>
+  </div>
+
+  <h3 style="margin-top:40px">How the branches connect</h3>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3>🥔→🌾 Potatoes as seeds</h3><p class="muted">$POTATO from ARES-1 is planting material in Age of Farming. AOF harvest upgrades ARES-1 fields. Game tokens get spent in a neighbouring game, not just sold.</p></div>
+    <div class="card"><h3>🧢 Trophy caps</h3><p class="muted">A Neon Relay race win or an Epic ARES-1 module unlocks a unique GutterCaps cap. Holding an NFT in one game gives a bonus in another.</p></div>
+    <div class="card"><h3>🪪 Watchtower Passport</h3><p class="muted">A non-transferable NFT that accumulates achievements across all games. Passport level raises the staking multiplier and gives early access to new games.</p></div>
+    <div class="card"><h3>🔁 Buyback from revenue</h3><p class="muted">A share of game and platform fees buys $WTWR on the market: half is burned, half goes to stakers. Buybacks happen only from actual revenue.</p></div>
+  </div>
+</div></section>
+
+<!-- MONETIZATION -->
+<section id="money"><div class="wrap">
+  <span class="badge p">Monetization</span>
+  <h2>Where Watchtower revenue comes from</h2>
+  <p class="lead">Demand for $WTWR comes from payments and access, not promises. Five sources, as they launch:</p>
+  <table style="margin-top:22px">
+    <thead><tr><th>Source</th><th>How it is paid</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><b>Analytics for external Web3 games</b></td><td>Studio API subscription; paying in $WTWR is discounted vs USDC</td><td><span class="badge o">2027</span></td></tr>
+      <tr><td><b>Launchpad</b></td><td>3–5% of new game raises; access to their sales for $WTWR stakers</td><td><span class="badge o">2027</span></td></tr>
+      <tr><td><b>Game marketplace fees</b></td><td>1% of in-game NFT market volume goes to the platform</td><td><span class="badge o">from game mainnet</span></td></tr>
+      <tr><td><b>Traffic as a service</b></td><td>TalkChart campaigns for third-party projects</td><td><span class="badge o">2027</span></td></tr>
+      <tr><td><b>Compute Grid rental</b></td><td>Spare GPU capacity for AI and rendering</td><td><span class="badge">2027–2028</span></td></tr>
+    </tbody>
+  </table>
+  <div class="card" style="margin-top:22px">
+    <h3>Where each dollar of platform revenue goes</h3>
+    <div class="flow" style="margin-top:12px">
+      <span>Revenue 100%</span><em>→</em>
+      <span style="color:var(--green)">40% $WTWR buyback</span><em>(½ burn · ½ to stakers)</em>
+      <span style="color:var(--purple)">20% developer pool</span>
+      <span style="color:var(--orange)">40% treasury and operations</span>
+    </div>
+  </div>
+</div></section>
+
+<!-- TOKENOMICS -->
+<section id="tokenomics"><div class="wrap">
+  <span class="badge g">Tokenomics</span>
+  <h2>1,000,000,000 $WTWR — fixed supply</h2>
+  <p class="lead">No tokens beyond this will ever be minted. Almost everything unlocks gradually: the team cannot sell before investors.</p>
+  <div class="grid g2" style="margin-top:28px;align-items:center">
+    <div class="card" style="position:relative">
+      <div class="donut" id="donut"><div class="donut-center"><div><div class="num" style="font-size:26px">1 bn</div><div class="muted" style="font-size:13px">$WTWR</div></div></div></div>
+    </div>
+    <div class="card" style="overflow-x:auto"><table id="alloc"><thead><tr><th>Allocation</th><th class="num">%</th><th class="num">Tokens</th><th>Unlock</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</div></section>
+
+<!-- PRESALE -->
+<section id="presale"><div class="wrap">
+  <span class="badge o">Presale · target $250,000</span>
+  <h2>Two rounds. Earlier is cheaper, but locked longer.</h2>
+  <p class="lead">The honest deal: early participants take more risk, so they get a 37.5% lower price. In exchange their tokens unlock over a longer period. Nobody promises the price will rise.</p>
+  <div class="grid g2" style="margin-top:28px">
+    <div class="card hl">
+      <span class="badge g">Round 1 · Founders</span>
+      <h3 style="font-size:26px;margin-top:10px"><span class="num">$0.0025</span> per $WTWR</h3>
+      <table><tbody>
+        <tr><td class="muted">Tokens for sale</td><td class="num">60,000,000 (6%)</td></tr>
+        <tr><td class="muted">Raise</td><td class="num">$150,000</td></tr>
+        <tr><td class="muted">Fully diluted valuation</td><td class="num">$2.5M</td></tr>
+        <tr><td class="muted">Unlock</td><td class="num">10% at TGE · 1-month cliff · 9 months linear</td></tr>
+        <tr><td class="muted">Bonus</td><td class="num">Watchtower Passport, "Founder" tier</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card">
+      <span class="badge">Round 2 · Builders</span>
+      <h3 style="font-size:26px;margin-top:10px"><span class="num">$0.0040</span> per $WTWR</h3>
+      <table><tbody>
+        <tr><td class="muted">Tokens for sale</td><td class="num">25,000,000 (2.5%)</td></tr>
+        <tr><td class="muted">Raise</td><td class="num">$100,000</td></tr>
+        <tr><td class="muted">Fully diluted valuation</td><td class="num">$4M</td></tr>
+        <tr><td class="muted">Unlock</td><td class="num">15% at TGE · 6 months linear</td></tr>
+        <tr><td class="muted">Initial DEX pool price</td><td class="num">= round 2 price</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+
+  <h3 style="margin-top:44px">Use of the $250,000</h3>
+  <div class="card" style="margin-top:14px;overflow-x:auto"><table id="funds"><thead><tr><th>Item</th><th class="num">%</th><th class="num">Amount</th><th>What exactly</th></tr></thead><tbody></tbody></table>
+  <p class="muted" style="margin:14px 0 0;font-size:14px">Treasury is a multisig. Every quarter: a public report of spending with links to transactions.</p></div>
+
+  <div class="card" id="waitlist" style="margin-top:22px">
+    <h3>Round 1 waitlist</h3>
+    <p class="muted">The participation address is published only here and in official channels. No team member will DM you first.</p>
+    <form onsubmit="event.preventDefault();this.querySelector('p').hidden=false" style="display:flex;gap:10px;flex-wrap:wrap">
+      <input type="email" required placeholder="email to get notified at launch"><button class="btn">Join</button>
+      <p class="muted" hidden style="width:100%;margin:6px 0 0">Demo form: submission will be connected before the round starts.</p>
+    </form>
+  </div>
+</div></section>
+
+<!-- STAKING -->
+<section id="staking"><div class="wrap">
+  <span class="badge o">CapsStake · inside GutterCaps</span>
+  <h2>Stake game tokens — get $WTWR</h2>
+  <p class="lead">The staking hub lives inside GutterCaps and accepts three tokens. Staking earns season points; at season end they convert into a $WTWR airdrop. 4 seasons and 100,000,000 $WTWR in total (10% of supply), 25M per season.</p>
+  <div class="grid g3" style="margin-top:26px">
+    <div class="card"><h3>$CG · GutterCaps</h3><p class="muted">Weight <span class="num">×1.2</span>. The hub's native token.</p></div>
+    <div class="card"><h3>$POTATO · ARES-1</h3><p class="muted">Weight <span class="num">×1.2</span>. A bridge between studio games.</p></div>
+    <div class="card"><h3>SKR · Solana Mobile</h3><p class="muted">Weight <span class="num">×0.8</span>: the external token weighs less so outside capital does not crowd out players.</p></div>
+  </div>
+  <div class="card" style="margin-top:18px">
+    <h3>Points formula</h3>
+    <div class="flow" style="margin-top:10px">
+      <span>stake value in $</span><em>×</em><span>token weight</span><em>×</em><span>lock: 1 · 1.5 (30 d) · 2.5 (90 d) · 4 (180 d)</span><em>×</em><span>play bonus up to 1.25</span>
+    </div>
+    <p class="muted" style="margin:14px 0 0">The play bonus is earned by real gameplay seen by Watchtower, not by parking funds. Cap: no more than 1% of season points per wallet. Bonuses: Founder Passport ×1.1, Compute Patron ×1.2.</p>
+  </div>
+  <div class="warn" style="margin-top:18px">The staking contract will hold players' funds. It goes to mainnet only after an external audit — 15% of the raise is reserved for that.</div>
+</div></section>
+
+<!-- HARDWARE -->
+<section id="hardware"><div class="wrap">
+  <span class="badge p">Compute Grid</span>
+  <h2>The platform grows with its hardware</h2>
+  <p class="lead">Real-time AI analytics, content generation, VR builds and tests need physical GPU servers, headsets and test devices. Cloud rental costs more within a year, so we buy our own. 20% of the raise — $50,000 — goes to this. Every item is shown separately.</p>
+  <div class="grid g2" style="margin-top:26px" id="hw"></div>
+  <div class="card hl" style="margin-top:22px">
+    <h3>🔧 Become a Compute Patron</h3>
+    <p class="muted">You can fund a specific purchase directly, outside the presale, via a separate public Compute Grid wallet. Patrons get a non-transferable "Compute Patron" NFT naming the equipment and a ×1.2 multiplier in CapsStake. This is support, not an investment: it gives no share of profit. Every server bought goes into a public inventory with a receipt and transaction.</p>
+    <span class="badge o">wallet published before launch</span>
+  </div>
+</div></section>
+
+<!-- DEVS -->
+<section id="devs"><div class="wrap">
+  <span class="badge g">Developers earn too</span>
+  <h2>The team is paid so that it benefits when the project lives long</h2>
+  <div class="grid g2" style="margin-top:26px">
+    <div class="card"><h3>💵 Salaries from the raise</h3><p class="muted">35% of the presale — <b class="num">$87,500</b> — pays for development in stablecoins, monthly, with reports. It covers 4 games and the platform until mainnet.</p></div>
+    <div class="card"><h3>🔒 Team tokens — 15%</h3><p class="muted">150,000,000 $WTWR: a full 12-month lock, then 24 months linear. The team earns on the token only if the project is alive in 3 years.</p></div>
+    <div class="card"><h3>🔁 20% of revenue — developer pool</h3><p class="muted">Every month 20% of platform revenue is shared among those building the games and the platform. The more the ecosystem earns, the more developers get — without new emission.</p></div>
+    <div class="card"><h3>🧪 Builders fund — 8%</h3><p class="muted">80,000,000 $WTWR for milestone grants: a new game, a VR prototype, a Watchtower integration. Paid after the milestone is accepted, not in advance. Open to external studios too.</p></div>
+  </div>
+</div></section>
+
+<!-- VALUE -->
+<section id="value"><div class="wrap">
+  <span class="badge p">Why demand for the token can grow</span>
+  <h2>What works for the price — and what against it</h2>
+  <p class="lead">We do not promise growth. We show the mechanics: what creates demand, what limits supply and what can go wrong.</p>
+  <div class="grid g3" style="margin-top:24px">
+    <div class="card"><h3 style="color:var(--green)">Demand</h3><ul class="muted"><li>discounted analytics and traffic paid in $WTWR</li><li>staking $WTWR for Launchpad sale access</li><li>buybacks with 40% of platform revenue</li><li>Passport tiers and access to new games</li></ul></div>
+    <div class="card"><h3 style="color:var(--purple)">Supply</h3><ul class="muted"><li>fixed supply, no new tokens</li><li>half of buybacks burned</li><li>team lock: 12 + 24 months</li><li>presale and staking locks</li></ul></div>
+    <div class="card"><h3 style="color:var(--red)">Against</h3><ul class="muted"><li>unlocks create selling pressure</li><li>no buybacks until there is revenue</li><li>games may fail to attract players</li><li>the crypto market as a whole may fall</li></ul></div>
+  </div>
+</div></section>
+
+<!-- ROADMAP -->
+<section id="roadmap"><div class="wrap">
+  <span class="badge g">Roadmap</span>
+  <h2>From 4 games to VR</h2>
+  <div style="margin-top:20px">
+    <div class="step"><div><span class="badge g">now</span></div><div><h3>The foundation exists</h3><p class="muted">4 games on Solana (ARES-1 in beta, GutterCaps in alpha, AOF and Neon Relay as prototypes), Watchtower OS with analytics and control, the TalkChart traffic engine with confirmed visits.</p></div></div>
+    <div class="step"><div><span class="badge o">Q4 2026</span></div><div><h3>Presale and audit</h3><p class="muted">Rounds 1–2, audit of game contracts and CapsStake, traffic engine in production, open metrics on the website.</p></div></div>
+    <div class="step"><div><span class="badge o">Q1 2027</span></div><div><h3>Mainnet and season 1</h3><p class="muted">ARES-1 and GutterCaps on mainnet, CapsStake season 1, $WTWR DEX listing, first buybacks from marketplace fees.</p></div></div>
+    <div class="step"><div><span class="badge">Q2–Q3 2027</span></div><div><h3>A network of games</h3><p class="muted">Cross-game mechanics and the Watchtower Passport, AOF and Neon Relay on mainnet, Studio API for external games, Launchpad: first 2 games.</p></div></div>
+    <div class="step"><div><span class="badge">Q4 2027</span></div><div><h3>Compute Grid</h3><p class="muted">Own hardware running: real-time AI analyst, automated content, a VR prototype on the test rig.</p></div></div>
+    <div class="step"><div><span class="badge">2028</span></div><div><h3>VR</h3><p class="muted">The first VR game of the ecosystem, NFTs portable between 2D and VR, priority access for stakers and Compute Patrons.</p></div></div>
+  </div>
+</div></section>
+
+<!-- RISKS -->
+<section id="risks"><div class="wrap">
+  <span class="badge r">Risks — read before buying</span>
+  <h2>Honestly: what can go wrong</h2>
+  <div class="risk" style="margin-top:18px">
+    <ul style="margin:0;padding-left:20px">
+      <li>You can lose everything. $WTWR gives no equity, dividends or guaranteed income.</li>
+      <li>The games are currently in beta, alpha and prototype stages; mainnet contracts have not passed an external audit yet.</li>
+      <li>All figures on this page are a plan. The platform has no revenue yet, so there are no buybacks yet either.</li>
+      <li>Roadmap dates may shift. Hardware prices depend on the market.</li>
+      <li>Crypto-asset regulation (MiCA in the EU) may change the terms. Participation is unavailable where prohibited.</li>
+    </ul>
+  </div>
+  <h3 style="margin-top:36px">FAQ</h3>
+  <details><summary>How is $WTWR different from $POTATO and $CG?</summary><p class="muted">Game tokens run the economy of a specific game: farming, crafting, bets. $WTWR is the platform layer: service access, staking, Launchpad, buybacks from the whole ecosystem's revenue.</p></details>
+  <details><summary>Why does SKR weigh less in staking?</summary><p class="muted">So the airdrop goes primarily to ecosystem players, not to outside capital that came only for the giveaway.</p></details>
+  <details><summary>Who controls the money?</summary><p class="muted">The treasury is a multisig; spending is published quarterly. Compute Grid equipment is in a public inventory with receipts.</p></details>
+  <details><summary>What if the target is not reached?</summary><p class="muted">Round 1 funds the audit and mainnet for two games. The minimum and refund rules are published before the round starts.</p></details>
+</div></section>
+
+<footer><div class="wrap">
+  <p>© 2026 Leo Games Studio · Watchtower Coin ($WTWR). This material is for information only and is not investment advice or an offer. The crypto-asset white paper is published before the sale starts. Figures are a plan and may change.</p>
+</div></footer>
+
+<script>
+const ALLOC = [
+  ['Presale · round 1', 6, '#37e5a0', '10% at TGE, 1-month cliff, 9 months linear'],
+  ['Presale · round 2', 2.5, '#7af0c2', '15% at TGE, 6 months linear'],
+  ['DEX liquidity', 4, '#5cc8ff', 'pool locked for 12 months'],
+  ['CapsStake airdrop (GutterCaps)', 10, '#ffb85c', '4 seasons × 25M'],
+  ['Player rewards', 20, '#ffd89c', 'emitted over 4 years, decreasing'],
+  ['Development team', 15, '#a78bfa', '12-month lock, then 24 months linear'],
+  ['Builders fund', 8, '#c9b8ff', 'milestone grants, after acceptance'],
+  ['Treasury and Compute Grid', 19.5, '#8392a8', 'multisig, quarterly report'],
+  ['Launchpad and partners', 8, '#ff6b8a', 'per deal, locked'],
+  ['Marketing and community', 7, '#ff9db3', '12 months linear'],
+]
+const FUNDS = [
+  ['Development (salaries)', 35, '4 games and the platform until mainnet, monthly'],
+  ['Compute Grid — hardware', 20, 'GPU nodes, VR headsets, Seeker test devices'],
+  ['Security audits', 15, 'game contracts and CapsStake'],
+  ['DEX liquidity', 15, '$WTWR/USDC pair at the round 2 price'],
+  ['Marketing', 10, 'TalkChart, KOLs, contests'],
+  ['Operating reserve', 5, 'legal, infrastructure, contingencies'],
+]
+const HW = [
+  ['Analytics & AI GPU node', 18000, 'server with 2 RTX 5090-class GPUs: real-time AI analyst, content generation'],
+  ['Build & render node', 9000, 'game builds, trailer and TalkChart video rendering'],
+  ['VR development rig', 6000, 'Quest 3 and Vision Pro headsets for VR prototypes'],
+  ['Storage and backups', 5000, 'NAS + off-site copies of Watchtower events'],
+  ['Seeker test farm', 5000, '10 Solana Seeker phones: game and SKR flow tests'],
+  ['Network, UPS, hosting 12 mo', 7000, 'colocation and uninterruptible power'],
+]
+const fmt = (n) => n.toLocaleString('en-US')
+let acc = 0
+document.getElementById('donut').style.background = 'conic-gradient(' + ALLOC.map(([, p, c]) => { const s = acc; acc += p; return `${c} ${s}% ${acc}%` }).join(',') + ')'
+document.querySelector('#alloc tbody').innerHTML = ALLOC.map(([n, p, c, u]) =>
+  `<tr><td><span class="dot" style="background:${c}"></span>${n}</td><td class="num">${String(p)}</td><td class="num">${fmt(p * 1e7)}</td><td class="muted" style="font-size:13px">${u}</td></tr>`).join('')
+document.querySelector('#funds tbody').innerHTML = FUNDS.map(([n, p, w]) =>
+  `<tr><td><b>${n}</b></td><td class="num">${p}</td><td class="num">$${fmt(250000 * p / 100)}</td><td class="muted">${w}</td></tr>`).join('')
+document.getElementById('hw').innerHTML = HW.map(([n, usd, w]) =>
+  `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px"><h3>${n}</h3><span class="num">$${fmt(usd)}</span></div><p class="muted" style="font-size:14px">${w}</p><div class="bar"><i style="width:0%"></i></div><div class="muted mono" style="font-size:12px;margin-top:6px">raised $0 of $${fmt(usd)} · cost estimate</div></div>`).join('')
+// self-check: the page must never show figures that do not add up
+console.assert(ALLOC.reduce((s, a) => s + a[1], 0) === 100, 'allocation ≠ 100%')
+console.assert(FUNDS.reduce((s, a) => s + a[1], 0) === 100, 'use of funds ≠ 100%')
+console.assert(HW.reduce((s, a) => s + a[1], 0) === 50000, 'hardware ≠ $50,000')
+console.assert(60e6 * 0.0025 + 25e6 * 0.004 === 250000, 'rounds ≠ $250,000')
+</script>
+</body>
+</html>
