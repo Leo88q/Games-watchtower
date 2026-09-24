@@ -101,6 +101,16 @@ background:radial-gradient(800px 300px at 50% 0%,rgba(167,139,250,.18),transpare
 .final h2{font-size:clamp(36px,6vw,84px)}
 footer{padding:40px 0 60px;color:var(--dim);font-size:14px}
 footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+/* цены */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px}
+.plan{position:relative;padding:32px;border-radius:var(--r);border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(12px);display:flex;flex-direction:column}
+.plan.hot{border-color:rgba(55,229,160,.45);box-shadow:0 40px 120px -50px rgba(55,229,160,.55)}
+.plan .tag{position:absolute;top:-12px;left:32px;font:600 11px "JetBrains Mono";padding:5px 10px;border-radius:99px;background:var(--c1);color:#03110b}
+.plan h3{font-size:20px}.plan .price{font:600 46px Unbounded;margin:18px 0 4px;letter-spacing:-.03em}.plan .price small{font:500 15px "Inter Tight";color:var(--dim)}
+.plan ul{list-style:none;padding:0;margin:22px 0 28px;flex:1}.plan li{padding:8px 0;border-top:1px solid var(--line);color:var(--dim);font-size:15.5px}.plan li::before{content:"✓  ";color:var(--c1)}
+.plan .btn{text-align:center}
+.note{margin-top:22px;color:var(--dim);font-size:14.5px}
+@media (max-width:900px){.plans{grid-template-columns:1fr}}
 /* палитра команд */
 dialog{border:1px solid var(--line);border-radius:22px;background:rgba(10,14,24,.92);backdrop-filter:blur(20px);color:var(--ink);width:min(560px,92vw);padding:0}
 dialog::backdrop{background:rgba(2,4,8,.6);backdrop-filter:blur(4px)}
@@ -119,7 +129,7 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
 
 <header><nav class="island" aria-label="Навигация">
   <b><i></i>Watchtower OS</b>
-  <a class="l" href="#platform">Платформа</a><a class="l" href="#games">Игры</a><a class="l" href="#api">API</a><a class="l" href="#roadmap">2035</a>
+  <a class="l" href="#platform">Платформа</a><a class="l" href="#games">Игры</a><a class="l" href="#api">API</a><a class="l" href="#pricing">Цены</a><a class="l" href="#roadmap">2035</a>
   <button class="kbd" id="cmdk" aria-label="Палитра команд">⌘K</button>
   <a class="kbd" href="en.html" lang="en">EN</a>
   <a class="cta" href="../token-landing/index.html">$WTWR →</a>
@@ -209,8 +219,26 @@ wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
 <span class="c">// → { steps: [...], quality: 'complete' }</span></pre>
 </div></section>
 
+<section id="pricing"><div class="wrap">
+  <div class="eyebrow rv">05 · Цены</div>
+  <h2 class="rv">Платите за масштаб,<br>а не за доступ.</h2>
+  <p class="lead rv">Тарифы Studio API откроются в 2027 году. Цифры ниже — ориентир, мы уточним их до запуска. Игры Leo Games уже работают на Watchtower.</p>
+  <div class="plans">
+    <article class="plan rv"><h3>Indie</h3><div class="price">$0<small> / мес</small></div><span class="mono" style="color:var(--dim);font-size:13px">для первой игры</span>
+      <ul><li>1 игра</li><li>до 1 млн событий в месяц</li><li>история 30 дней</li><li>воронки и пометки качества данных</li><li>контроль только на чтение</li></ul>
+      <a class="btn" href="#api">Лист ожидания API</a></article>
+    <article class="plan hot rv"><span class="tag">ОСНОВНОЙ</span><h3>Studio</h3><div class="price">$299<small> / мес</small></div><span class="mono" style="color:var(--dim);font-size:13px">ориентир · скидка при оплате в $WTWR</span>
+      <ul><li>до 5 игр, кросс-игровые сегменты</li><li>до 50 млн событий в месяц</li><li>история 12 месяцев</li><li>контроль: 2 подписи + 2FA, журнал аудита</li><li>кампании TalkChart с подтверждением переходов</li></ul>
+      <a class="btn prime" href="#api">Хочу Studio</a></article>
+    <article class="plan rv"><h3>Launchpad</h3><div class="price">3–5%<small> от сбора</small></div><span class="mono" style="color:var(--dim);font-size:13px">2027 · приоритет стейкерам $WTWR</span>
+      <ul><li>всё из Studio на время запуска</li><li>аудит-чеклист и защита контрактов</li><li>трафик на старте через TalkChart</li><li>сбор в $WTWR и витрина в экосистеме</li><li>ресурсы Compute Grid для ИИ и рендера</li></ul>
+      <a class="btn" href="../token-landing/index.html">Условия $WTWR</a></article>
+  </div>
+  <p class="note rv">Лимиты и цены — план до запуска. Аренда мощностей Compute Grid появится в 2027–2028 годах, после закупки оборудования.</p>
+</div></section>
+
 <section id="roadmap"><div class="wrap">
-  <div class="eyebrow rv">05 · Путь</div>
+  <div class="eyebrow rv">06 · Путь</div>
   <h2 class="rv">От 2D-игр<br>к пространственным мирам.</h2>
   <div class="lane rv">
     <div style="--c:var(--c1)"><span class="q">Q4 2026</span><h3>Аудит и пресейл</h3><p>Аудит контрактов, TalkChart в прод, сбор на Compute Grid.</p></div>
@@ -308,7 +336,7 @@ if (!reduce) document.querySelectorAll('.tile').forEach(t => {
 })
 
 // палитра команд ⌘K / Ctrl+K
-const CMDS = [['Платформа', '#platform'], ['Игры и экосистема', '#games'], ['Принципы', '#principles'], ['Studio API', '#api'], ['Дорожная карта до 2035', '#roadmap'], ['Токен $WTWR', '../token-landing/index.html'], ['Token $WTWR (EN)', '../token-landing/en.html'], ['English site', 'en.html']]
+const CMDS = [['Платформа', '#platform'], ['Игры и экосистема', '#games'], ['Принципы', '#principles'], ['Studio API', '#api'], ['Цены', '#pricing'], ['Дорожная карта до 2035', '#roadmap'], ['Токен $WTWR', '../token-landing/index.html'], ['Token $WTWR (EN)', '../token-landing/en.html'], ['English site', 'en.html']]
 const pal = document.getElementById('pal'), q = document.getElementById('q'), res = document.getElementById('res')
 let sel = 0
 function render() {
