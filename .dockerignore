@@ -11,4 +11,3 @@ coverage
 *.log
 audit-*
 reports/*.tmp
-prompts

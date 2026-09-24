@@ -12,7 +12,7 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --no-audit --no-fund
-COPY vite.config.js index.html ./
+COPY vite.config.js index.html ios.html ./
 COPY src ./src
 RUN npm run build
 
@@ -34,7 +34,10 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY server ./server
 COPY scripts ./scripts
 COPY docs ./docs
+COPY prompts ./prompts
 COPY studio.config.json ./
+# Серверные модули читают реестр игр из src/data — без него контейнер падал на старте.
+COPY src/data ./src/data
 COPY --from=build /app/dist ./dist
 
 # Единственный каталог, куда сервис пишет (курсоры и снимки отчётов).

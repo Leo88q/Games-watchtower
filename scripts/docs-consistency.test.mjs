@@ -9,7 +9,7 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CONFIG_ENV_KEYS } from '../server/config.js'
@@ -184,4 +184,32 @@ test('статус переплетения в документации совп
   const catalog = metricCatalog({ acceptedEvents: [] })
   const bridge = catalog.coverage.needEvents.find((item) => item.id === 'net_bridge_flow')
   assert.deepEqual(bridge.events.sort(), ['BridgeIn', 'BridgeOut'])
+})
+
+test('Dockerfile копирует всё, что нужно сборке и серверу (регрессия F-020)', () => {
+  const dockerfile = read('Dockerfile')
+
+  // 1. Серверные модули импортируют данные из src/<каталог> — каталог обязан попасть в образ.
+  const needed = new Set()
+  const walk = (dir) => {
+    for (const entry of readdirSync(path.join(root, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${entry.name}`
+      if (entry.isDirectory()) walk(rel)
+      else if (entry.name.endsWith('.js')) {
+        for (const match of read(rel).matchAll(/from '[^']*\/src\/([a-z-]+)\//g)) needed.add(match[1])
+      }
+    }
+  }
+  walk('server')
+  assert.ok(needed.size > 0, 'сервер должен читать данные из src/ (реестр игр)')
+  for (const dir of needed) assert.ok(dockerfile.includes(`COPY src/${dir}`), `Dockerfile не копирует src/${dir}: сервер упадёт на старте`)
+
+  // 2. Каждый вход сборки Vite обязан быть скопирован в стадию build.
+  const inputs = [...read('vite.config.js').matchAll(/resolve\(process\.cwd\(\), '([^']+\.html)'\)/g)].map((m) => m[1])
+  assert.ok(inputs.length >= 2, 'vite собирает два интерфейса: index.html и ios.html')
+  for (const input of inputs) assert.ok(dockerfile.includes(input), `сборка требует ${input}, но Dockerfile его не копирует`)
+
+  // 3. Промпты — часть продукта (раздел «Промпты» в интерфейсе), их нельзя выбрасывать из образа.
+  assert.ok(dockerfile.includes('COPY prompts ./prompts'), 'промпты должны попадать в образ')
+  assert.ok(!read('.dockerignore').split('\n').includes('prompts'), '.dockerignore не должен исключать prompts')
 })
