@@ -16,6 +16,36 @@ function percentile(arr, p) {
   return sorted[Math.max(0, Math.min(idx, sorted.length-1))]
 }
 
+const rate = (num, den) => (den ? Number((num / den).toFixed(4)) : null)
+
+// Разрез «канал → CTA → игра»: по каждому sourceId сессии, клики по CTA и ПОДТВЕРЖДЁННЫЕ
+// переходы (LandingReached). Конверсии null при нулевом знаменателе, bot отдельно.
+export function channelAttribution(traffic) {
+  const rows = new Map()
+  for (const event of traffic) {
+    const sourceId = event.sourceId || event.payload?.sourceId || 'unknown'
+    const row = rows.get(sourceId) || { sourceId, bot: false, sessions: 0, pageViews: 0, ctaClicks: 0, landingReached: 0, campaigns: new Set() }
+    const type = event.sourceType || event.payload?.sourceType
+    if (type === 'bot' || sourceId === 'factory_pipeline') row.bot = true
+    if (event.eventType === 'SessionStarted') row.sessions += 1
+    else if (event.eventType === 'PageView') row.pageViews += 1
+    else if (event.eventType === 'CTAClicked') row.ctaClicks += 1
+    else if (event.eventType === 'LandingReached') row.landingReached += 1
+    const campaignId = event.campaignId || event.payload?.campaignId
+    if (campaignId) row.campaigns.add(campaignId)
+    rows.set(sourceId, row)
+  }
+  return [...rows.values()]
+    .map(({ campaigns, ...row }) => ({
+      ...row,
+      campaigns: [...campaigns].sort(),
+      ctaRate: rate(row.ctaClicks, row.sessions),
+      landingRate: rate(row.landingReached, row.ctaClicks),
+      ltv: null,
+    }))
+    .sort((a, b) => Number(a.bot) - Number(b.bot) || b.landingReached - a.landingReached || b.sessions - a.sessions)
+}
+
 // Аналитика off-chain источника «trafficgen» по событиям из inbox — обновлено по финальному отчету 2026-09-22
 // 17 implemented, 12 unavailable, честная воронка без max(count, len(CAMPAIGNS_DEF)), p50/p95, byCampaign/bySource/byPage, bot/real раздельно,
 // integrity duplicates/rejected/dataGaps/dataGapsHealed, factory_pipeline -> bot нормализация, synthetic exclusion, retention 30d
@@ -85,11 +115,13 @@ export function trafficAnalytics({ events = [], env = process.env } = {}) {
   }
 
   // Честная воронка без max(count, len(CAMPAIGNS_DEF)) — gap #1
+  const unavailableTypes = new Set((adapter?.unavailableEvents || []).map((u) => u.type))
   const counts = Object.fromEntries(FUNNEL_STEPS.map((step) => [step, traffic.filter((event) => event.eventType === step).length]))
   const funnel = FUNNEL_STEPS.map((step, index) => {
     const previous = index === 0 ? null : FUNNEL_STEPS[index - 1]
     const previousCount = previous ? counts[previous] : null
-    const stageUnavailable = step === 'LandingReached' // по отчету LandingReached unavailable, нет механизма подтверждения
+    // ступень недоступна, только если адаптер сам объявил событие недоступным
+    const stageUnavailable = unavailableTypes.has(step)
     return {
       step,
       count: counts[step],
@@ -129,8 +161,8 @@ export function trafficAnalytics({ events = [], env = process.env } = {}) {
       quality: adapter?.quality || 'partial', 
       stage: adapter?.stage || 'live',
       trafficType: adapter?.trafficType || 'hybrid',
-      implementedCount: adapter?.implementedCount || 17,
-      unavailableCount: adapter?.unavailableCount || 12,
+      implementedCount: adapter?.implementedCount ?? null,
+      unavailableCount: adapter?.unavailableCount ?? null,
       apiBaseUrl: adapter?.apiBaseUrl || null,
       campaigns: adapter?.campaigns || [],
       sources: adapter?.sources || [],
@@ -151,16 +183,17 @@ export function trafficAnalytics({ events = [], env = process.env } = {}) {
     daily: dailyRows,
     funnel,
     breakdowns: { byCampaign, bySource, byPage },
+    channels: channelAttribution(traffic),
     trafficType: { real: totals.realEvents, bot: totals.botEvents, hybrid: totals.hybridEvents, visitorsByType: { real: totals.realEvents, bot: totals.botEvents } },
     integrity: { duplicates: totals.duplicates, rejected: totals.rejected, dataGaps: totals.dataGaps, dataGapsHealed: totals.dataGapsHealed, rateLimited: totals.rateLimited, buffer_depth: 0 },
     campaigns: [...campaigns],
     sources: [...sources],
     pages: [...pages],
     unavailableMetrics: [
-      { metric: 'LandingReached conversion', reason: 'no confirmation mechanism', estimate: false },
+      { metric: 'LTV по каналу', reason: 'клик не связан с кошельком: хаб не хранит соответствие clickId → игрок (PII)', estimate: false },
       { metric: 'process-global error counters in days[]', reason: 'counters global, days[] shows 0', estimate: true },
     ],
-    reason: traffic.length ? null : (configured ? 'События trafficgen ещё не поступили в inbox' : 'TRAFFICGEN_API_BASE_URL не настроен — данные недоступны, stage live, 17 implemented, 12 unavailable, 45 smoke OK'),
+    reason: traffic.length ? null : (configured ? 'События trafficgen ещё не поступили в inbox' : 'TRAFFICGEN_API_BASE_URL не настроен — данные недоступны, stage live'),
     writes: false,
     // Из отчета
     report: {

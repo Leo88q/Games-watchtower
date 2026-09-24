@@ -6,8 +6,8 @@
 
 ## 1. Сколько данных снимаем с игр
 
-Пять тенантов, **46 типов событий** в адаптерах (**35 уникальных имён** — часть событий повторяется в разных играх),
-плюс 12 типов, которые trafficgen объявил недоступными (перечислены с причиной, а не спрятаны).
+Пять тенантов, **47 типов событий** в адаптерах (**36 уникальных имён** — часть событий повторяется в разных играх),
+плюс 11 типов, которые trafficgen объявил недоступными (перечислены с причиной, а не спрятаны).
 
 | Игра | Типов | События | Как подключена |
 |---|---|---|---|
@@ -15,8 +15,8 @@
 | aof (Age of Farming) | 7 | PlayerJoined, PlotCreated, CropHarvested, CraftCompleted, RewardGranted, TokenMinted, TokenBurned | `AOF_CORE_PROGRAM_ID` |
 | neonrelay (Neon Relay) | 7 | PlayerJoined, RaceStarted, RaceFinished, RewardGranted, TokenMinted, TokenBurned, MatchSettled | `NEONRELAY_REWARDS_PROGRAM_ID` |
 | guttercaps (GUTTERCAPS) | 8 | PlayerJoined, PackOpened, AssetMinted, AssetTransferred, WagerCreated, WagerSettled, RewardGranted, TokenBurned | `GUTTERCAPS_CORE_PROGRAM_ID` |
-| trafficgen (TalkChart) | 17 | CampaignCreated, CampaignStarted, CampaignStopped, CampaignUpdated, SourceConnected, SourceDisconnected, SourceHealthChanged, PageAssigned, PageRemoved, SessionStarted, PageView, Click, CTAClicked, SessionEnded, DataGapDetected, DataGapHealed, RateLimited | off-chain, `TRAFFICGEN_API_BASE_URL` |
-| trafficgen — объявлено недоступным | 12 | LandingReached, SessionAbandoned, NavigationCompleted, DeliveryFailed, RetryScheduled, TrafficError, ExporterHealth, BotFlagged, AnomalyDetected, AbuseBlocked, ConfigUpdated, EmergencyPause | причины в `/api/ingestion/adapters` |
+| trafficgen (TalkChart) | 18 | CampaignCreated, CampaignStarted, CampaignStopped, CampaignUpdated, SourceConnected, SourceDisconnected, SourceHealthChanged, PageAssigned, PageRemoved, SessionStarted, PageView, Click, CTAClicked, SessionEnded, DataGapDetected, DataGapHealed, RateLimited, LandingReached | off-chain, `TRAFFICGEN_API_BASE_URL` |
+| trafficgen — объявлено недоступным | 11 | SessionAbandoned, NavigationCompleted, DeliveryFailed, RetryScheduled, TrafficError, ExporterHealth, BotFlagged, AnomalyDetected, AbuseBlocked, ConfigUpdated, EmergencyPause | причины в `/api/ingestion/adapters` |
 
 Событие принимается в конверте из 25 полей: `eventId`, `identity`, `chain`, `cluster`, `slot`, `blockTime`,
 `signature`, `programId`, `instructionIndex`, `innerIndex`, `eventType`, `commitment`, `success`, `payload`,

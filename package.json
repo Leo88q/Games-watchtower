@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "start": "node server/index.js",
-    "test:unit": "node --test scripts/economy-metrics.test.mjs",
+    "test:unit": "node --test scripts/economy-metrics.test.mjs scripts/traffic-channels.test.mjs",
+    "test:traffic": "node --test scripts/traffic-channels.test.mjs",
     "test:economy": "node --test scripts/economy-metrics.test.mjs",
     "test:hardening": "node --test scripts/api-hardening.test.mjs",
     "test:privacy": "node --test scripts/pii-privacy.test.mjs",
@@ -20,6 +21,8 @@
     "test:mutation": "node scripts/mutation-test.mjs --suite=economy && node scripts/mutation-test.mjs --suite=security",
     "test": "npm run test:unit && npm run test:hardening && npm run test:privacy && npm run test:readonly && npm run test:docs && npm run test:ui",
     "verify": "npm run test && npm run test:mutation && npm run build",
+    "release:check": "node scripts/prod-release.mjs",
+    "release:plan": "node scripts/prod-release.mjs --dry-run",
     "ecosystem:target": "node scripts/check-ecosystem-target.mjs",
     "ecosystem:target:strict": "node scripts/check-ecosystem-target.mjs --strict"
   },

@@ -88,14 +88,14 @@ test('требования по контейнеру и CI описаны в д�
   }
 })
 
-test('инвентарь метрик совпадает с кодом: 40 метрик, 8 семейств, 46 типов событий', () => {
+test('инвентарь метрик совпадает с кодом: 40 метрик, 8 семейств, 47 типов событий', () => {
   const doc = read('docs/METRICS_INVENTORY.md')
   const catalog = metricCatalog({ acceptedEvents: [...new Set(adapterReadiness().adapters.flatMap((a) => a.eventTypes || []))] })
   const fromAdapters = adapterReadiness().adapters.flatMap((a) => a.eventTypes || [])
   assert.equal(catalog.metrics.length, 40, 'каталог метрик изменился — обновите docs/METRICS_INVENTORY.md')
   assert.equal(catalog.families.length, 8)
-  assert.equal(fromAdapters.length, 46, 'число типов событий в адаптерах изменилось — обновите документ')
-  for (const marker of ['40 метрик', '8 семейств', '46 типов событий', '35 уникальных имён', '12 типов']) {
+  assert.equal(fromAdapters.length, 47, 'число типов событий в адаптерах изменилось — обновите документ')
+  for (const marker of ['40 метрик', '8 семейств', '47 типов событий', '36 уникальных имён', '11 типов']) {
     assert.ok(doc.includes(marker), `нет фразы «${marker}»`)
   }
   const coverage = catalog.coverage

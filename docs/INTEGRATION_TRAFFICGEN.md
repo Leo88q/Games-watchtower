@@ -39,7 +39,7 @@ Games Watchtower знает об off-chain приложении **TalkChart Traf
 - Новый реконсилёр config store при старте экспортера (реальный сигнал из config, не выдумка): `CampaignCreated, CampaignStarted, CampaignStopped, CampaignUpdated, SourceConnected, SourceDisconnected, SourceHealthChanged, PageAssigned, PageRemoved` — 3 фазы, детерминированные identity, идемпотентно: первый запуск 24 события, повтор 0
 
 **Unavailable (12, без выдумывания, с причинами в паспорте):**
-- `LandingReached` — нет механизма подтверждения перехода
+- `LandingReached` — реализован по click-id: CTA ведёт на `/r/<clickId>`, игра шлёт beacon с тем же `clickId`; без регистрации клика событие отклоняется (`landing_unconfirmed`)
 - `SessionAbandoned, NavigationCompleted, DeliveryFailed, RetryScheduled, TrafficError, ExporterHealth, BotFlagged, AnomalyDetected, AbuseBlocked, ConfigUpdated, EmergencyPause` — у каждого причина
 
 Поля `campaignId, sourceId, sourceType, pageId, sessionId, seq` в корне события (не только payload) — нормализация в `server/ingestion/provider.js` учитывает оба места. Canonical identity: `offchain:trafficgen:<campaignId>:<pageId>:<sessionId>:<seq>`.
@@ -78,7 +78,7 @@ Games Watchtower знает об off-chain приложении **TalkChart Traf
 - Адаптер `trafficgen` в `server/ingestion/game-adapters.js` — 17 eventTypes implemented, 12 unavailable с причинами, quality `partial` (было unavailable), stage live, trafficType hybrid, campaigns/sources/pages, lastSyncedAt 2026-09-22T18:00Z
 - Off-chain envelope, dedup, cursor base64, replay 1200 deterministic, invalid_cursor 400, 405 Allow, schema-rejected seq<1 non_utc bad sourceType, synthetic exclusion
 - Pull-провайдер `TrafficgenProvider`: `GET /watchtower/health`, `GET /watchtower/events?cursor&limit&eventType&campaignId&sourceType&since` + Bearer + _PREVIOUS rotation constant-time, backfill/stream
-- Аналитика `server/analytics/traffic.js` — totals daily continuous 7 days series avg/p50/p95 bounce/CTA/landing rate breakdowns byCampaign/bySource/byPage trafficType real/bot/hybrid visitorsByType bot не смешивается, integrity duplicates/rejected/dataGaps/dataGapsHealed/rateLimited buffer_depth 0, unavailableMetrics, честная воронка без max(), LandingReached stageUnavailable true, syntheticExcluded
+- Аналитика `server/analytics/traffic.js` — totals daily continuous 7 days series avg/p50/p95 bounce/CTA/landing rate breakdowns byCampaign/bySource/byPage trafficType real/bot/hybrid visitorsByType bot не смешивается, integrity duplicates/rejected/dataGaps/dataGapsHealed/rateLimited buffer_depth 0, unavailableMetrics, честная воронка без max(), LandingReached считается только по подтверждённым переходам; разрез `channels` (источник → CTA → игра), syntheticExcluded
 - `GET /api/analytics/traffic` + `traffic` в `GET /api/read-model` + `POST /api/ingest/trafficgen` + `GET /api/infra/trafficgen`
 - UI: раздел «Трафик / Acquisition» на дашборде, гидратация из read-model
 - Smoke: 45 checks + 17 unit + live 12/12 GET 200, PII clean, metrics real=1 bot=24
@@ -100,5 +100,5 @@ Games Watchtower знает об off-chain приложении **TalkChart Traf
 - Watchtower не управляет трафиком: только read-only
 - Bot-трафик factory_pipeline sourceType bot отображается отдельно, не смешивается с real
 - PII отсутствует по контракту + живой grep PII clean
-- LandingReached остается unavailable — нет механизма подтверждения перехода, честно
+- LandingReached реализован (патч генератора `patches/talkchart-traffic-generator`); LTV по каналу — `unavailable`: связать клик с кошельком без PII хаб не может
 - Счетчики ошибок процесс-глобальны в days[] 0 — помечено в unavailableMetrics

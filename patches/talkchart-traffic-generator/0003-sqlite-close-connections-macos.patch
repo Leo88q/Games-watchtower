@@ -1,0 +1,133 @@
+From cffbe5ea3bad9e05929cbb5ebbccfc56d845af32 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Thu, 24 Sep 2026 15:52:27 +0000
+Subject: [PATCH] =?UTF-8?q?sqlite:=20=D0=B7=D0=B0=D0=BA=D1=80=D1=8B=D0=B2?=
+ =?UTF-8?q?=D0=B0=D1=82=D1=8C=20=D1=81=D0=BE=D0=B5=D0=B4=D0=B8=D0=BD=D0=B5?=
+ =?UTF-8?q?=D0=BD=D0=B8=D1=8F=20(=D1=84=D0=B8=D0=BA=D1=81=20=C2=ABunable?=
+ =?UTF-8?q?=20to=20open=20database=20file=C2=BB=20=D0=BD=D0=B0=20macOS)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+get_conn() в EventStore/ControlStore и LandingLedger._conn() возвращали голый
+sqlite3.Connection; его with-блок коммитит, но не закрывает файл. На Linux лимит
+дескрипторов высокий, на macOS (ulimit -n 256) тесты падали: 3 ошибки на main,
+7 — с журналом переходов. Теперь это contextmanager: commit/rollback + close.
+Проверено под ulimit -n 256 и -W error::ResourceWarning: 17/20/10/10 OK, smoke 82/82.
+---
+ site/factory/landings.py            | 11 ++++++++++-
+ site/factory/watchtower_control.py  | 16 ++++++++++++----
+ site/factory/watchtower_exporter.py | 18 ++++++++++++++----
+ 3 files changed, 36 insertions(+), 9 deletions(-)
+
+diff --git a/site/factory/landings.py b/site/factory/landings.py
+index cde77cb..39716fb 100644
+--- a/site/factory/landings.py
++++ b/site/factory/landings.py
+@@ -23,6 +23,7 @@ import os
+ import re
+ import sqlite3
+ import time
++from contextlib import contextmanager
+ from datetime import datetime, timezone
+ 
+ CLICK_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+@@ -78,11 +79,19 @@ class LandingLedger:
+             )
+             c.execute("CREATE INDEX IF NOT EXISTS idx_landing_created ON landing_clicks(created_at)")
+ 
++    @contextmanager
+     def _conn(self):
++        """Соединение с commit/rollback И закрытием. Голый `with sqlite3.connect()`
++        только коммитит, но не закрывает: каждое событие оставляло открытый файл, и на
++        macOS (ulimit -n 256) экспортёр падал с «unable to open database file»."""
+         conn = sqlite3.connect(self.db_path, timeout=10)
+         conn.row_factory = sqlite3.Row
+         conn.execute("PRAGMA busy_timeout=5000")
+-        return conn
++        try:
++            with conn:
++                yield conn
++        finally:
++            conn.close()
+ 
+     def register_click(self, click_id, *, session_id=None, campaign_id=None,
+                        source_id=None, page_id=None, target=None):
+diff --git a/site/factory/watchtower_control.py b/site/factory/watchtower_control.py
+index 07b4632..c33f17d 100644
+--- a/site/factory/watchtower_control.py
++++ b/site/factory/watchtower_control.py
+@@ -36,6 +36,7 @@ import base64
+ import hashlib
+ import hmac
+ import json
++import contextlib
+ import os
+ import time
+ import uuid
+@@ -170,13 +171,20 @@ class ControlStore:
+             os.makedirs(parent, exist_ok=True)
+         self.init_db()
+ 
++    @contextlib.contextmanager
+     def get_conn(self):
++        """`with store.get_conn() as conn:` — commit/rollback и ЗАКРЫТИЕ соединения.
++        Раньше возвращался голый sqlite3.Connection: его `with` коммитит, но не закрывает,
++        и на macOS (ulimit -n 256) тесты/экспортёр упирались в «unable to open database file»."""
+         import sqlite3
+-
+         conn = sqlite3.connect(self.db_path, timeout=10.0)
+-        conn.row_factory = sqlite3.Row
+-        conn.execute("PRAGMA journal_mode=WAL")
+-        return conn
++        try:
++            conn.row_factory = sqlite3.Row
++            conn.execute("PRAGMA journal_mode=WAL")
++            with conn:
++                yield conn
++        finally:
++            conn.close()
+ 
+     def init_db(self):
+         with self.get_conn() as conn:
+diff --git a/site/factory/watchtower_exporter.py b/site/factory/watchtower_exporter.py
+index 8897985..d5bd710 100644
+--- a/site/factory/watchtower_exporter.py
++++ b/site/factory/watchtower_exporter.py
+@@ -24,6 +24,7 @@ import hashlib
+ import hmac
+ import json
+ import math
++import contextlib
+ import os
+ import re
+ import sqlite3
+@@ -497,12 +498,21 @@ class EventStore:
+             self.ledger = None
+             print(f"WARN: landings ledger недоступен: {err}", file=sys.stderr)
+ 
++    @contextlib.contextmanager
+     def get_conn(self):
++        """`with store.get_conn() as conn:` — commit/rollback и ЗАКРЫТИЕ соединения.
++        Раньше возвращался голый sqlite3.Connection: его `with` коммитит, но не закрывает,
++        и на macOS (ulimit -n 256) тесты/экспортёр упирались в «unable to open database file»."""
++        import sqlite3
+         conn = sqlite3.connect(self.db_path, timeout=10.0)
+-        conn.row_factory = sqlite3.Row
+-        conn.execute("PRAGMA journal_mode=WAL")
+-        conn.execute("PRAGMA synchronous=NORMAL")
+-        return conn
++        try:
++            conn.row_factory = sqlite3.Row
++            conn.execute("PRAGMA journal_mode=WAL")
++            conn.execute("PRAGMA synchronous=NORMAL")
++            with conn:
++                yield conn
++        finally:
++            conn.close()
+ 
+     def get_connection(self):
+         return self.get_conn()
+-- 
+2.39.5
+

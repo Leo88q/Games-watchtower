@@ -41,9 +41,10 @@ const definitions = {
       'PageAssigned', 'PageRemoved',
       'SessionStarted', 'PageView', 'Click', 'CTAClicked', 'SessionEnded',
       'DataGapDetected', 'DataGapHealed', 'RateLimited',
+      // 2026-09-24: подтверждение перехода по click-id (/r/<clickId> + beacon игры) — patches/talkchart-traffic-generator
+      'LandingReached',
     ],
     unavailableEvents: [
-      { type: 'LandingReached', reason: 'нет механизма подтверждения перехода на целевую страницу игры' },
       { type: 'SessionAbandoned', reason: 'не реализовано, нет детектора abandon' },
       { type: 'NavigationCompleted', reason: 'не реализовано' },
       { type: 'DeliveryFailed', reason: 'нет инструментирования фабрики fetch_data.py' },
@@ -62,8 +63,8 @@ const definitions = {
     quality: 'partial',
     stage: 'live',
     trafficType: 'hybrid',
-    implementedCount: 17,
-    unavailableCount: 12,
+    implementedCount: 18,
+    unavailableCount: 11,
     lastSyncedAt: '2026-09-22T18:00Z',
     dataQuality: 'partial',
     // Кампании и источники из отчета

@@ -1,0 +1,96 @@
+From f0dd4dc5f769c70c375a79ea37ceb51af1b9fa58 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Thu, 24 Sep 2026 16:33:05 +0000
+Subject: [PATCH] =?UTF-8?q?landing:=20/r/=20=D1=83=D0=BC=D0=B5=D0=B5=D1=82?=
+ =?UTF-8?q?=20=D0=B2=D0=B5=D1=81=D1=82=D0=B8=20=D0=BD=D0=B0=20=D0=B0=D0=B1?=
+ =?UTF-8?q?=D1=81=D0=BE=D0=BB=D1=8E=D1=82=D0=BD=D1=8B=D0=B9=20=D0=B0=D0=B4?=
+ =?UTF-8?q?=D1=80=D0=B5=D1=81=20=D0=B8=D0=B3=D1=80=D1=8B=20(TALKCHART=5FLA?=
+ =?UTF-8?q?NDING=5FTARGETS)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Раньше цель склеивалась с SITE_URL как «#маршрут»: полный адрес игры давал битую ссылку.
+landings.landing_url(): #маршрут своего сайта ИЛИ https-адрес игры; wt_click ставится
+в query до хеша, существующие параметры сохраняются, чужой wt_click перетирается,
+не-http(s) цели отклоняются. Тест + e2e с wt-landing.js из Games-watchtower.
+---
+ scripts/test_landing_ledger.py      | 12 ++++++++++++
+ site/factory/landings.py            | 18 ++++++++++++++++++
+ site/factory/watchtower_exporter.py |  8 +++++---
+ 3 files changed, 35 insertions(+), 3 deletions(-)
+
+diff --git a/scripts/test_landing_ledger.py b/scripts/test_landing_ledger.py
+index 1db00e7..71b5fdb 100644
+--- a/scripts/test_landing_ledger.py
++++ b/scripts/test_landing_ledger.py
+@@ -70,6 +70,18 @@ class TestLedger(unittest.TestCase):
+         with self.assertRaises(ValueError):
+             cta_href("https://example.site/", "https://evil.example", "click-0003")
+ 
++    def test_landing_url_site_route_and_absolute_game(self):
++        from landings import landing_url
++        self.assertEqual(landing_url("https://s.example/site", "#/sixsec", "click-0001"),
++                         "https://s.example/site?wt_click=click-0001#/sixsec")
++        self.assertEqual(landing_url("https://s.example", "https://ares1.example/play?ref=x#lobby", "click-0001"),
++                         "https://ares1.example/play?ref=x&wt_click=click-0001#lobby")
++        # чужой wt_click в цели перетирается, а не дублируется
++        self.assertEqual(landing_url("https://s.example", "https://g.example/?wt_click=old", "click-0002"),
++                         "https://g.example/?wt_click=click-0002")
++        with self.assertRaises(ValueError):
++            landing_url("https://s.example", "javascript:alert(1)", "click-0001")
++
+     def test_env_targets_override(self):
+         os.environ["TALKCHART_LANDING_TARGETS"] = json.dumps({"target_only": "#/only"})
+         try:
+diff --git a/site/factory/landings.py b/site/factory/landings.py
+index 39716fb..73bbf91 100644
+--- a/site/factory/landings.py
++++ b/site/factory/landings.py
+@@ -53,6 +53,24 @@ def targets():
+     return {k: v for k, v in parsed.items() if isinstance(k, str) and isinstance(v, str)}
+ 
+ 
++def landing_url(site_url, target_value, click_id):
++    """Куда вести после /r/: target_value — «#/route» на своём сайте ИЛИ абсолютный
++    https-адрес игры (из TALKCHART_LANDING_TARGETS). wt_click ставится в query ДО хеша,
++    существующие параметры сохраняются."""
++    from urllib.parse import urlsplit, urlunsplit, urlencode, parse_qsl
++    if target_value.startswith("#") or not target_value:
++        base, fragment = site_url.rstrip("/"), target_value.lstrip("#")
++        parts = urlsplit(base)
++    else:
++        parts = urlsplit(target_value)
++        if parts.scheme not in ("https", "http") or not parts.netloc:
++            raise ValueError(f"цель должна быть https-адресом или #маршрутом: {target_value!r}")
++        fragment = parts.fragment
++    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != "wt_click"]
++    query.append(("wt_click", click_id))
++    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), fragment))
++
++
+ def valid_click_id(click_id):
+     return isinstance(click_id, str) and bool(CLICK_ID_RE.match(click_id))
+ 
+diff --git a/site/factory/watchtower_exporter.py b/site/factory/watchtower_exporter.py
+index d5bd710..d82a0fa 100644
+--- a/site/factory/watchtower_exporter.py
++++ b/site/factory/watchtower_exporter.py
+@@ -2181,9 +2181,11 @@ class WatchtowerHandler(SimpleHTTPRequestHandler):
+                     STORE.ledger.register_click(click_id, target=target, source_id="direct_web")
+                 except Exception as _e:
+                     print(f"WARN: register_click: {_e}", file=sys.stderr)
+-            # wt_click — обычным query-параметром ДО хеша: его видит любая страница,
+-            # а маршрут SPA остаётся в хеше.
+-            location = f"{config.SITE_URL.rstrip('/')}?wt_click={click_id}{allowed[target]}"
++            # #маршрут своего сайта или абсолютный адрес игры; wt_click — в query до хеша
++            try:
++                location = landings.landing_url(config.SITE_URL, allowed[target], click_id)
++            except ValueError as err:
++                return self.send_json(500, error_envelope(str(err), "landing_bad_target", period="live"))
+             self.send_response(302)
+             self.send_header("Location", location)
+             self.send_header("Cache-Control", "no-store")
+-- 
+2.39.5
+

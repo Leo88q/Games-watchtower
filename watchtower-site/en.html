@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#04060b">
+<title>Watchtower OS — the operating system for Web3 games</title>
+<meta name="description" content="Watchtower OS: analytics, traffic, control and game launches on Solana in one system. The hub only reads the chain and cannot sign a transaction.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Inter+Tight:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+@property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
+:root{--bg:#04060b;--ink:#eef3ff;--dim:#8793ab;--line:rgba(160,190,255,.12);--glass:rgba(18,26,44,.45);
+--c1:#37e5a0;--c2:#5cc8ff;--c3:#a78bfa;--c4:#ffb85c;--r:26px;--mx:50vw;--my:30vh}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Inter Tight",system-ui,sans-serif;overflow-x:hidden}
+::selection{background:var(--c1);color:#03110b}
+a{color:inherit;text-decoration:none}
+canvas#field{position:fixed;inset:0;z-index:0;pointer-events:none}
+.glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(600px 600px at var(--mx) var(--my),rgba(92,200,255,.10),transparent 60%)}
+main,header,footer{position:relative;z-index:1}
+.wrap{max-width:1240px;margin:0 auto;padding:0 28px}
+h1,h2,h3{font-family:Unbounded,sans-serif;letter-spacing:-.02em;margin:0}
+.mono{font-family:"JetBrains Mono",monospace}
+.grad{background:linear-gradient(100deg,var(--c1),var(--c2) 40%,var(--c3) 80%);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* header: floating island */
+header{position:sticky;top:14px;z-index:30;display:flex;justify-content:center;pointer-events:none}
+.island{pointer-events:auto;display:flex;gap:6px;align-items:center;padding:8px 8px 8px 18px;border-radius:99px;background:rgba(10,14,24,.6);
+backdrop-filter:blur(18px) saturate(1.6);border:1px solid var(--line);box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.island b{font-family:Unbounded;font-size:14px;margin-right:10px;display:flex;align-items:center;gap:8px}
+.island b i{width:10px;height:10px;border-radius:50%;background:var(--c1);box-shadow:0 0 12px var(--c1);animation:pulse 2.4s infinite}
+.island a.l{padding:8px 14px;border-radius:99px;color:var(--dim);font-size:14px}.island a.l:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+.kbd{font:600 12px "JetBrains Mono";padding:8px 12px;border-radius:99px;border:1px solid var(--line);color:var(--dim);background:transparent;cursor:pointer}
+.cta{padding:10px 18px;border-radius:99px;background:var(--ink);color:#05070c;font-weight:700;font-size:14px}
+@keyframes pulse{50%{opacity:.35}}
+/* hero */
+.hero{min-height:92vh;display:grid;align-content:center;padding:120px 0 60px}
+.chip{display:inline-flex;gap:10px;align-items:center;padding:7px 14px;border-radius:99px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(8px);font:500 13px "JetBrains Mono";color:var(--dim)}
+.chip em{color:var(--c1);font-style:normal}
+.hero h1{font-size:clamp(44px,8.4vw,124px);line-height:.95;margin:26px 0 22px;font-weight:800}
+.hero p{max-width:640px;color:var(--dim);font-size:clamp(18px,1.6vw,21px)}
+.row{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+.btn{position:relative;padding:15px 24px;border-radius:16px;font-weight:700;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(10px)}
+.btn.prime{border:0;color:#03110b;background:var(--c1);box-shadow:0 0 0 1px rgba(55,229,160,.4),0 20px 60px -10px rgba(55,229,160,.55)}
+.btn:hover{transform:translateY(-2px)}.btn{transition:transform .2s}
+/* live terminal */
+.term{margin-top:56px;border-radius:var(--r);border:1px solid var(--line);background:rgba(6,10,18,.72);backdrop-filter:blur(14px);overflow:hidden;
+box-shadow:0 40px 120px -40px rgba(92,200,255,.35)}
+.term .bar{display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);font:12px "JetBrains Mono";color:var(--dim);align-items:center}
+.term .bar i{width:11px;height:11px;border-radius:50%;background:#2a3246}
+.term pre{margin:0;padding:22px;font:14px/1.75 "JetBrains Mono";min-height:250px;white-space:pre-wrap;color:#b9c6e0}
+.term .ok{color:var(--c1)}.term .k{color:var(--c2)}.term .w{color:var(--c4)}.term .p{color:var(--c3)}
+.caret{display:inline-block;width:9px;height:18px;background:var(--c1);vertical-align:-3px;animation:pulse 1s steps(1) infinite}
+/* sections */
+section{padding:120px 0}
+.eyebrow{font:600 13px "JetBrains Mono";color:var(--c2);letter-spacing:.14em;text-transform:uppercase}
+h2{font-size:clamp(32px,4.6vw,62px);line-height:1.02;margin:14px 0 18px;font-weight:600}
+.lead{color:var(--dim);max-width:680px;font-size:19px}
+/* bento */
+.bento{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;margin-top:48px}
+.tile{position:relative;grid-column:span 2;padding:28px;border-radius:var(--r);background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(12px);overflow:hidden;
+transform-style:preserve-3d;transition:transform .25s ease,border-color .25s}
+.tile.w3{grid-column:span 3}.tile.w4{grid-column:span 4}
+.tile::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:conic-gradient(from var(--a),transparent 70%,var(--c2),var(--c1),transparent);
+-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .3s}
+.tile:hover::before{opacity:1;animation:spin 3s linear infinite}
+@keyframes spin{to{--a:360deg}}
+.tile h3{font-size:22px;margin:14px 0 8px;font-weight:600}.tile p{color:var(--dim);margin:0;font-size:15.5px}
+.ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.stage{position:absolute;top:24px;right:24px;font:600 11px "JetBrains Mono";padding:5px 10px;border-radius:99px;border:1px solid}
+.s-live{color:var(--c1);border-color:rgba(55,229,160,.4)}.s-ready{color:var(--c2);border-color:rgba(92,200,255,.4)}.s-plan{color:var(--c4);border-color:rgba(255,184,92,.4)}
+.spark{display:flex;align-items:flex-end;gap:4px;height:70px;margin-top:22px}.spark i{flex:1;border-radius:4px 4px 0 0;background:linear-gradient(var(--c2),rgba(92,200,255,.08))}
+/* games orbit */
+.orbit{position:relative;aspect-ratio:1;max-width:620px;margin:0 auto}
+.orbit .ring{position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(160,190,255,.16);animation:rot 60s linear infinite}
+.orbit .ring.r2{inset:17%;animation-duration:40s;animation-direction:reverse}
+@keyframes rot{to{transform:rotate(360deg)}}
+.core{position:absolute;inset:36%;border-radius:50%;display:grid;place-items:center;text-align:center;
+background:radial-gradient(circle at 35% 30%,rgba(55,229,160,.35),rgba(10,14,24,.9) 70%);border:1px solid rgba(55,229,160,.35);box-shadow:0 0 80px rgba(55,229,160,.25)}
+.core b{font-family:Unbounded;font-size:clamp(14px,2vw,20px)}.core span{font:12px "JetBrains Mono";color:var(--dim)}
+.planet{position:absolute;width:31%;padding:14px 16px;border-radius:20px;background:rgba(12,18,32,.8);border:1px solid var(--line);backdrop-filter:blur(10px);transform:translate(-50%,-50%)}
+.planet b{display:block;font-family:Unbounded;font-size:15px}.planet span{font:12px "JetBrains Mono";color:var(--dim)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.links li{margin:10px 0;color:var(--dim)}.links b{color:var(--ink)}
+/* guarantees */
+.proof{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:44px}
+.proof div{padding:24px;border-radius:20px;border:1px solid var(--line);background:var(--glass)}
+.proof b{display:block;font:600 34px Unbounded;margin-bottom:6px}.proof span{color:var(--dim);font-size:14.5px}
+/* roadmap: horizontal lane */
+.lane{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(260px,1fr);gap:16px;overflow-x:auto;padding:40px 0 10px;scroll-snap-type:x mandatory}
+.lane div{scroll-snap-align:start;padding:26px;border-radius:22px;border:1px solid var(--line);background:var(--glass);position:relative}
+.lane div::before{content:"";position:absolute;left:26px;top:-7px;width:12px;height:12px;border-radius:50%;background:var(--c);box-shadow:0 0 16px var(--c)}
+.lane .q{font:600 13px "JetBrains Mono";color:var(--c)}.lane h3{font-size:19px;margin:8px 0}.lane p{color:var(--dim);margin:0;font-size:15px}
+/* API */
+.code{border-radius:var(--r);border:1px solid var(--line);background:rgba(6,10,18,.8);padding:24px;font:14px/1.8 "JetBrains Mono";overflow:auto;color:#b9c6e0}
+.code .k{color:var(--c3)}.code .s{color:var(--c1)}.code .c{color:#56617a}
+/* final CTA */
+.final{text-align:center;padding:140px 0;border-radius:40px;margin:0 28px 60px;border:1px solid var(--line);
+background:radial-gradient(800px 300px at 50% 0%,rgba(167,139,250,.18),transparent),radial-gradient(700px 300px at 50% 100%,rgba(55,229,160,.14),transparent),rgba(10,14,24,.6)}
+.final h2{font-size:clamp(36px,6vw,84px)}
+footer{padding:40px 0 60px;color:var(--dim);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+/* цены */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px}
+.plan{position:relative;padding:32px;border-radius:var(--r);border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(12px);display:flex;flex-direction:column}
+.plan.hot{border-color:rgba(55,229,160,.45);box-shadow:0 40px 120px -50px rgba(55,229,160,.55)}
+.plan .tag{position:absolute;top:-12px;left:32px;font:600 11px "JetBrains Mono";padding:5px 10px;border-radius:99px;background:var(--c1);color:#03110b}
+.plan h3{font-size:20px}.plan .price{font:600 46px Unbounded;margin:18px 0 4px;letter-spacing:-.03em}.plan .price small{font:500 15px "Inter Tight";color:var(--dim)}
+.plan ul{list-style:none;padding:0;margin:22px 0 28px;flex:1}.plan li{padding:8px 0;border-top:1px solid var(--line);color:var(--dim);font-size:15.5px}.plan li::before{content:"✓  ";color:var(--c1)}
+.plan .btn{text-align:center}
+.note{margin-top:22px;color:var(--dim);font-size:14.5px}
+@media (max-width:900px){.plans{grid-template-columns:1fr}}
+/* command palette */
+dialog{border:1px solid var(--line);border-radius:22px;background:rgba(10,14,24,.92);backdrop-filter:blur(20px);color:var(--ink);width:min(560px,92vw);padding:0}
+dialog::backdrop{background:rgba(2,4,8,.6);backdrop-filter:blur(4px)}
+dialog input{width:100%;padding:18px 20px;background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--ink);font:16px "Inter Tight";outline:none}
+dialog ul{list-style:none;margin:0;padding:8px;max-height:320px;overflow:auto}
+dialog li a{display:flex;justify-content:space-between;padding:12px 14px;border-radius:12px}dialog li a:hover,dialog li a.on{background:rgba(92,200,255,.1)}
+dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
+/* reveal on scroll */
+.rv{opacity:0;transform:translateY(30px);transition:opacity .8s,transform .8s cubic-bezier(.2,.7,.2,1)}.rv.in{opacity:1;transform:none}
+@media (max-width:900px){.bento{grid-template-columns:1fr}.tile,.tile.w3,.tile.w4{grid-column:auto}.two{grid-template-columns:1fr}.proof{grid-template-columns:1fr 1fr}.island a.l{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<canvas id="field" aria-hidden="true"></canvas><div class="glow" aria-hidden="true"></div>
+
+<header><nav class="island" aria-label="Navigation">
+  <b><i></i>Watchtower OS</b>
+  <a class="l" href="#platform">Platform</a><a class="l" href="#games">Games</a><a class="l" href="#api">API</a><a class="l" href="#pricing">Pricing</a><a class="l" href="#roadmap">2035</a>
+  <button class="kbd" id="cmdk" aria-label="Command palette">⌘K</button>
+  <a class="kbd" href="index.html" lang="ru">RU</a>
+  <a class="cta" href="../token-landing/en.html">$WTWR →</a>
+</nav></header>
+
+<main>
+<section class="hero"><div class="wrap">
+  <span class="chip rv"><em>●</em> v0.1 · Solana · read-only analytics</span>
+  <h1 class="rv">The operating<br>system for<br><span class="grad">Web3 games.</span></h1>
+  <p class="rv">Analytics, traffic, control and game launches — one system instead of a dozen scripts. Watchtower sees the whole ecosystem and technically cannot sign a single transaction.</p>
+  <div class="row rv"><a class="btn prime" href="#platform">Explore the platform</a><a class="btn" href="#api">Studio API</a></div>
+
+  <div class="term rv" aria-label="Terminal demo">
+    <div class="bar"><i></i><i></i><i></i><span style="margin-left:10px">watchtower — demo script</span></div>
+    <pre id="tty"></pre>
+  </div>
+</div></section>
+
+<section id="platform"><div class="wrap">
+  <div class="eyebrow rv">01 · Platform</div>
+  <h2 class="rv">Five modules.<br>One state of the world.</h2>
+  <p class="lead rv">Every module shows its honest stage: what already works and what is still being built.</p>
+  <div class="bento">
+    <article class="tile w4 rv"><span class="stage s-live">live</span><div class="ico">📡</div>
+      <h3>Ingestion &amp; analytics</h3><p>On-chain and off-chain events: deduplication, cursors, backfill, funnels, cross-game segments. Every metric carries a quality flag: complete, partial or unavailable.</p>
+      <div class="spark" id="spark"></div></article>
+    <article class="tile rv" style="grid-column:span 2"><span class="stage s-live">live</span><div class="ico">🛡️</div>
+      <h3>Control</h3><p>Game parameters change only via a proposal with two signatures and 2FA. Audit log, emergency pause.</p></article>
+    <article class="tile w3 rv"><span class="stage s-ready">code ready</span><div class="ico">📣</div>
+      <h3>TalkChart</h3><p>SEO and AI search, X with Solana Blinks, short videos, TipLink onboarding. Every "post → game" visit is confirmed by click-id.</p></article>
+    <article class="tile w3 rv"><span class="stage s-plan">2027</span><div class="ico">🚀</div>
+      <h3>Launchpad</h3><p>New games launch with analytics, traffic and security from day one. Raises in $WTWR, priority for stakers.</p></article>
+    <article class="tile w4 rv"><span class="stage s-plan">fundraising</span><div class="ico">🧠</div>
+      <h3>Compute Grid</h3><p>Our own hardware: a GPU node for a real-time AI analyst, rendering, a VR rig, a Solana Seeker farm. Every purchase comes with a receipt and a treasury transaction.</p></article>
+    <article class="tile rv" style="grid-column:span 2"><span class="stage s-live">test-enforced</span><div class="ico">🔒</div>
+      <h3>Read-only</h3><p><span class="mono">npm run test:readonly</span> fails if signing code ever appears in the hub.</p></article>
+  </div>
+</div></section>
+
+<section id="games"><div class="wrap two">
+  <div>
+    <div class="eyebrow rv">02 · Ecosystem</div>
+    <h2 class="rv">Four games<br>in one orbit.</h2>
+    <p class="lead rv">The games are linked by mechanics, not just a shared logo.</p>
+    <ul class="links rv">
+      <li><b>$POTATO → Age of Farming:</b> ARES-1 potatoes are the farm's seeds.</li>
+      <li><b>Trophies:</b> Neon Relay wins unlock GutterCaps caps.</li>
+      <li><b>Watchtower Passport:</b> one set of achievements across all games.</li>
+      <li><b>CapsStake:</b> stake $CG, $POTATO and SKR → $WTWR airdrop.</li>
+    </ul>
+  </div>
+  <div class="orbit rv" aria-label="Ecosystem diagram">
+    <div class="ring"></div><div class="ring r2"></div>
+    <div class="core"><div><b>Watchtower</b><br><span>$WTWR</span></div></div>
+    <div class="planet" style="left:50%;top:6%"><b>ARES-1</b><span>$POTATO · beta</span></div>
+    <div class="planet" style="left:92%;top:50%"><b>GutterCaps</b><span>$CG · alpha</span></div>
+    <div class="planet" style="left:50%;top:94%"><b>Neon Relay</b><span>prototype</span></div>
+    <div class="planet" style="left:8%;top:50%"><b>Age of Farming</b><span>prototype</span></div>
+  </div>
+</div></section>
+
+<section id="principles"><div class="wrap">
+  <div class="eyebrow rv">03 · Principles</div>
+  <h2 class="rv">Trust<br>you can verify.</h2>
+  <div class="proof">
+    <div class="rv"><b class="grad">0</b><span>signing keys in the hub — enforced by a test</span></div>
+    <div class="rv"><b class="grad">2 + 2FA</b><span>signatures for any game parameter change</span></div>
+    <div class="rv"><b class="grad">3</b><span>quality levels on every metric</span></div>
+    <div class="rv"><b class="grad">DNT</b><span>and GPC honoured by the click tracker, no PII</span></div>
+  </div>
+</div></section>
+
+<section id="api"><div class="wrap two">
+  <div>
+    <div class="eyebrow rv">04 · Studio API · 2027</div>
+    <h2 class="rv">Your game —<br>in the same system.</h2>
+    <p class="lead rv">One event contract for any Solana game. Plug in an adapter and get funnels, cohorts, traffic and control. Pay in USDC, or in $WTWR at a discount.</p>
+  </div>
+  <pre class="code rv"><span class="c">// interface sketch, the API is not published yet</span>
+<span class="k">import</span> { watchtower } <span class="k">from</span> <span class="s">'@watchtower/sdk'</span>
+
+<span class="k">const</span> wt = watchtower({ game: <span class="s">'my-game'</span> })
+
+wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
+
+<span class="k">const</span> f = <span class="k">await</span> wt.funnel([<span class="s">'landing'</span>, <span class="s">'wallet'</span>, <span class="s">'first_match'</span>])
+<span class="c">// → { steps: [...], quality: 'complete' }</span></pre>
+</div></section>
+
+<section id="pricing"><div class="wrap">
+  <div class="eyebrow rv">05 · Pricing</div>
+  <h2 class="rv">Pay for scale,<br>not for access.</h2>
+  <p class="lead rv">Studio API plans open in 2027. The figures below are guidance and will be finalised before launch. Leo Games titles already run on Watchtower.</p>
+  <div class="plans">
+    <article class="plan rv"><h3>Indie</h3><div class="price">$0<small> / mo</small></div><span class="mono" style="color:var(--dim);font-size:13px">for your first game</span>
+      <ul><li>1 game</li><li>up to 1M events per month</li><li>30-day history</li><li>funnels and data quality flags</li><li>read-only control</li></ul>
+      <a class="btn" href="#api">API waitlist</a></article>
+    <article class="plan hot rv"><span class="tag">MOST POPULAR</span><h3>Studio</h3><div class="price">$299<small> / mo</small></div><span class="mono" style="color:var(--dim);font-size:13px">guidance · discount when paid in $WTWR</span>
+      <ul><li>up to 5 games, cross-game segments</li><li>up to 50M events per month</li><li>12-month history</li><li>control: 2 signatures + 2FA, audit log</li><li>TalkChart campaigns with confirmed visits</li></ul>
+      <a class="btn prime" href="#api">I want Studio</a></article>
+    <article class="plan rv"><h3>Launchpad</h3><div class="price">3–5%<small> of raise</small></div><span class="mono" style="color:var(--dim);font-size:13px">2027 · priority for $WTWR stakers</span>
+      <ul><li>everything in Studio during launch</li><li>audit checklist and contract safeguards</li><li>launch traffic via TalkChart</li><li>raise in $WTWR and an ecosystem showcase</li><li>Compute Grid capacity for AI and rendering</li></ul>
+      <a class="btn" href="../token-landing/en.html">$WTWR terms</a></article>
+  </div>
+  <p class="note rv">Limits and prices are pre-launch plans. Compute Grid rental arrives in 2027–2028, after the hardware is purchased.</p>
+</div></section>
+
+<section id="roadmap"><div class="wrap">
+  <div class="eyebrow rv">06 · Path</div>
+  <h2 class="rv">From 2D games<br>to spatial worlds.</h2>
+  <div class="lane rv">
+    <div style="--c:var(--c1)"><span class="q">Q4 2026</span><h3>Audit &amp; presale</h3><p>Contract audits, TalkChart to production, Compute Grid raise.</p></div>
+    <div style="--c:var(--c1)"><span class="q">Q1 2027</span><h3>Mainnet</h3><p>ARES-1 and GutterCaps on mainnet, CapsStake season 1.</p></div>
+    <div style="--c:var(--c2)"><span class="q">Q2–Q3 2027</span><h3>Links &amp; API</h3><p>Cross-game mechanics, Passport, Studio API, first Launchpad games.</p></div>
+    <div style="--c:var(--c3)"><span class="q">Q4 2027</span><h3>AI analyst</h3><p>Compute Grid online: real-time answers to questions about your metrics.</p></div>
+    <div style="--c:var(--c4)"><span class="q">2028</span><h3>VR</h3><p>First VR game, NFTs move between 2D and VR.</p></div>
+    <div style="--c:#ff6b8a"><span class="q">2030 → 2035</span><h3>Vision</h3><p>A spatial studio interface and agents that run game economies. A goal, not a promise.</p></div>
+  </div>
+</div></section>
+
+<div class="final rv">
+  <div class="eyebrow">Ecosystem token</div>
+  <h2>Become part of<br><span class="grad">Watchtower.</span></h2>
+  <p class="lead" style="margin:0 auto 30px">$WTWR ties together the games, the platform and the hardware. Tokenomics, staking and honest risks are on a separate page.</p>
+  <a class="btn prime" href="../token-landing/en.html">Open $WTWR →</a>
+</div>
+</main>
+
+<footer><div class="wrap"><span>© 2026 Leo Games Studio · Watchtower OS</span><span class="mono">Stages and dates are a plan and may change.</span></div></footer>
+
+<dialog id="pal" aria-label="Command palette">
+  <input id="q" placeholder="Where to?" autocomplete="off">
+  <ul id="res"></ul>
+</dialog>
+
+<script>
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+
+// particle field: "event" nodes drawn to the cursor
+const cv = document.getElementById('field'), cx = cv.getContext('2d')
+let W, H, pts = [], mouse = { x: -1e4, y: -1e4 }
+function size() { W = cv.width = innerWidth * devicePixelRatio; H = cv.height = innerHeight * devicePixelRatio; cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'
+  pts = Array.from({ length: Math.min(90, Math.floor(innerWidth / 16)) }, () => ({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3 })) }
+size(); addEventListener('resize', size)
+addEventListener('pointermove', e => { mouse = { x: e.clientX * devicePixelRatio, y: e.clientY * devicePixelRatio }
+  document.documentElement.style.setProperty('--mx', e.clientX + 'px'); document.documentElement.style.setProperty('--my', e.clientY + 'px') })
+function frame() {
+  cx.clearRect(0, 0, W, H); const D = 140 * devicePixelRatio
+  for (const p of pts) {
+    const dx = mouse.x - p.x, dy = mouse.y - p.y, d = Math.hypot(dx, dy)
+    if (d < D * 1.6) { p.vx += dx / d * .02; p.vy += dy / d * .02 }
+    p.vx *= .985; p.vy *= .985; p.x += p.vx; p.y += p.vy
+    if (p.x < 0 || p.x > W) p.vx *= -1; if (p.y < 0 || p.y > H) p.vy *= -1
+  }
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+    const a = pts[i], b = pts[j], d = Math.hypot(a.x - b.x, a.y - b.y)
+    if (d < D) { cx.strokeStyle = `rgba(92,200,255,${.16 * (1 - d / D)})`; cx.lineWidth = devicePixelRatio; cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke() }
+  }
+  cx.fillStyle = 'rgba(55,229,160,.6)'; for (const p of pts) { cx.beginPath(); cx.arc(p.x, p.y, 1.4 * devicePixelRatio, 0, 7); cx.fill() }
+  if (!reduce) requestAnimationFrame(frame)
+}
+frame()
+
+// terminal: demo script, not live data
+const LINES = [
+  ['$ ', 'k', 'watchtower status'],
+  ['', 'ok', '✓ ingestion   4 games · cursors up to date'],
+  ['', 'ok', '✓ read-only   signing keys: 0'],
+  ['', 'w', '◐ talkchart   code ready · not in production'],
+  ['$ ', 'k', 'watchtower funnel --game guttercaps --from x'],
+  ['', '', '  X post → landing → wallet → first match'],
+  ['', 'p', '  quality: partial  (demo data, no figures shown)'],
+  ['$ ', 'k', 'watchtower propose --param fee_bps=250'],
+  ['', 'ok', '✓ proposal created · needs 2 signatures + 2FA'],
+]
+const tty = document.getElementById('tty')
+async function type() {
+  let html = ''
+  for (const [pr, cls, text] of LINES) {
+    const span = `<span class="${cls}">`
+    for (let i = 1; i <= text.length; i++) {
+      tty.innerHTML = html + pr + span + text.slice(0, i).replace(/</g, '&lt;') + '</span><span class="caret"></span>'
+      if (!reduce) await new Promise(r => setTimeout(r, pr ? 34 : 9))
+    }
+    html += pr + span + text.replace(/</g, '&lt;') + '</span>\n'
+    if (!reduce) await new Promise(r => setTimeout(r, 260))
+  }
+  tty.innerHTML = html + '$ <span class="caret"></span>'
+}
+new IntersectionObserver((e, o) => { if (e[0].isIntersecting) { type(); o.disconnect() } }).observe(tty)
+
+// sparkline: an illustration of chart shape
+document.getElementById('spark').innerHTML = Array.from({ length: 32 }, (_, i) => `<i style="height:${20 + 60 * Math.abs(Math.sin(i * .45)) * (0.5 + i / 64)}%"></i>`).join('')
+
+// reveal on scroll
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) } }), { threshold: .12 })
+document.querySelectorAll('.rv').forEach(el => io.observe(el))
+
+// 3D tile tilt
+if (!reduce) document.querySelectorAll('.tile').forEach(t => {
+  t.addEventListener('pointermove', e => { const r = t.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5
+    t.style.transform = `perspective(900px) rotateY(${x * 6}deg) rotateX(${-y * 6}deg)` })
+  t.addEventListener('pointerleave', () => t.style.transform = '')
+})
+
+// command palette ⌘K / Ctrl+K
+const CMDS = [['Platform', '#platform'], ['Games & ecosystem', '#games'], ['Principles', '#principles'], ['Studio API', '#api'], ['Pricing', '#pricing'], ['Roadmap to 2035', '#roadmap'], ['$WTWR token', '../token-landing/en.html'], ['Токен $WTWR (RU)', '../token-landing/index.html'], ['Русская версия сайта', 'index.html']]
+const pal = document.getElementById('pal'), q = document.getElementById('q'), res = document.getElementById('res')
+let sel = 0
+function render() {
+  const v = q.value.toLowerCase(), list = CMDS.filter(c => c[0].toLowerCase().includes(v)); sel = Math.min(sel, Math.max(0, list.length - 1))
+  res.innerHTML = list.map(([n, h], i) => `<li><a href="${h}" class="${i === sel ? 'on' : ''}">${n}<small>${h.startsWith('#') ? '↵' : '↗'}</small></a></li>`).join('')
+}
+function open() { pal.showModal(); q.value = ''; sel = 0; render(); q.focus() }
+document.getElementById('cmdk').onclick = open
+addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); pal.open ? pal.close() : open() } })
+q.oninput = () => { sel = 0; render() }
+q.onkeydown = e => { const n = res.children.length
+  if (e.key === 'ArrowDown') { sel = (sel + 1) % n; render(); e.preventDefault() }
+  if (e.key === 'ArrowUp') { sel = (sel - 1 + n) % n; render(); e.preventDefault() }
+  if (e.key === 'Enter') { const a = res.querySelectorAll('a')[sel]; if (a) { pal.close(); a.click() } } }
+res.onclick = e => { if (e.target.closest('a')) pal.close() }
+</script>
+</body>
+</html>
