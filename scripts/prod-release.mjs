@@ -473,7 +473,7 @@ if (Number(nodeVersion.replace(/^v/, '').split('.')[0]) < needNode) {
   console.log(c('31', `✗ Node ${nodeVersion}, требуется ≥ ${needNode}. Обновите: brew install node@22`))
   process.exit(2)
 }
-console.log(dim(`режим: ${DRY ? 'dry-run (план без side-effects)' : 'полный прогон'} · деплой: ${DEPLOY ? CLUSTER : 'выключен'} · docker: ${DOCKER ? 'вкл' : 'выкл'} · pull: ${PULL ? 'вкл' : 'выкл'} · тесты: ${SKIP_TESTS ? 'пропущены' : 'вкл'}`))
+console.log(dim(`режим: ${DRY ? 'dry-run — ничего не выполняется, только план' : 'полный прогон'} · деплой: ${DRY ? 'не выполняется (dry-run)' : DEPLOY ? CLUSTER : 'выключен'} · docker: ${DRY ? 'н/д' : DOCKER ? 'вкл' : 'выкл'} · pull: ${DRY ? 'н/д' : PULL ? 'вкл' : 'выкл'} · тесты: ${DRY ? 'н/д' : SKIP_TESTS ? 'пропущены' : 'вкл'}`))
 console.log(dim(`логи: ${LOG_DIR}`))
 console.log(dim(`нода: ${nodeVersion}`))
 
