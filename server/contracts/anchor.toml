@@ -1,0 +1,31 @@
+# Anchor workspace для программ студии.
+#
+# ВАЖНО: в этом репозитории нет Rust/Anchor toolchain (cargo, anchor, solana-test-validator),
+# поэтому программы здесь не собираются и не тестируются автоматически. Это контракт-спецификация
+# с проверяемыми инвариантами. Перед выкатом в сеть: собрать в отдельном CI с toolchain,
+# прогнать anchor test и внешний аудит (см. docs/OPERATIONS.md, раздел про контракты).
+
+[features]
+# seeds = true: PDA-констрейнты обязаны проверяться, иначе seeds в #[account] декоративны.
+seeds = true
+skip-lint = false
+
+[programs.localnet]
+cross_game_inventory = "CgInv111111111111111111111111111111111111111"
+studio_treasury = "STrEaSuRy11111111111111111111111111111111111"
+session_keys_registry = "SessKeys111111111111111111111111111111111111"
+
+[programs.devnet]
+cross_game_inventory = "CgInv111111111111111111111111111111111111111"
+studio_treasury = "STrEaSuRy11111111111111111111111111111111111"
+session_keys_registry = "SessKeys111111111111111111111111111111111111"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

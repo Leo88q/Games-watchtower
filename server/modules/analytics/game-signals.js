@@ -5,6 +5,8 @@
  * Для мультитенантного ПО — прямой путь к кросс-игровому удержанию и пониманию какая воронка приводит самых ценных пользователей
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const GAME_SIGNALS_CONFIG = {
   project: 'Solana Game Signals and Predictive Modelling',
   repo: 'https://github.com/joshuatochinwachi/Solana-Game-Signals-and-Predictive-Modelling',
@@ -175,7 +177,8 @@ export function gameSignalsHealth(env = process.env) {
     purpose: GAME_SIGNALS_CONFIG.purpose,
     features: ['aggregation 60M+ 12 games', 'churn 14d >85%', 'cross-game common wallets', 'funnel value LTV', 'anomaly detection'],
     mlModels: ['churn', 'crossGame', 'funnelValue', 'anomaly'],
-    configured: true,
+    configured: anyEnvConfigured(env, ['GAMESIGNALS_API_KEY', 'GAME_SIGNALS_API_KEY']),
+    configurationReason: 'Не задан ключ сервиса Game Signals',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),

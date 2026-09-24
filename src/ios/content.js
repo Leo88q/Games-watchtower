@@ -23,7 +23,7 @@ export const EXPLAIN = {
   overview: {
     title: 'Обзор студии',
     what: 'Главный экран: подключённость игр, качество данных и текущий уровень зрелости экосистемы.',
-    how: 'Значения читаются из API хаба (/api/read-model, /api/ecosystem/status). Каждая карточка помечается статусом complete / partial / unavailable и режимом провайдера (mock или боевой).',
+    how: 'Значения читаются из API хаба (/api/read-model, /api/ecosystem/status). Каждая карточка помечается статусом complete / partial / unavailable; синтетические данные приходят только по ?demo=1 и помечены явно.',
     why: 'Студия не может принимать решения по цифрам, происхождение которых неизвестно. Поэтому у каждой метрики есть источник и статус.',
   },
   levels: {
@@ -72,7 +72,7 @@ export const EXPLAIN = {
     title: 'Инвесторский контур',
     what: 'Отчёт, снапшоты и динамика: только те данные, которые реально существуют, с указанием источника и качества.',
     how: 'GET /api/investors/report, /snapshots, /trend; отчёт /api/ecosystem/report явно перечисляет подключённые и неподключённые tenant\'ы.',
-    why: 'Инвесторские обещания не могут строиться на mock-данных. Честность здесь дешевле, чем репутационный риск.',
+    why: 'Инвесторские обещания не могут строиться на синтетических данных. Честность здесь дешевле, чем репутационный риск.',
   },
   deploy: {
     title: 'Деплой',
@@ -117,7 +117,7 @@ export const GLOSSARY = [
 ]
 
 export const DEPLOY_CHECKS = [
-  { id: 'api', title: 'Read-only API работает', detail: 'node server/index.js — 121 маршрут /api/*, health.writes = false. Проверено командой curl.', ready: true },
+  { id: 'api', title: 'Read-only API работает', detail: 'node server/index.js — read-only API /api/* (health, readyz, read-model, economy, ingestion), health.writes = false.', ready: true },
   { id: 'frontend', title: 'Фронтенд собирается и раздаётся одним портом', detail: 'npm run build → dist/ios.html; сервер отдаёт статику и API вместе.', ready: true },
   { id: 'prompts', title: 'Промпты Arena доступны из интерфейса', detail: 'GET /api/arena/prompts — 13 заданий (минимум и максимум) с текстом.', ready: true },
   { id: 'spec', title: 'Целевая спецификация покрытия', detail: 'docs/ecosystem-target.spec.json — 73 требования с уровнями L2/L3/L4 и доказательствами.', ready: true },

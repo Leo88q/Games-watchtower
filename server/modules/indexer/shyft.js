@@ -21,7 +21,7 @@ export const SHYFT_CONFIG = {
 export function shyftConfig(env = process.env) {
   return {
     provider: 'shyft',
-    apiKey: env.SHYFT_API_KEY || null,
+    apiKeyConfigured: Boolean(env.SHYFT_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     configured: Boolean(env.SHYFT_API_KEY),
     baseUrl: env.SHYFT_BASE_URL || SHYFT_CONFIG.baseUrl,
     network: env.SHYFT_NETWORK || env.SOLANA_CLUSTER || 'mainnet-beta',

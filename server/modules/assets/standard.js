@@ -18,9 +18,11 @@ export const STANDARD_NFT_CONFIG = {
 }
 
 export function standardNftCollection({ name, symbol, gameId, royaltyBps = 500 } = {}) {
+  if (!name) throw new Error('name is required')
+  if (!gameId) throw new Error('gameId is required')
   return {
     name,
-    symbol: symbol || gameId.toUpperCase(),
+    symbol: (symbol || String(gameId)).toUpperCase(),
     gameId,
     standard: STANDARD_NFT_CONFIG.standard,
     royaltyBps,

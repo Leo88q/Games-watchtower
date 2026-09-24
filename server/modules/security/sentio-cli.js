@@ -1,6 +1,8 @@
 /**
  * Sentio CLI — AST scanner security for Solana/Anchor programs, finds common vulnerability patterns in Rust source
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const SENTIO_CLI_CONFIG = {
   tool: 'sentio-cli',
   type: 'AST scanner security',
@@ -33,5 +35,6 @@ export function sentioCliSetup({ gameId = 'generic' } = {}) {
 }
 
 export function sentioCliHealth() {
-  return { configured: true, tool: SENTIO_CLI_CONFIG.tool, free: true, bestFree: true, category: 'security' }
+  return { configured: false,
+    configurationReason: 'CLI sentio не установлен', tool: SENTIO_CLI_CONFIG.tool, free: true, bestFree: true, category: 'security' }
 }

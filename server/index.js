@@ -1,10 +1,9 @@
 import http from 'node:http'
 import { readFileSync } from 'node:fs'
-import { aggregateOverview, buildAiReport, detectAnomalies, forecast } from '../src/engine/analytics.js'
 import { GAME_REGISTRY, getGame } from '../src/data/registry.js'
-import { createProvider, createTrafficgenProvider } from './ingestion/provider.js'
+import { NativeRpcProvider, createTrafficgenProvider } from './ingestion/provider.js'
 import { allCursors } from './ingestion/cursor-store.js'
-import { ingest, inboxStatus, list } from './ingestion/event-inbox.js'
+import { configureInbox, erasePlayer, ingest, ingestBatch, inboxStatus, list, windowEvents, freshness } from './ingestion/event-inbox.js'
 import { reconciliationReport } from './ingestion/reconciliation.js'
 import { adapterReadiness, decodeGameEvent, getGameAdapter } from './ingestion/game-adapters.js'
 import { buildFunnel, crossGameSegments, buildCrossGameProjection } from './ingestion/player-projections.js'
@@ -12,10 +11,15 @@ import { campaignStatus, createCampaignProposal, recommendations } from './inges
 import { investorReport } from './analytics/investor-report.js'
 import { createInvestorSnapshot, investorTrend, listInvestorSnapshots } from './analytics/snapshots.js'
 import { controlPolicy, createControlRequest, listControlRequests } from './operations/control-requests.js'
-import { prometheusMetrics } from './ops/metrics.js'
+import { prometheusMetrics, observeRequest } from './ops/metrics.js'
 import { adjacentAnalytics } from './analytics/adjacent.js'
 import { trafficAnalytics } from './analytics/traffic.js'
-import { auditLog, checkAccess, recordAudit } from './security/access.js'
+import { liveAggregates, liveAlerts, liveAiReport, demoModel } from './analytics/live-model.js'
+import { auditLog, authenticate, checkRateLimit, configureAccess, clientIp, rateLimitSnapshot, recordAudit } from './security/access.js'
+import { anonymizeEvent, containsRawIdentifier, piiPolicy, playerSummary } from './security/pii.js'
+import { CAPABILITIES } from './security/capabilities.js'
+import { loadConfig, ConfigError, CONFIG_ENV_KEYS } from './config.js'
+import { logger, setLogLevel, sanitizePath } from './obs/logger.js'
 // OS v3 modules — 33 компонента идеальный бесплатный стек
 import { watchtowerOSConfig, watchtowerOSHealth } from './modules/os.js'
 import { identityLayerConfig, identityHealth, createUnifiedWallet, tenantIdentity } from './modules/identity/index.js'
@@ -44,254 +48,565 @@ import { monetizationLayerConfig, monetizationHealth } from './modules/monetizat
 import { testingLayerConfig, testingHealth } from './modules/testing/index.js'
 import { privacyLayerConfig, privacyHealth } from './modules/privacy/index.js'
 
-const port = Number(process.env.API_PORT || 8787)
+let config
+try {
+  config = loadConfig(process.env)
+} catch (error) {
+  if (error instanceof ConfigError) {
+    process.stderr.write(`watchtower: конфигурация отклонена — ${error.message}\n`)
+    for (const detail of error.details || []) process.stderr.write(`  · ${detail}\n`)
+    process.stderr.write('  · см. .env.example и docs/OPERATIONS.md\n')
+    process.exit(1)
+  }
+  throw error
+}
+
+setLogLevel(config.logLevel)
+configureAccess({ rateLimit: config.rateLimit, auditRingSize: config.auditRingSize })
+// Без этого вызова лимиты retention/TTL/сумм оставались бы только в конфиге, но не в работе.
+configureInbox({
+  maxEvents: config.maxEvents,
+  eventTtlHours: config.eventTtlHours,
+  maxEventAmount: config.maxEventAmount,
+  allowUnknownGames: config.allowUnknownGames,
+})
+
 const startedAt = Date.now()
+const BOOT_PROBLEMS = []
 
 // studio.config.json — каноничный конфиг OS v3 (totalComponents: 33, tenants, duplicates, layers)
 function studioOSConfig() {
   return JSON.parse(readFileSync(new URL('../studio.config.json', import.meta.url), 'utf8'))
 }
 
-function json(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'x-content-type-options': 'nosniff' })
-  res.end(JSON.stringify(body))
+const SECURITY_HEADERS = Object.freeze({
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'referrer-policy': 'no-referrer',
+  'permissions-policy': 'geolocation=(), microphone=(), camera=()',
+  'cross-origin-opener-policy': 'same-origin',
+})
+
+/** CSP: inline-стили нужны собранному Vite-бандлу, скрипты — только со своего источника. */
+const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+
+function corsHeaders(req) {
+  const origin = req.headers.origin
+  if (!origin) return {}
+  if (config.allowedOrigins.includes('*')) return { 'access-control-allow-origin': '*' }
+  if (config.allowedOrigins.includes(origin)) return { 'access-control-allow-origin': origin, vary: 'Origin' }
+  return {}
 }
 
-async function readJson(req) {
-  let body = ''
-  for await (const chunk of req) { body += chunk; if (body.length > 64 * 1024) throw new Error('request_body_too_large') }
-  return body ? JSON.parse(body) : {}
+export function securityHeadersFor(req, { html = false } = {}) {
+  const headers = { ...SECURITY_HEADERS, ...corsHeaders(req) }
+  if (html) headers['content-security-policy'] = CSP
+  if (config.isProduction) headers['strict-transport-security'] = 'max-age=31536000; includeSubDomains'
+  return headers
+}
+
+function json(res, status, body, extraHeaders = {}) {
+  if (res.headersSent) return res.end()
+  const payload = JSON.stringify(body)
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    ...securityHeadersFor(res.req, { html: false }),
+    ...extraHeaders,
+  })
+  res.end(payload)
+}
+
+class HttpError extends Error {
+  constructor(status, code, message, extra = {}) {
+    super(message || code)
+    this.status = status
+    this.code = code
+    this.extra = extra
+  }
+}
+
+/** Чтение тела с жёстким лимитом; JSON-ошибки — 400, превышение лимита — 413. */
+async function readJson(req, preloaded) {
+  const raw = preloaded !== undefined ? preloaded : await readRawBody(req)
+  if (!raw.length) return {}
+  try {
+    return JSON.parse(raw)
+  } catch {
+    throw new HttpError(400, 'invalid_json', 'Тело запроса не является корректным JSON')
+  }
+}
+
+async function readRawBody(req, maxBytes = config.maxBodyBytes) {
+  const chunks = []
+  let size = 0
+  for await (const chunk of req) {
+    size += chunk.length
+    if (size > maxBytes) {
+      throw new HttpError(413, 'request_body_too_large', `Тело запроса больше ${maxBytes} байт`)
+    }
+    chunks.push(chunk)
+  }
+  return Buffer.concat(chunks).toString('utf8')
+}
+
+/** Тип маршрута определяет требования аутентификации. Неизвестный POST — всегда write. */
+export function classifyRoute(method, pathname) {
+  if (['/api/health', '/api/readyz', '/metrics'].includes(pathname)) return 'public'
+  // Статика (собранный интерфейс) не содержит данных; данные отдаёт только /api/*.
+  if (!pathname.startsWith('/api/')) return 'public'
+  if (method === 'POST') return 'write'
+  return 'read'
+}
+
+/** Единые параметры псевдонимизации: соль задаётся конфигурацией, иначе — только для dev. */
+const piiOptions = Object.freeze({ salt: config.piiSalt || 'watchtower-unsalted-development' })
+
+/** Защита от утечки: если в подготовленном ответе остался открытый идентификатор — данные не отдаём. */
+function guardPii(payload, route) {
+  if (!containsRawIdentifier(payload)) return true
+  logger.error('pii_guard_tripped', { route, reason: 'raw_identifier_in_response' })
+  return false
+}
+
+function resolveNow(url, { demo }) {
+  if (!demo) return Date.now()
+  const raw = url.searchParams.get('now')
+  if (!raw) return Date.now()
+  const parsed = Date.parse(raw)
+  return Number.isFinite(parsed) ? parsed : Date.now()
+}
+
+function resolveWindowDays(url, fallback = 7) {
+  const value = Number(url.searchParams.get('windowDays') || fallback)
+  return Number.isFinite(value) ? Math.min(365, Math.max(1, Math.floor(value))) : fallback
+}
+
+function requireDemo(url) {
+  const demo = url.searchParams.get('demo') === '1'
+  if (demo && !config.allowDemo) throw new HttpError(403, 'demo_disabled', 'Демо-данные отключены конфигурацией (WATCHTOWER_ALLOW_DEMO=0)')
+  return demo
+}
+
+function economySource({ url, demo, now }) {
+  if (!demo) {
+    const events = windowEvents({ since: now - 365 * 86_400_000, until: now })
+    return { events, source: 'event-inbox', warning: null, retention: { eventsRetained: inboxStatus(now).events, truncated: false } }
+  }
+  const events = demoEvents({ now })
+  return { events, source: 'demo://economy-generator', warning: 'DEMO DATA: синтетический поток событий, не боевые данные студии', retention: { eventsRetained: events.length, truncated: false } }
+}
+
+const economyCache = new Map()
+
+function economyPayload({ url, demo, now }) {
+  const window = url.searchParams.get('window') || '7d'
+  const gameId = url.searchParams.get('gameId') || undefined
+  const { events: source, source: sourceName, warning, retention } = economySource({ url, demo, now })
+  const events = gameId ? source.filter((event) => (event.payload?.gameId || event.app || event.source) === gameId) : source
+  const cacheKey = `${window}|${gameId || '*'}|${demo}|${Math.floor(now / 1000)}`
+  const cached = economyCache.get(cacheKey)
+  if (cached) return cached
+  const economy = computeEconomy({ events, window, now, config: demo ? demoConfig() : config.economy, demo, retention })
+  const payload = { ...economy, warning, source: sourceName, demo }
+  economyCache.set(cacheKey, payload)
+  if (economyCache.size > 64) economyCache.clear()
+  return payload
 }
 
 async function route(req, res) {
-  if (req.method === 'OPTIONS') { res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'access-control-allow-headers': 'authorization, content-type' }); return res.end() }
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`)
-  const publicRoute = ['/api/health', '/api/readyz', '/metrics'].includes(url.pathname)
-  const access = checkAccess(req, { publicRoute })
-  if (!access.allowed) { recordAudit(req, { status: access.status, reason: access.reason }); return json(res, access.status, { error: access.reason }) }
-  recordAudit(req, { status: 200 })
-  const parts = url.pathname.split('/').filter(Boolean)
-  if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, { ok: true, service: 'watchtower-api', uptimeSeconds: Math.round((Date.now() - startedAt) / 1000), mode: 'mock-read-model', writes: false, provider: process.env.WATCHTOWER_PROVIDER || 'mock' })
-  if (req.method === 'GET' && url.pathname === '/api/readyz') { const adapters = adapterReadiness(); return json(res, adapters.configured ? 200 : 200, { ready: true, mode: process.env.WATCHTOWER_PROVIDER || 'mock', adaptersConfigured: adapters.configured, writes: false, reason: adapters.configured ? 'provider configuration detected' : 'offline mode is explicitly allowed' }) }
-  if (req.method === 'GET' && url.pathname === '/api/overview') return json(res, 200, { ...aggregateOverview(), generatedAt: new Date().toISOString() })
-  if (req.method === 'GET' && url.pathname === '/api/read-model') return json(res, 200, { overview: aggregateOverview(), adjacent: adjacentAnalytics(), investor: investorReport(), funnel: buildFunnel({ limit: 5000 }), crossGame: crossGameSegments({ limit: 5000 }), campaigns: recommendations({ limit: 5000 }), traffic: trafficAnalytics({ events: list({ limit: 1000 }) }), investorTrend: await investorTrend({ limit: 30 }), ingestion: { ...inboxStatus(), adapters: adapterReadiness() }, controls: controlPolicy(), generatedAt: new Date().toISOString() })
-  if (req.method === 'GET' && url.pathname === '/api/ingestion/status') return json(res, 200, { ...inboxStatus(), provider: process.env.WATCHTOWER_PROVIDER || 'mock', cursors: await allCursors(), reconciliation: reconciliationReport(list({ limit: 1000 })) })
-  if (req.method === 'GET' && url.pathname === '/api/infra/solana') return json(res, 200, await createProvider().health())
-  if (req.method === 'GET' && url.pathname === '/api/infra/trafficgen') return json(res, 200, await createTrafficgenProvider().health())
-  if (req.method === 'GET' && url.pathname === '/api/analytics/traffic') return json(res, 200, trafficAnalytics({ events: list({ source: 'trafficgen', limit: 1000 }) }))
-  if (req.method === 'GET' && url.pathname === '/api/ingestion/adapters') return json(res, 200, adapterReadiness())
-  if (req.method === 'GET' && url.pathname === '/api/funnels') return json(res, 200, buildFunnel({ gameId: url.searchParams.get('gameId') || undefined, limit: Number(url.searchParams.get('limit') || 5000) }))
-  if (req.method === 'GET' && url.pathname === '/api/players/cross-game') return json(res, 200, crossGameSegments({ limit: Number(url.searchParams.get('limit') || 5000) }))
-  if (req.method === 'GET' && url.pathname === '/api/campaigns/recommendations') return json(res, 200, recommendations({ limit: Number(url.searchParams.get('limit') || 5000) }))
-  if (req.method === 'GET' && url.pathname === '/api/campaigns/status') return json(res, 200, campaignStatus())
-  if (req.method === 'POST' && url.pathname === '/api/campaigns/proposals') return json(res, 202, createCampaignProposal(await readJson(req)))
-  if (req.method === 'GET' && url.pathname === '/api/investors/report') return json(res, 200, investorReport())
-  if (req.method === 'GET' && url.pathname === '/api/investors/snapshots') return json(res, 200, { snapshots: await listInvestorSnapshots({ limit: Number(url.searchParams.get('limit') || 30) }) })
-  if (req.method === 'GET' && url.pathname === '/api/investors/trend') return json(res, 200, await investorTrend({ limit: Number(url.searchParams.get('limit') || 30) }))
-  if (req.method === 'POST' && url.pathname === '/api/investors/snapshots') return json(res, 201, await createInvestorSnapshot(await readJson(req)))
-  if (req.method === 'GET' && url.pathname === '/api/analytics/adjacent') return json(res, 200, adjacentAnalytics())
-  if (req.method === 'GET' && url.pathname === '/api/control/policy') return json(res, 200, controlPolicy())
-  if (req.method === 'GET' && url.pathname === '/api/control/requests') return json(res, 200, { requests: listControlRequests() })
-  if (req.method === 'POST' && url.pathname === '/api/control/requests') return json(res, 202, createControlRequest(await readJson(req)))
-  if (req.method === 'GET' && url.pathname === '/metrics') { res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4; charset=utf-8' }); return res.end(prometheusMetrics()) }
-  if (req.method === 'GET' && url.pathname === '/api/audit') return json(res, 200, { entries: auditLog() })
-  if (req.method === 'GET' && parts[0] === 'api' && parts[1] === 'games' && parts[2] && parts[3] === 'ingestion') {
+  const pathname = url.pathname
+  const method = req.method || 'GET'
+  res.req = req
+
+  if (!['GET', 'HEAD', 'POST', 'OPTIONS'].includes(method)) {
+    return json(res, 405, { error: 'method_not_allowed' }, { allow: 'GET, HEAD, POST, OPTIONS' })
+  }
+  if (method === 'OPTIONS') {
+    res.writeHead(204, {
+      ...securityHeadersFor(req),
+      'access-control-allow-methods': 'GET, HEAD, POST, OPTIONS',
+      'access-control-allow-headers': 'authorization, content-type, x-watchtower-signature, x-watchtower-timestamp',
+      'access-control-max-age': '600',
+    })
+    return res.end()
+  }
+
+  const kind = classifyRoute(method, pathname)
+  const limit = checkRateLimit(req, config)
+  if (!limit.allowed) {
+    recordAudit(req, { status: limit.status, reason: limit.reason, path: sanitizePath(req.url), route: kind, ip: limit.ip }, { config, ip: limit.ip })
+    return json(res, limit.status, { error: limit.reason }, { 'retry-after': String(limit.retryAfter) })
+  }
+
+  let rawBody = ''
+  if (kind === 'write') rawBody = await readRawBody(req)
+  const auth = authenticate(req, { kind, config, rawBody })
+  if (!auth.ok) {
+    recordAudit(req, { status: auth.status, reason: auth.reason, path: sanitizePath(req.url), route: kind, ip: limit.ip }, { config, ip: limit.ip })
+    return json(res, auth.status, { error: auth.reason })
+  }
+
+  const respond = (status, body, extra) => json(res, status, body, extra)
+  const body = () => readJson(req, rawBody)
+
+  if (method === 'GET' && pathname === '/api/health') {
+    const status = inboxStatus()
+    return respond(200, {
+      ok: true,
+      service: 'watchtower-api',
+      version: readVersion(),
+      uptimeSeconds: Math.round((Date.now() - startedAt) / 1000),
+      mode: 'read-model',
+      dataSource: 'event-inbox',
+      writes: CAPABILITIES.blockchainWrites,
+      capabilities: CAPABILITIES,
+      provider: config.provider,
+      inbox: { events: status.events, lastEventAt: status.lastEventAt, lastEventAgeSeconds: status.lastEventAgeSeconds, retention: { maxEvents: status.maxEvents, ttlHours: status.ttlHours } },
+      bootProblems: BOOT_PROBLEMS,
+    })
+  }
+
+  if (method === 'GET' && pathname === '/api/readyz') {
+    const status = inboxStatus()
+    const fresh = freshness({ maxAgeSeconds: config.readyMaxStaleSeconds })
+    const checks = {
+      api: { ok: true },
+      storage: { ok: true, events: status.events, evicted: status.evictedByLimit + status.evictedByTtl },
+      freshness: { ok: !fresh.stale, lastEventAt: fresh.lastEventAt, ageSeconds: fresh.ageSeconds, maxAgeSeconds: fresh.maxAgeSeconds, noDataYet: fresh.noDataYet },
+      adapters: { ok: true, configured: adapterReadiness().configured, required: false },
+      capacity: { ok: status.events < status.maxEvents, usage: status.maxEvents ? Number((status.events / status.maxEvents).toFixed(3)) : null },
+    }
+    const ready = Object.values(checks).every((check) => check.ok)
+    return respond(ready ? 200 : 503, { ready, mode: 'read-model', dataSource: 'event-inbox', checks, writes: CAPABILITIES.blockchainWrites, reason: ready ? null : Object.entries(checks).filter(([, value]) => !value.ok).map(([key]) => key) })
+  }
+
+  if (method === 'GET' && pathname === '/api/config') {
+    return respond(200, {
+      service: 'watchtower-api',
+      environment: config.nodeEnv,
+      port: config.port,
+      provider: config.provider,
+      dataSource: 'event-inbox',
+      writes: CAPABILITIES,
+      security: {
+        readTokenConfigured: Boolean(config.readToken),
+        ingestTokenConfigured: Boolean(config.ingestToken),
+        ingestHmacConfigured: Boolean(config.ingestSecret),
+        trustProxy: config.trustProxy,
+        allowedOrigins: config.allowedOrigins,
+        rateLimitPerMinute: config.rateLimit,
+        maxBodyBytes: config.maxBodyBytes,
+        demoAllowed: config.allowDemo,
+      },
+      retention: { maxEvents: config.maxEvents, eventTtlHours: config.eventTtlHours },
+      readiness: { maxEventAgeSeconds: config.readyMaxStaleSeconds },
+      economyFactsConfigured: economyFacts(),
+      envKeys: CONFIG_ENV_KEYS,
+      warnings: config.warnings,
+      generatedAt: new Date().toISOString(),
+    })
+  }
+
+  /* ===================== Живая модель чтения ===================== */
+  const now = Date.now()
+  const windowDays = resolveWindowDays(url)
+
+  if (method === 'GET' && pathname === '/api/overview') {
+    return respond(200, { ...liveAggregates({ windowDays, now }), source: 'event-inbox', demo: false })
+  }
+
+  if (method === 'GET' && pathname === '/api/read-model') {
+    const demo = url.searchParams.get('demo') === '1'
+    if (demo && !config.allowDemo) throw new HttpError(403, 'demo_disabled', 'Демо-данные отключены конфигурацией (WATCHTOWER_ALLOW_DEMO=0)')
+    const overview = demo ? demoModel({ windowDays, now }) : { ...liveAggregates({ windowDays, now }), source: 'event-inbox', demo: false }
+    return respond(200, {
+      overview,
+      adjacent: adjacentAnalytics({ windowDays, now }),
+      investor: investorReport({ windowDays, now }),
+      funnel: buildFunnel({ limit: 5000 }),
+      crossGame: crossGameSegments({ limit: 5000 }),
+      campaigns: recommendations({ limit: 5000 }),
+      traffic: trafficAnalytics({ events: list({ source: 'trafficgen', limit: 1000 }) }),
+      investorTrend: await investorTrend({ limit: 30 }),
+      ingestion: { ...inboxStatus(now), adapters: adapterReadiness() },
+      controls: controlPolicy(),
+      alerts: liveAlerts({ windowDays, now }),
+      // Экономика считается тем же кодом, что и /api/economy/overview: два разных ответа на один вопрос запрещены.
+      economy: economyPayload({ url, demo, now }),
+      demo,
+      source: demo ? 'demo://read-model' : 'event-inbox',
+      generatedAt: new Date(now).toISOString(),
+    })
+  }
+
+  if (method === 'GET' && pathname === '/api/ingestion/status') {
+    return respond(200, { ...inboxStatus(now), freshness: freshness({ maxAgeSeconds: config.readyMaxStaleSeconds, now }), provider: config.provider, cursors: await allCursors(), reconciliation: reconciliationReport(list({ limit: 1000 })), rateLimit: rateLimitSnapshot() })
+  }
+  if (method === 'GET' && pathname === '/api/infra/solana') {
+    // Раньше здесь возвращался health мок-провайдера (ok:true без единой проверки).
+    if (!config.solanaRpcUrl) {
+      return respond(200, { provider: 'native-rpc', configured: false, ok: false, code: 'RPC_NOT_CONFIGURED', reason: 'SOLANA_RPC_URL не задан: RPC-проверка не выполнялась', writes: false, checkedAt: new Date().toISOString() })
+    }
+    const health = await new NativeRpcProvider({ url: config.solanaRpcUrl }).health()
+    return respond(health.ok ? 200 : 502, { ...health, configured: true, writes: false, checkedAt: new Date().toISOString() })
+  }
+  if (method === 'GET' && pathname === '/api/infra/trafficgen') return respond(200, await createTrafficgenProvider().health())
+  if (method === 'GET' && pathname === '/api/analytics/traffic') return respond(200, trafficAnalytics({ events: list({ source: 'trafficgen', limit: 1000 }) }))
+  if (method === 'GET' && pathname === '/api/ingestion/adapters') return respond(200, adapterReadiness())
+  if (method === 'GET' && pathname === '/api/funnels') return respond(200, buildFunnel({ gameId: url.searchParams.get('gameId') || undefined, limit: Number(url.searchParams.get('limit') || 5000) }))
+  if (method === 'GET' && pathname === '/api/players/cross-game') return respond(200, crossGameSegments({ limit: Number(url.searchParams.get('limit') || 5000) }))
+  if (method === 'GET' && pathname === '/api/campaigns/recommendations') return respond(200, recommendations({ limit: Number(url.searchParams.get('limit') || 5000) }))
+  if (method === 'GET' && pathname === '/api/campaigns/status') return respond(200, campaignStatus())
+  if (method === 'POST' && pathname === '/api/campaigns/proposals') return respond(202, createCampaignProposal(await body()))
+  if (method === 'GET' && pathname === '/api/investors/report') return respond(200, investorReport({ windowDays, now }))
+  if (method === 'GET' && pathname === '/api/investors/snapshots') return respond(200, { snapshots: await listInvestorSnapshots({ limit: Number(url.searchParams.get('limit') || 30) }) })
+  if (method === 'GET' && pathname === '/api/investors/trend') return respond(200, await investorTrend({ limit: Number(url.searchParams.get('limit') || 30) }))
+  if (method === 'POST' && pathname === '/api/investors/snapshots') return respond(201, await createInvestorSnapshot(await body()))
+  if (method === 'GET' && pathname === '/api/analytics/adjacent') return respond(200, adjacentAnalytics({ windowDays, now }))
+  if (method === 'GET' && pathname === '/api/control/policy') return respond(200, controlPolicy())
+  if (method === 'GET' && pathname === '/api/control/requests') return respond(200, { requests: listControlRequests() })
+  if (method === 'POST' && pathname === '/api/control/requests') return respond(202, createControlRequest(await body()))
+  if (method === 'GET' && pathname === '/metrics') {
+    if (res.headersSent) return res.end()
+    res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4; charset=utf-8', 'cache-control': 'no-store', ...securityHeadersFor(req) })
+    return res.end(prometheusMetrics({ config, startedAt, now }))
+  }
+  if (method === 'GET' && pathname === '/api/audit') return respond(200, { entries: auditLog(), note: 'IP хранится как хеш, query-параметры замаскированы' })
+  const parts = pathname.split('/').filter(Boolean)
+  if (method === 'GET' && parts[0] === 'api' && parts[1] === 'games' && parts[2] && parts[3] === 'ingestion') {
     const adapter = getGameAdapter(parts[2])
-    return adapter ? json(res, 200, adapter) : json(res, 404, { error: 'game_not_found' })
+    return adapter ? respond(200, adapter) : respond(404, { error: 'game_not_found' })
   }
-  if (req.method === 'GET' && url.pathname === '/api/events') return json(res, 200, { events: list({ programId: url.searchParams.get('programId') || undefined, commitment: url.searchParams.get('commitment') || undefined, source: url.searchParams.get('source') || undefined, limit: Number(url.searchParams.get('limit') || 100) }) })
-  if (req.method === 'POST' && url.pathname === '/api/ingest/solana') {
-    const input = await readJson(req)
-    const result = ingest(input, process.env.WATCHTOWER_PROVIDER || 'mock')
+  if (method === 'GET' && pathname === '/api/events') {
+    // Наружу идентификаторы игроков уходят только псевдонимами (F-011).
+    const events = list({ programId: url.searchParams.get('programId') || undefined, commitment: url.searchParams.get('commitment') || undefined, source: url.searchParams.get('source') || undefined, gameId: url.searchParams.get('gameId') || undefined, limit: Number(url.searchParams.get('limit') || 100) }).map((event) => anonymizeEvent(event, piiOptions))
+    if (!guardPii(events, '/api/events')) return respond(500, { error: 'pii_guard_tripped', hint: 'событие содержит идентификатор игрока в открытом виде — запрос заблокирован' })
+    return respond(200, { events, privacy: 'anonymized-player-keys', source: 'event-inbox' })
+  }
+  if (method === 'POST' && pathname === '/api/ingest/solana') {
+    const input = await body()
+    const source = config.provider === 'http-ingest' ? 'http-ingest' : config.provider
+    if (Array.isArray(input)) {
+      const result = ingestBatch(input, source)
+      return respond(202, { accepted: result.accepted, duplicates: result.duplicates, rejected: result.rejected, total: input.length, events: result.results.map((row) => ({ accepted: row.accepted, duplicate: Boolean(row.duplicate), errors: row.errors || null, eventId: row.event?.eventId })) })
+    }
+    const result = ingest(input, source)
     const gameId = input.gameId || input.payload?.gameId
-    return json(res, 202, { ...result, decoder: gameId ? decodeGameEvent(gameId, input) : null })
+    return respond(result.accepted ? 202 : result.duplicate ? 200 : 422, { ...result, decoder: gameId ? decodeGameEvent(gameId, input) : null })
   }
-  if (req.method === 'POST' && url.pathname === '/api/ingest/trafficgen') {
-    const input = await readJson(req)
+  if (method === 'POST' && pathname === '/api/ingest/trafficgen') {
+    const input = await body()
+    if (Array.isArray(input)) {
+      const result = ingestBatch(input.map((item) => ({ ...item, chain: item.chain || 'offchain', app: item.app || 'trafficgen' })), 'trafficgen')
+      return respond(202, { accepted: result.accepted, duplicates: result.duplicates, rejected: result.rejected, total: input.length })
+    }
     const result = ingest({ ...input, chain: input.chain || 'offchain', app: input.app || 'trafficgen' }, 'trafficgen')
-    return json(res, 202, { ...result, decoder: decodeGameEvent('trafficgen', result.event || input) })
+    return respond(result.accepted ? 202 : result.duplicate ? 200 : 422, { ...result, decoder: decodeGameEvent('trafficgen', result.event || input) })
   }
-  if (req.method === 'GET' && url.pathname === '/api/games') return json(res, 200, { games: aggregateOverview().games })
-  if (req.method === 'GET' && url.pathname === '/api/alerts') return json(res, 200, { alerts: detectAnomalies() })
-  if (req.method === 'GET' && url.pathname === '/api/ai/report') return json(res, 200, buildAiReport())
-  if (req.method === 'GET' && parts[0] === 'api' && parts[1] === 'games' && parts[2] && parts[3] === 'forecast') {
-    if (!getGame(parts[2])) return json(res, 404, { error: 'game_not_found' })
-    return json(res, 200, { game: parts[2], ...forecast(parts[2], Number(url.searchParams.get('days') || 7)) })
+  if (method === 'GET' && pathname === '/api/pii/policy') return respond(200, piiPolicy(piiOptions))
+  if (method === 'GET' && pathname === '/api/pii/player') {
+    const identifier = url.searchParams.get('identifier')
+    if (!identifier) return respond(400, { error: 'identifier_required' })
+    // Отвечаем сводкой по псевдониму: исходный идентификатор не сохраняется в ответе и в логах.
+    return respond(200, playerSummary(list({ limit: 100000 }), identifier, piiOptions))
   }
-  if (req.method === 'GET' && parts[0] === 'api' && parts[1] === 'games' && parts[2]) {
+  if (method === 'POST' && pathname === '/api/pii/erasure') {
+    const input = await body()
+    if (input?.confirm !== 'erase-player') return respond(400, { error: 'confirmation_required', hint: "передайте { identifier, confirm: 'erase-player' }" })
+    if (!input?.identifier) return respond(400, { error: 'identifier_required' })
+    const report = erasePlayer(input.identifier, piiOptions)
+    recordAudit(req, { status: report.ok ? 200 : 400, reason: report.ok ? 'pii_erasure' : report.reason, path: '/api/pii/erasure', route: 'write', ip: limit.ip, bytesOut: 0 })
+    return respond(report.ok ? 200 : 400, { ...report, policy: 'идентификатор игрока удалён из inbox; исходные события не восстанавливаются' })
+  }
+  if (method === 'GET' && pathname === '/api/games') return respond(200, { games: liveAggregates({ windowDays, now }).games, source: 'event-inbox' })
+  if (method === 'GET' && pathname === '/api/alerts') return respond(200, { alerts: liveAlerts({ windowDays, now }), source: 'event-inbox', generatedAt: new Date(now).toISOString() })
+  if (method === 'GET' && pathname === '/api/ai/report') return respond(200, liveAiReport({ windowDays, now }))
+  if (method === 'GET' && parts[0] === 'api' && parts[1] === 'games' && parts[2] && parts[3] === 'forecast') {
+    if (!getGame(parts[2])) return respond(404, { error: 'game_not_found' })
+    return respond(200, { game: parts[2], status: 'unavailable', reason: 'Прогноз требует исторических серий; хаб хранит только события окна (см. /api/economy/overview)', points: [], source: 'event-inbox' })
+  }
+  if (method === 'GET' && parts[0] === 'api' && parts[1] === 'games' && parts[2]) {
     const game = getGame(parts[2])
-    if (!game) return json(res, 404, { error: 'game_not_found' })
-    return json(res, 200, { game, ...aggregateOverview().games.find((row) => row.id === game.id) })
+    if (!game) return respond(404, { error: 'game_not_found' })
+    const row = liveAggregates({ windowDays, now }).games.find((item) => item.id === game.id)
+    return respond(200, { game, ...row, source: 'event-inbox' })
   }
 
   /* ====== OS v3 Routes — 33 компонента, 19 слоёв ====== */
-  if (req.method === 'GET' && url.pathname === '/api/os/config') {
-    // studio.config.json + watchtowerOSConfig() из server/modules/os.js: 19 слоёв, 33 компонента, дубликаты deprecated
+  if (method === 'GET' && pathname === '/api/os/config') {
     const studio = studioOSConfig()
     const osConfig = watchtowerOSConfig(process.env)
     const mergedLayers = {}
     for (const key of new Set([...Object.keys(studio.layers || {}), ...Object.keys(osConfig.layers || {})])) {
       mergedLayers[key] = { ...(studio.layers || {})[key], ...(osConfig.layers || {})[key] }
     }
-    return json(res, 200, { ...studio, ...osConfig, layers: mergedLayers, v2Products: { ...osConfig.v2Products, count: studio.v2Products }, modules: Object.keys(mergedLayers), totalComponents: studio.totalComponents ?? osConfig.totalComponents ?? 33, generatedAt: new Date().toISOString() })
+    return respond(200, { ...studio, ...osConfig, layers: mergedLayers, v2Products: { ...osConfig.v2Products, count: studio.v2Products }, modules: Object.keys(mergedLayers), totalComponents: studio.totalComponents ?? osConfig.totalComponents ?? 33, generatedAt: new Date().toISOString() })
   }
-  if (req.method === 'GET' && url.pathname === '/api/os/health') return json(res, 200, watchtowerOSHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/os/modules') { const layers = Object.keys(watchtowerOSConfig(process.env).layers || {}); return json(res, 200, { os: 'server/modules/os.js', modules: layers, count: layers.length, totalComponents: 33 }) }
+  if (method === 'GET' && pathname === '/api/os/health') return respond(200, watchtowerOSHealth(process.env))
+  if (method === 'GET' && pathname === '/api/os/modules') { const layers = Object.keys(watchtowerOSConfig(process.env).layers || {}); return respond(200, { os: 'server/modules/os.js', modules: layers, count: layers.length, totalComponents: studioOSConfig().totalComponents ?? 33 }) }
 
   // Identity
-  if (req.method === 'GET' && url.pathname === '/api/identity/config') return json(res, 200, identityLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/identity/health') return json(res, 200, identityHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/identity/wallet') return json(res, 200, createUnifiedWallet({ provider: url.searchParams.get('provider') || undefined, gameId: url.searchParams.get('gameId') || undefined, authMethod: url.searchParams.get('authMethod') || undefined }))
-  if (req.method === 'GET' && parts[0] === 'api' && parts[1] === 'identity' && parts[2] === 'tenant' && parts[3])
-    return json(res, 200, tenantIdentity({ gameId: parts[3], walletAddress: url.searchParams.get('wallet') || undefined }))
+  if (method === 'GET' && pathname === '/api/identity/config') return respond(200, identityLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/identity/health') return respond(200, identityHealth(process.env))
+  if (method === 'GET' && pathname === '/api/identity/wallet') return respond(200, createUnifiedWallet({ provider: url.searchParams.get('provider') || undefined, gameId: url.searchParams.get('gameId') || undefined, authMethod: url.searchParams.get('authMethod') || undefined }))
+  if (method === 'GET' && parts[0] === 'api' && parts[1] === 'identity' && parts[2] === 'tenant' && parts[3])
+    return respond(200, tenantIdentity({ gameId: parts[3], walletAddress: url.searchParams.get('wallet') || undefined }))
 
   // Session Keys
-  if (req.method === 'GET' && url.pathname === '/api/session-keys/config') return json(res, 200, sessionKeysConfig())
-  if (req.method === 'GET' && url.pathname === '/api/session-keys/health') return json(res, 200, sessionKeysHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/session-keys/list') return json(res, 200, listSessions({ gameId: url.searchParams.get('gameId') || undefined }))
-  if (req.method === 'POST' && url.pathname === '/api/session-keys/create') {
-    const body = await readJson(req)
-    return json(res, 201, createSession({ targetProgramPublicKey: body.targetProgramPublicKey, topUpLamports: body.topUpLamports, expiryInMinutes: body.expiryInMinutes, walletAddress: body.walletAddress, gameId: body.gameId }))
+  if (method === 'GET' && pathname === '/api/session-keys/config') return respond(200, sessionKeysConfig())
+  if (method === 'GET' && pathname === '/api/session-keys/health') return respond(200, sessionKeysHealth(process.env))
+  if (method === 'GET' && pathname === '/api/session-keys/list') return respond(200, { sessions: listSessions({ gameId: url.searchParams.get('gameId') || undefined }), simulated: true })
+  if (method === 'POST' && pathname === '/api/session-keys/create') {
+    const body = await body()
+    return respond(201, createSession({ targetProgramPublicKey: body.targetProgramPublicKey, topUpLamports: body.topUpLamports, expiryInMinutes: body.expiryInMinutes, walletAddress: body.walletAddress, gameId: body.gameId }))
   }
-  if (req.method === 'POST' && url.pathname === '/api/session-keys/sign') {
-    const body = await readJson(req)
-    return json(res, 200, signAndSendTransaction({ sessionToken: body.sessionToken, transaction: body.transaction, targetProgram: body.targetProgram }))
+  if (method === 'POST' && pathname === '/api/session-keys/sign') {
+    const body = await body()
+    return respond(200, signAndSendTransaction({ sessionToken: body.sessionToken, transaction: body.transaction, targetProgram: body.targetProgram }))
   }
-  if (req.method === 'POST' && url.pathname === '/api/session-keys/revoke') {
-    const body = await readJson(req)
-    return json(res, 200, revokeSession(body.sessionToken, { reason: body.reason }))
+  if (method === 'POST' && pathname === '/api/session-keys/revoke') {
+    const body = await body()
+    return respond(200, revokeSession(body.sessionToken, { reason: body.reason }))
   }
-  if (req.method === 'GET' && parts[0] === 'api' && parts[1] === 'session-keys' && parts[2] && parts[2] !== 'create' && parts[2] !== 'list' && parts[2] !== 'sign' && parts[2] !== 'revoke')
-    return json(res, 200, getSession(parts[2]) || { error: 'session_not_found' })
+  if (method === 'GET' && parts[0] === 'api' && parts[1] === 'session-keys' && parts[2] && parts[2] !== 'create' && parts[2] !== 'list' && parts[2] !== 'sign' && parts[2] !== 'revoke')
+    return respond(200, getSession(parts[2]) || { error: 'session_not_found' })
 
   // Assets
-  if (req.method === 'GET' && url.pathname === '/api/assets/config') return json(res, 200, assetsConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/assets/health') return json(res, 200, assetsHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/assets/strategy') return json(res, 200, assetStrategy({ gameId: url.searchParams.get('gameId') || 'generic', itemType: url.searchParams.get('itemType'), rarity: url.searchParams.get('rarity') }))
-  if (req.method === 'GET' && url.pathname === '/api/assets/cnft/collection') return json(res, 200, cnftCollectionConfig({ collectionName: url.searchParams.get('collection') || undefined, gameId: url.searchParams.get('gameId') || undefined }))
+  if (method === 'GET' && pathname === '/api/assets/config') return respond(200, assetsConfig(process.env))
+  if (method === 'GET' && pathname === '/api/assets/health') return respond(200, assetsHealth(process.env))
+  if (method === 'GET' && pathname === '/api/assets/strategy') return respond(200, assetStrategy({ gameId: url.searchParams.get('gameId') || 'generic', itemType: url.searchParams.get('itemType'), rarity: url.searchParams.get('rarity') }))
+  if (method === 'GET' && pathname === '/api/assets/cnft/collection') return respond(200, cnftCollectionConfig({ collectionName: url.searchParams.get('collection') || undefined, gameId: url.searchParams.get('gameId') || undefined }))
 
   // Indexer
-  if (req.method === 'GET' && url.pathname === '/api/indexer/config') return json(res, 200, indexerLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/indexer/health') return json(res, 200, indexerHealth(process.env))
+  if (method === 'GET' && pathname === '/api/indexer/config') return respond(200, indexerLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/indexer/health') return respond(200, indexerHealth(process.env))
 
   // L2
-  if (req.method === 'GET' && url.pathname === '/api/l2/config') return json(res, 200, l2LayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/l2/health') return json(res, 200, l2Health(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/l2/router') return json(res, 200, l2Router({ gameId: url.searchParams.get('gameId') || 'generic', tps: url.searchParams.get('tps') || 'low', ux: url.searchParams.get('ux') || 'gasless' }))
+  if (method === 'GET' && pathname === '/api/l2/config') return respond(200, l2LayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/l2/health') return respond(200, l2Health(process.env))
+  if (method === 'GET' && pathname === '/api/l2/router') return respond(200, l2Router({ gameId: url.searchParams.get('gameId') || 'generic', tpsRequirement: url.searchParams.get('tps') || 'low', uxRequirement: url.searchParams.get('ux') || 'gasless' }))
 
   // Analytics
-  if (req.method === 'GET' && url.pathname === '/api/analytics/config') return json(res, 200, analyticsLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/analytics/health') return json(res, 200, analyticsHealth(process.env))
+  if (method === 'GET' && pathname === '/api/analytics/config') return respond(200, analyticsLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/analytics/health') return respond(200, analyticsHealth(process.env))
 
   // Marketplace
-  if (req.method === 'GET' && url.pathname === '/api/marketplace/config') return json(res, 200, marketplaceLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/marketplace/health') return json(res, 200, marketplaceHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/marketplace/router') return json(res, 200, marketplaceAggregator({ gameId: url.searchParams.get('gameId') || 'generic', assetType: url.searchParams.get('assetType') || 'cnft' }))
+  if (method === 'GET' && pathname === '/api/marketplace/config') return respond(200, marketplaceLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/marketplace/health') return respond(200, marketplaceHealth(process.env))
+  if (method === 'GET' && pathname === '/api/marketplace/router') return respond(200, marketplaceAggregator({ gameId: url.searchParams.get('gameId') || 'generic', assetType: url.searchParams.get('assetType') || 'cnft' }))
 
   // Engines
-  if (req.method === 'GET' && url.pathname === '/api/engines/config') return json(res, 200, enginesLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/engines/health') return json(res, 200, enginesHealth(process.env))
+  if (method === 'GET' && pathname === '/api/engines/config') return respond(200, enginesLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/engines/health') return respond(200, enginesHealth(process.env))
 
   // Infra
-  if (req.method === 'GET' && url.pathname === '/api/infra/config') return json(res, 200, infraLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/infra/health') return json(res, 200, infraHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/infra/arc') return json(res, 200, { framework: 'ARC Entity-Component', interoperability: true, crossGame: true })
-  if (req.method === 'GET' && url.pathname === '/api/infra/bolt') return json(res, 200, { framework: 'Bolt FOCG', verifiable: true, onChain: true })
-  if (req.method === 'GET' && url.pathname === '/api/infra/depin') return json(res, 200, { framework: 'DePIN Beamable', workers: true, escrow: true, staking: true })
-  if (req.method === 'GET' && url.pathname === '/api/infra/arcium') return json(res, 200, { framework: 'Arcium Rollups', confidential: true, privacy: true })
-  if (req.method === 'GET' && url.pathname === '/api/infra/xandeum') return json(res, 200, { framework: 'Xandeum Storage', scalable: 'exabytes', decentralized: true })
-  if (req.method === 'GET' && url.pathname === '/api/infra/pst') return json(res, 200, { framework: 'Private State Toolkit', private: true, verifiable: true })
-  if (req.method === 'GET' && url.pathname === '/api/infra/core-attributes') return json(res, 200, { framework: 'Core Attributes Plugin', onChainKeyValue: true, dashIndexable: true })
+  if (method === 'GET' && pathname === '/api/infra/config') return respond(200, infraLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/infra/health') return respond(200, infraHealth(process.env))
+  if (method === 'GET' && pathname === '/api/infra/arc') return respond(200, { framework: 'ARC Entity-Component', interoperability: true, crossGame: true, configured: false, note: 'Описание стандарта; код интеграции не установлен' })
+  if (method === 'GET' && pathname === '/api/infra/bolt') return respond(200, { framework: 'Bolt FOCG', verifiable: true, onChain: true, configured: false, note: 'Описание фреймворка; код интеграции не установлен' })
+  if (method === 'GET' && pathname === '/api/infra/depin') return respond(200, { framework: 'DePIN Beamable', workers: true, escrow: true, staking: true, configured: false, note: 'Описание концепта; код интеграции не установлен' })
+  if (method === 'GET' && pathname === '/api/infra/arcium') return respond(200, { framework: 'Arcium Rollups', confidential: true, privacy: true, configured: false })
+  if (method === 'GET' && pathname === '/api/infra/xandeum') return respond(200, { framework: 'Xandeum Storage', scalable: 'exabytes', decentralized: true, configured: false })
+  if (method === 'GET' && pathname === '/api/infra/pst') return respond(200, { framework: 'Private State Toolkit', private: true, verifiable: true, configured: false })
+  if (method === 'GET' && pathname === '/api/infra/core-attributes') return respond(200, { framework: 'Core Attributes Plugin', onChainKeyValue: true, dashIndexable: true, configured: false })
 
-  // SDK routes
-  if (req.method === 'GET' && url.pathname === '/api/sdk/unity') return json(res, 200, { sdk: 'Solana.Unity-SDK', features: ['NFT', 'RPC', 'CandyMachine', 'Phantom', 'MWA', 'SessionKeys'], gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/godot') return json(res, 200, { sdk: 'godot-solana-sdk GDExtension', features: ['SolanaClient', 'WalletAdapter', 'AnchorProgram'], gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/godot-solana') return json(res, 200, { sdk: 'Godot Solana SDK detailed', nodes: ['SolanaClient', 'WalletAdapter', 'AnchorProgram', 'SPLToken', 'CandyMachine'], gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/gamba') return json(res, 200, { sdk: 'Gamba monorepo', components: ['core', 'reactHooks', 'uiFramework'], provablyFair: true, houseEdge: '5%', gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/preset') return json(res, 200, { sdk: 'solana-game-preset', bestFree: true, deprecated: 'create-solana-game duplicate', gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/ritarena') return json(res, 200, { sdk: 'ritarena-sdk', bestFree: true, chosenOver: 'Aureus duplicate', features: ['lifecycle', 'retry', 'events'], gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/relayzero') return json(res, 200, { sdk: 'relayzero', bestFree: true, type: 'agent economy network', gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/stealthsdk') return json(res, 200, { sdk: 'StealthSDK', bestFree: true, token: 'STEALTH', framework: 'AI-games centralized economy', gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/xandeum') return json(res, 200, { sdk: '@xandeum/sdk', bestFree: true, scalable: 'exabytes', gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/pst') return json(res, 200, { sdk: '@private-state-toolkit/sdk', bestFree: true, private: true, verifiable: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/core-attributes') return json(res, 200, { sdk: '@metaplex-foundation/mpl-core', bestFree: true, onChainKeyValue: true, dashIndexable: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/access-protocol') return json(res, 200, { sdk: '@access-protocol/sdk', bestFree: true, stakeToAccess: true, sustainable: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/idosgames-wallet') return json(res, 200, { sdk: '@idosgames/wallet', bestFree: true, bridge: 'EVM Solana RewardPool', gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/security-auditing-skill') return json(res, 200, { skill: 'solana-security-auditing-skill', bestFree: true, systematicAudit: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/sentio-cli') return json(res, 200, { cli: 'sentio-cli', bestFree: true, astScanner: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/solguard') return json(res, 200, { cli: 'solguard', bestFree: true, patterns: 130, chosenOver: 'SolShield duplicate', gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/solana-slam') return json(res, 200, { framework: 'Solana SLAM', bestFree: true, stack: ['Solana', 'LiteSVM', 'Anchor', 'Mocha'], gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/sdk/arcium') return json(res, 200, { sdk: '@arcium/sdk', bestFree: true, confidential: true, rollups: true, gameId: url.searchParams.get('gameId') || 'generic' })
+  // SDK routes — это описания доступных SDK, а не подтверждение установки
+  const sdkRoutes = {
+    '/api/sdk/unity': { sdk: 'Solana.Unity-SDK', features: ['NFT', 'RPC', 'CandyMachine', 'Phantom', 'MWA', 'SessionKeys'] },
+    '/api/sdk/godot': { sdk: 'godot-solana-sdk GDExtension', features: ['SolanaClient', 'WalletAdapter', 'AnchorProgram'] },
+    '/api/sdk/godot-solana': { sdk: 'Godot Solana SDK detailed', nodes: ['SolanaClient', 'WalletAdapter', 'AnchorProgram', 'SPLToken', 'CandyMachine'] },
+    '/api/sdk/gamba': { sdk: 'Gamba monorepo', components: ['core', 'reactHooks', 'uiFramework'], provablyFair: true },
+    '/api/sdk/preset': { sdk: 'solana-game-preset', source: 'official Solana Foundation scaffold' },
+    '/api/sdk/ritarena': { sdk: 'ritarena-sdk', features: ['lifecycle', 'retry', 'events'] },
+    '/api/sdk/relayzero': { sdk: 'relayzero', type: 'agent economy network' },
+    '/api/sdk/stealthsdk': { sdk: 'StealthSDK', token: 'STEALTH' },
+    '/api/sdk/xandeum': { sdk: '@xandeum/sdk', scalable: 'exabytes' },
+    '/api/sdk/pst': { sdk: '@private-state-toolkit/sdk', private: true, verifiable: true },
+    '/api/sdk/core-attributes': { sdk: '@metaplex-foundation/mpl-core', onChainKeyValue: true, dashIndexable: true },
+    '/api/sdk/access-protocol': { sdk: '@access-protocol/sdk', stakeToAccess: true },
+    '/api/sdk/idosgames-wallet': { sdk: '@idosgames/wallet', bridge: 'EVM Solana RewardPool' },
+    '/api/sdk/security-auditing-skill': { skill: 'solana-security-auditing-skill', systematicAudit: true },
+    '/api/sdk/sentio-cli': { cli: 'sentio-cli', astScanner: true },
+    '/api/sdk/solguard': { cli: 'solguard', patterns: 130 },
+    '/api/sdk/solana-slam': { framework: 'Solana SLAM', stack: ['Solana', 'LiteSVM', 'Anchor', 'Mocha'] },
+    '/api/sdk/arcium': { sdk: '@arcium/sdk', confidential: true, rollups: true },
+  }
+  if (method === 'GET' && sdkRoutes[pathname]) return respond(200, { ...sdkRoutes[pathname], configured: false, gameId: url.searchParams.get('gameId') || null })
 
   // Game Signals
-  if (req.method === 'GET' && url.pathname === '/api/game-signals/config') return json(res, 200, { config: gameSignalsSetup({ gameId: url.searchParams.get('gameId') || 'generic' }), health: gameSignalsHealth(process.env) })
-  if (req.method === 'GET' && url.pathname === '/api/game-signals/health') return json(res, 200, gameSignalsHealth(process.env))
+  if (method === 'GET' && pathname === '/api/game-signals/config') return respond(200, { config: gameSignalsSetup({ gameId: url.searchParams.get('gameId') || 'generic' }), health: gameSignalsHealth(process.env) })
+  if (method === 'GET' && pathname === '/api/game-signals/health') return respond(200, gameSignalsHealth(process.env))
 
   // Payments
-  if (req.method === 'GET' && url.pathname === '/api/payments/config') return json(res, 200, paymentsLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/payments/health') return json(res, 200, paymentsHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/payments/rust-api') return json(res, 200, { api: 'Solana Game API Rust Actix', endpoints: ['create', 'join', 'calculate', 'withdraw'], swagger: true })
+  if (method === 'GET' && pathname === '/api/payments/config') return respond(200, paymentsLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/payments/health') return respond(200, paymentsHealth(process.env))
+  if (method === 'GET' && pathname === '/api/payments/rust-api') return respond(200, { api: 'Solana Game API Rust Actix', endpoints: ['create', 'join', 'calculate', 'withdraw'], configured: false, note: 'Внешний сервис, хаб его не запускает' })
 
   // AI Agents
-  if (req.method === 'GET' && url.pathname === '/api/ai/config') return json(res, 200, aiAgentsLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/ai/health') return json(res, 200, aiAgentsHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/ai/husks') return json(res, 200, { sdk: 'Husks SDK', bestFree: true, features: ['autobattler', 'INT8', 'proceduralPixel', 'autoPvP'], gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/ai/ritarena') return json(res, 200, { sdk: 'RitArena SDK', bestFree: true, chosenOver: 'Aureus duplicate', features: ['arena', 'lifecycle', 'retry', 'events'], gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/ai/relayzero') return json(res, 200, { sdk: 'relayzero', bestFree: true, type: 'agent economy network', gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/ai/stealthsdk') return json(res, 200, { sdk: 'StealthSDK', bestFree: true, token: 'STEALTH', gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/ai/aureus') return json(res, 200, { sdk: 'Aureus Arena SDK', deprecated: true, duplicate: 'RitArena', recommendation: 'Use RitArena as best free arena' })
+  if (method === 'GET' && pathname === '/api/ai/config') return respond(200, aiAgentsLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/ai/health') return respond(200, aiAgentsHealth(process.env))
+  const aiRoutes = {
+    '/api/ai/husks': { sdk: 'Husks SDK', features: ['autobattler', 'INT8', 'proceduralPixel', 'autoPvP'] },
+    '/api/ai/ritarena': { sdk: 'RitArena SDK', features: ['arena', 'lifecycle', 'retry', 'events'] },
+    '/api/ai/relayzero': { sdk: 'relayzero', type: 'agent economy network' },
+    '/api/ai/stealthsdk': { sdk: 'StealthSDK', token: 'STEALTH' },
+  }
+  if (method === 'GET' && aiRoutes[pathname]) return respond(200, { ...aiRoutes[pathname], configured: false, gameId: url.searchParams.get('gameId') || null })
+  if (method === 'GET' && pathname === '/api/ai/aureus') return respond(410, { sdk: 'Aureus Arena SDK', deprecated: true, replacedBy: 'RitArena', note: 'Использовать RitArena' })
 
   // Cross-Chain
-  if (req.method === 'GET' && url.pathname === '/api/cross-chain/config') return json(res, 200, crossChainLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/cross-chain/health') return json(res, 200, crossChainHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/cross-chain/race') return json(res, 200, { protocol: 'RACE Protocol', multichain: true, sdk: 'sdk-solana', cli: 'race-cli', gameId: url.searchParams.get('gameId') || 'generic' })
+  if (method === 'GET' && pathname === '/api/cross-chain/config') return respond(200, crossChainLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/cross-chain/health') return respond(200, crossChainHealth(process.env))
+  if (method === 'GET' && pathname === '/api/cross-chain/race') return respond(200, { protocol: 'RACE Protocol', multichain: true, sdk: 'sdk-solana', configured: false, gameId: url.searchParams.get('gameId') || null })
 
   // Utils
-  if (req.method === 'GET' && url.pathname === '/api/utils/config') return json(res, 200, utilsLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/utils/health') return json(res, 200, utilsHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/utils/claude-skill') return json(res, 200, { skill: 'Claude Skill', patterns: ['Unity SDK', 'MWA', 'stateArchitecture', 'testing'], gameId: url.searchParams.get('gameId') || 'generic' })
+  if (method === 'GET' && pathname === '/api/utils/config') return respond(200, utilsLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/utils/health') return respond(200, utilsHealth(process.env))
+  if (method === 'GET' && pathname === '/api/utils/claude-skill') return respond(200, { skill: 'Claude Skill', patterns: ['Unity SDK', 'MWA', 'stateArchitecture', 'testing'], configured: true })
 
   // Security
-  if (req.method === 'GET' && url.pathname === '/api/security/config') return json(res, 200, securityLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/security/health') return json(res, 200, securityHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/security/auditing-skill') return json(res, 200, { skill: 'solana-security-auditing-skill', free: true, bestFree: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/security/sentio-cli') return json(res, 200, { cli: 'sentio-cli', free: true, bestFree: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/security/solguard') return json(res, 200, { cli: 'solguard', patterns: 130, free: true, bestFree: true, chosenOver: 'SolShield', gameId: url.searchParams.get('gameId') || 'generic' })
+  if (method === 'GET' && pathname === '/api/security/config') return respond(200, securityLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/security/health') return respond(200, securityHealth(process.env))
+  if (method === 'GET' && pathname === '/api/security/auditing-skill') return respond(200, { skill: 'solana-security-auditing-skill', configured: false })
+  if (method === 'GET' && pathname === '/api/security/sentio-cli') return respond(200, { cli: 'sentio-cli', configured: false })
+  if (method === 'GET' && pathname === '/api/security/solguard') return respond(200, { cli: 'solguard', patterns: 130, configured: false })
 
   // Storage
-  if (req.method === 'GET' && url.pathname === '/api/storage/config') return json(res, 200, storageLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/storage/health') return json(res, 200, storageHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/storage/xandeum') return json(res, 200, { storage: 'Xandeum', scalable: 'exabytes', decentralized: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/storage/pst') return json(res, 200, { storage: 'Private State Toolkit', private: true, verifiable: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/storage/core-attributes') return json(res, 200, { storage: 'Core Attributes Plugin', onChainKeyValue: true, dashIndexable: true, gameId: url.searchParams.get('gameId') || 'generic' })
+  if (method === 'GET' && pathname === '/api/storage/config') return respond(200, storageLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/storage/health') return respond(200, storageHealth(process.env))
+  if (method === 'GET' && pathname === '/api/storage/xandeum') return respond(200, { storage: 'Xandeum', scalable: 'exabytes', configured: false })
+  if (method === 'GET' && pathname === '/api/storage/pst') return respond(200, { storage: 'Private State Toolkit', private: true, verifiable: true, configured: false })
+  if (method === 'GET' && pathname === '/api/storage/core-attributes') return respond(200, { storage: 'Core Attributes Plugin', onChainKeyValue: true, configured: false })
 
   // Monetization
-  if (req.method === 'GET' && url.pathname === '/api/monetization/config') return json(res, 200, monetizationLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/monetization/health') return json(res, 200, monetizationHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/monetization/access-protocol') return json(res, 200, { protocol: 'Access Protocol', stakeToAccess: true, sustainable: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/monetization/idosgames-wallet') return json(res, 200, { sdk: '@idosgames/wallet', bridge: 'EVM Solana RewardPool', bestFree: true, gameId: url.searchParams.get('gameId') || 'generic' })
+  if (method === 'GET' && pathname === '/api/monetization/config') return respond(200, monetizationLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/monetization/health') return respond(200, monetizationHealth(process.env))
+  if (method === 'GET' && pathname === '/api/monetization/access-protocol') return respond(200, { protocol: 'Access Protocol', stakeToAccess: true, configured: false })
+  if (method === 'GET' && pathname === '/api/monetization/idosgames-wallet') return respond(200, { sdk: '@idosgames/wallet', bridge: 'EVM Solana RewardPool', configured: false })
 
   // Testing
-  if (req.method === 'GET' && url.pathname === '/api/testing/config') return json(res, 200, testingLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/testing/health') return json(res, 200, testingHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/testing/solana-slam') return json(res, 200, { framework: 'Solana SLAM', stack: ['Solana', 'LiteSVM', 'Anchor', 'Mocha'], bestFree: true, gameId: url.searchParams.get('gameId') || 'generic' })
-  if (req.method === 'GET' && url.pathname === '/api/testing/create-solana-game') return json(res, 200, { template: 'create-solana-game', deprecated: true, duplicate: 'solana-game-preset', recommendation: 'Use solana-game-preset official' })
+  if (method === 'GET' && pathname === '/api/testing/config') return respond(200, testingLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/testing/health') return respond(200, testingHealth(process.env))
+  if (method === 'GET' && pathname === '/api/testing/solana-slam') return respond(200, { framework: 'Solana SLAM', stack: ['Solana', 'LiteSVM', 'Anchor', 'Mocha'], configured: false })
+  if (method === 'GET' && pathname === '/api/testing/create-solana-game') return respond(410, { template: 'create-solana-game', deprecated: true, replacedBy: 'solana-game-preset' })
 
   // Privacy
-  if (req.method === 'GET' && url.pathname === '/api/privacy/config') return json(res, 200, privacyLayerConfig(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/privacy/health') return json(res, 200, privacyHealth(process.env))
-  if (req.method === 'GET' && url.pathname === '/api/privacy/arcium') return json(res, 200, { rollups: 'Arcium Rollups', confidential: true, privacy: true, gameId: url.searchParams.get('gameId') || 'generic' })
+  if (method === 'GET' && pathname === '/api/privacy/config') return respond(200, privacyLayerConfig(process.env))
+  if (method === 'GET' && pathname === '/api/privacy/health') return respond(200, privacyHealth(process.env))
+  if (method === 'GET' && pathname === '/api/privacy/arcium') return respond(200, { rollups: 'Arcium Rollups', confidential: true, privacy: true, configured: false })
 
   // Cross-game projection
-  if (req.method === 'GET' && url.pathname === '/api/cross-game/projection') return json(res, 200, buildCrossGameProjection({ limit: Number(url.searchParams.get('limit') || 5000) }))
+  if (method === 'GET' && pathname === '/api/cross-game/projection') return respond(200, buildCrossGameProjection({ limit: Number(url.searchParams.get('limit') || 5000) }))
 
   // Ecosystem — статус зрелости всех tenant'ов (L0..L4) и покрытие цели
-  if (req.method === 'GET' && url.pathname === '/api/ecosystem/status') {
-    return json(res, 200, buildEcosystemStatus({ adapters: adapterReadiness().adapters, registry: GAME_REGISTRY, env: process.env }))
+  if (method === 'GET' && pathname === '/api/ecosystem/status') {
+    return respond(200, buildEcosystemStatus({ adapters: adapterReadiness().adapters, registry: GAME_REGISTRY, env: process.env }))
   }
-  if (req.method === 'GET' && url.pathname === '/api/ecosystem/report') {
+  if (method === 'GET' && pathname === '/api/ecosystem/report') {
     const status = buildEcosystemStatus({ adapters: adapterReadiness().adapters, registry: GAME_REGISTRY, env: process.env })
-    return json(res, 200, {
+    return respond(200, {
       generatedAt: status.generatedAt,
       writes: false,
       source: '/api/ecosystem/status',
@@ -305,43 +620,35 @@ async function route(req, res) {
   }
 
   // Экономика: метрики студии по окну наблюдения. demo=1 включает явно помеченные демо-данные.
-  if (req.method === 'GET' && url.pathname === '/api/economy/catalog') return json(res, 200, { writes: false, ...metricCatalog() })
-  if (req.method === 'GET' && url.pathname === '/api/economy/overview') {
-    const window = url.searchParams.get('window') || '7d'
-    const gameId = url.searchParams.get('gameId') || undefined
-    const demo = url.searchParams.get('demo') === '1'
-    const source = demo ? demoEvents({}) : list({ limit: 20000 })
-    const events = gameId ? source.filter((event) => (event.payload?.gameId || event.app || event.source) === gameId) : source
-    const config = demo ? demoConfig() : economyConfigFromEnv(process.env)
-    const economy = computeEconomy({ events, window, config, demo })
-    return json(res, 200, {
-      writes: false,
-      ...economy,
-      warning: demo ? 'DEMO DATA: синтетический поток событий, не боевые данные студии' : null,
-      source: demo ? 'demo://economy-generator' : 'event-inbox',
-    })
+  if (method === 'GET' && pathname === '/api/economy/catalog') {
+    const acceptedEvents = [...new Set(adapterReadiness().adapters.flatMap((a) => a.eventTypes || []))]
+    return respond(200, { writes: false, ...metricCatalog({ acceptedEvents }) })
   }
-  if (req.method === 'GET' && url.pathname === '/api/economy/health') {
-    const demo = url.searchParams.get('demo') === '1'
-    const economy = computeEconomy({ events: demo ? demoEvents({}) : list({ limit: 20000 }), window: url.searchParams.get('window') || '7d', config: demo ? demoConfig() : economyConfigFromEnv(process.env), demo })
-    return json(res, 200, { writes: false, demo, index: economy.index, inputs: economy.inputs })
+  if (method === 'GET' && pathname === '/api/economy/overview') {
+    const demo = requireDemo(url)
+    return respond(200, { writes: false, ...economyPayload({ url, demo, now: resolveNow(url, { demo }) }) })
+  }
+  if (method === 'GET' && pathname === '/api/economy/health') {
+    const demo = requireDemo(url)
+    const payload = economyPayload({ url, demo, now: resolveNow(url, { demo }) })
+    return respond(200, { writes: false, demo, index: payload.index, inputs: payload.inputs, source: payload.source, generatedAt: payload.generatedAt })
   }
 
   // Arena-промпты: каталог и текст (для кнопки «Приступить» в интерфейсе)
-  if (req.method === 'GET' && url.pathname === '/api/arena/prompts') return json(res, 200, listArenaPrompts())
-  if (req.method === 'GET' && url.pathname.startsWith('/api/arena/prompts/')) {
-    const id = decodeURIComponent(url.pathname.slice('/api/arena/prompts/'.length))
+  if (method === 'GET' && pathname === '/api/arena/prompts') return respond(200, listArenaPrompts())
+  if (method === 'GET' && pathname.startsWith('/api/arena/prompts/')) {
+    const id = decodeURIComponent(pathname.slice('/api/arena/prompts/'.length))
     const prompt = readArenaPrompt(id)
-    if (!prompt) return json(res, 404, { error: 'prompt_not_found', id })
-    return json(res, 200, { writes: false, ...prompt })
+    if (!prompt) return respond(404, { error: 'prompt_not_found', id })
+    return respond(200, { writes: false, ...prompt })
   }
 
-  if (!url.pathname.startsWith('/api/')) {
+  if (!pathname.startsWith('/api/') && method !== 'POST' && config.serveStatic) {
     const served = serveStatic(req, res, url)
     if (served) return undefined
   }
 
-  return json(res, 404, { error: 'not_found' })
+  return respond(404, { error: 'not_found' })
 }
 
 // Раздача собранного фронтенда (dist) тем же портом: удобно для деплоя одним сервисом.
@@ -353,7 +660,7 @@ const MIME = {
 
 function serveStatic(req, res, url) {
   if (req.method !== 'GET' && req.method !== 'HEAD') return false
-  const distDir = path.join(process.cwd(), 'dist')
+  const distDir = config.staticDir
   if (!fs.existsSync(distDir)) return false
   const clean = path.normalize(url.pathname).replace(/^(\.\.[/\\])+/, '')
   let filePath = path.join(distDir, clean)
@@ -368,38 +675,111 @@ function serveStatic(req, res, url) {
     filePath = path.join(distDir, fallback)
     if (!fs.existsSync(filePath)) return false
   }
+  const ext = path.extname(filePath).toLowerCase()
   const body = fs.readFileSync(filePath)
+  if (res.headersSent) return true
   res.writeHead(200, {
-    'content-type': MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream',
+    'content-type': MIME[ext] || 'application/octet-stream',
     'content-length': body.length,
-    'cache-control': path.extname(filePath) === '.html' ? 'no-cache' : 'public, max-age=300',
-    'x-content-type-options': 'nosniff',
+    'cache-control': ext === '.html' ? 'no-cache' : 'public, max-age=300',
+    ...securityHeadersFor(req, { html: ext === '.html' }),
   })
   res.end(req.method === 'HEAD' ? undefined : body)
   return true
 }
 
-http.createServer((req, res) => {
-  Promise.resolve(route(req, res)).catch((error) => json(res, 500, { error: 'internal_error', message: error.message }))
-}).listen(port, '0.0.0.0', () => console.log(`Watchtower API listening on http://0.0.0.0:${port}`))
-
-// Экономическая конфигурация из окружения: значения задаёт оператор, хаб их не выдумывает.
-function economyConfigFromEnv(env) {
-  const num = (key) => (env[key] !== undefined && env[key] !== '' && Number.isFinite(Number(env[key])) ? Number(env[key]) : undefined)
-  return {
-    circulating: num('WATCHTOWER_ECONOMY_CIRCULATING'),
-    maxSupply: num('WATCHTOWER_ECONOMY_MAX_SUPPLY'),
-    treasuryBalance: num('WATCHTOWER_ECONOMY_TREASURY_BALANCE'),
-    dailyBurn: num('WATCHTOWER_ECONOMY_DAILY_BURN'),
-    burnCadenceDays: num('WATCHTOWER_ECONOMY_BURN_CADENCE_DAYS'),
-    revenueUsd: num('WATCHTOWER_ECONOMY_REVENUE_USD'),
-    costsUsd: num('WATCHTOWER_ECONOMY_COSTS_USD'),
-    stablecoinRevenueUsd: num('WATCHTOWER_ECONOMY_STABLECOIN_REVENUE_USD'),
-    cosmeticRevenueUsd: num('WATCHTOWER_ECONOMY_COSMETIC_REVENUE_USD'),
-    liquidityUsd: num('WATCHTOWER_ECONOMY_LIQUIDITY_USD'),
-    marketCapUsd: num('WATCHTOWER_ECONOMY_MARKETCAP_USD'),
-    sybilFlaggedWallets: num('WATCHTOWER_ECONOMY_SYBIL_FLAGGED'),
-    mainAsset: env.WATCHTOWER_ECONOMY_MAIN_ASSET || 'POTATO',
-    prices: env.WATCHTOWER_ECONOMY_PRICES ? Object.fromEntries(String(env.WATCHTOWER_ECONOMY_PRICES).split(',').map((pair) => pair.split(':').map((x) => x.trim())).filter((p) => p.length === 2).map(([k, v]) => [k, Number(v)])) : {},
+function readVersion() {
+  try {
+    return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
+  } catch {
+    return 'unknown'
   }
+}
+
+function economyFacts() {
+  const facts = config.economy
+  const present = (value) => value !== undefined && value !== '' && Number.isFinite(Number(value))
+  return {
+    circulating: present(facts.circulating),
+    maxSupply: present(facts.maxSupply),
+    treasuryBalance: present(facts.treasuryBalance),
+    revenueUsd: present(facts.revenueUsd),
+    liquidityUsd: present(facts.liquidityUsd),
+  }
+}
+
+export const app = http.createServer({ maxHeaderSize: 16 * 1024, requestTimeout: 30_000 }, (req, res) => {
+  const startedRequest = Date.now()
+  res.on('finish', () => {
+    const durMs = Date.now() - startedRequest
+    observeRequest({ status: res.statusCode, durMs })
+    recordAudit(req, { status: res.statusCode, path: sanitizePath(req.url), durMs, bytesOut: Number(res.getHeader('content-length') || 0) }, { config })
+  })
+  Promise.resolve()
+    .then(() => route(req, res))
+    .catch((error) => {
+      if (res.headersSent) {
+        logger.error('response_already_sent', { path: sanitizePath(req.url), message: error?.message })
+        return res.end()
+      }
+      if (error instanceof HttpError) return json(res, error.status, { error: error.code, message: error.message, ...error.extra })
+      logger.error('unhandled_route_error', { path: sanitizePath(req.url), message: error?.message, stack: error?.stack?.split('\n').slice(0, 3).join(' | ') })
+      return json(res, 500, { error: 'internal_error' })
+    })
+})
+
+app.headersTimeout = 15_000
+app.keepAliveTimeout = 5_000
+app.maxRequestsPerSocket = 1000
+
+const sockets = new Set()
+app.on('connection', (socket) => {
+  sockets.add(socket)
+  socket.on('close', () => sockets.delete(socket))
+})
+
+let shuttingDown = false
+export function shutdown(signal = 'SIGTERM') {
+  if (shuttingDown) return
+  shuttingDown = true
+  logger.info('shutdown_started', { signal, inFlight: sockets.size })
+  const forced = setTimeout(() => {
+    logger.warn('shutdown_forced', { openSockets: sockets.size })
+    for (const socket of sockets) socket.destroy()
+    process.exit(1)
+  }, config.shutdownTimeoutMs)
+  forced.unref()
+  app.close(() => {
+    logger.info('shutdown_complete', { signal })
+    process.exit(0)
+  })
+  app.closeIdleConnections?.()
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))
+
+process.on('uncaughtException', (error) => {
+  logger.error('uncaught_exception', { message: error?.message, stack: error?.stack?.split('\n').slice(0, 5).join(' | ') })
+  shutdown('uncaughtException')
+})
+process.on('unhandledRejection', (reason) => {
+  logger.error('unhandled_rejection', { message: reason?.message || String(reason) })
+})
+
+if (process.env.WATCHTOWER_NO_LISTEN !== '1') {
+  app.listen(config.port, '0.0.0.0', () => {
+    logger.info('server_listening', {
+      url: `http://0.0.0.0:${config.port}`,
+      env: config.nodeEnv,
+      readTokenConfigured: Boolean(config.readToken),
+      ingestTokenConfigured: Boolean(config.ingestToken),
+      ingestHmacConfigured: Boolean(config.ingestSecret),
+      trustProxy: config.trustProxy,
+      demoAllowed: config.allowDemo,
+      retention: { maxEvents: config.maxEvents, ttlHours: config.eventTtlHours },
+    })
+    for (const warning of config.warnings) logger.warn('config_warning', { warning })
+    if (BOOT_PROBLEMS.length) logger.warn('boot_problems', { problems: BOOT_PROBLEMS })
+  })
 }

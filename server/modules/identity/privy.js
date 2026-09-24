@@ -20,7 +20,7 @@ export function privyConfig(env = process.env) {
       mfa: true,
     },
     hooks: ['useCreateWallet', 'useSolanaWallets', 'usePrivy', 'useLogin'],
-    jwksUrl: 'https://auth.privy.io/api/v1/apps/${appId}/jwks.json',
+    jwksUrl: env.PRIVY_APP_ID ? `https://auth.privy.io/api/v1/apps/${env.PRIVY_APP_ID}/jwks.json` : null,
     // Session Keys compatibility: Privy wallet can sign session token creation
     sessionKeysCompatible: true,
   }

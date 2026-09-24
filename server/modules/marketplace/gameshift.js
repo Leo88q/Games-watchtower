@@ -20,7 +20,7 @@ export const GAMESHIFT_CONFIG = {
 export function gameShiftConfig(env = process.env) {
   return {
     provider: 'gameshift',
-    apiKey: env.GAMESHIFT_API_KEY || null,
+    apiKeyConfigured: Boolean(env.GAMESHIFT_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     configured: Boolean(env.GAMESHIFT_API_KEY),
     baseUrl: env.GAMESHIFT_BASE_URL || 'https://api.gameshift.dev',
     environment: env.GAMESHIFT_ENV || 'devnet',

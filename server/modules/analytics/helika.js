@@ -17,7 +17,7 @@ export const HELIKA_CONFIG = {
 export function helikaConfig(env = process.env) {
   return {
     provider: 'helika',
-    apiKey: env.HELIKA_API_KEY || null,
+    apiKeyConfigured: Boolean(env.HELIKA_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     projectId: env.HELIKA_PROJECT_ID || null,
     configured: Boolean(env.HELIKA_API_KEY),
     endpoint: env.HELIKA_ENDPOINT || 'https://api.helika.io',

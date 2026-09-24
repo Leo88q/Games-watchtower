@@ -69,7 +69,7 @@ export function magicBlockActionsConfig(env = process.env) {
 export function magicBlockConfig(env = process.env) {
   return {
     provider: 'magicblock',
-    apiKey: env.MAGICBLOCK_API_KEY || null,
+    apiKeyConfigured: Boolean(env.MAGICBLOCK_API_KEY), // значение ключа наружу не отдаётся: только факт наличия
     configured: Boolean(env.MAGICBLOCK_API_KEY),
     endpoints: MAGICBLOCK_CONFIG.endpoints,
     components: {

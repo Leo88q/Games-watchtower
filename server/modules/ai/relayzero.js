@@ -1,6 +1,8 @@
 /**
  * relayzero — TypeScript SDK for network agent economy RelayZero, allowing integration of agents into game processes
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const RELAYZERO_CONFIG = {
   sdk: 'relayzero',
   type: 'agent economy network',
@@ -32,5 +34,6 @@ export function relayzeroSetup({ gameId = 'generic' } = {}) {
 }
 
 export function relayzeroHealth() {
-  return { configured: true, sdk: RELAYZERO_CONFIG.sdk, free: true, bestFree: true, category: 'ai-agents' }
+  return { configured: dependencyInstalled('relayzero'),
+    configurationReason: 'Пакет relayzero не установлен', sdk: RELAYZERO_CONFIG.sdk, free: true, bestFree: true, category: 'ai-agents' }
 }

@@ -20,6 +20,7 @@ const CATALOG = [
   { id: 'max-guttercaps', title: 'Gutter Caps — максимум (L3/L4)', file: 'prompts/arena/max/PROMPT_MAX_GUTTERCAPS.md', target: 'guttercaps', level: 'L4' },
   { id: 'max-trafficgen', title: 'TalkChart — максимум (L4)', file: 'prompts/arena/max/PROMPT_MAX_TRAFFICGEN.md', target: 'talkchart-traffic-generator', level: 'L4' },
   { id: 'max-investor', title: 'Инвесторский лендинг — максимум (L4)', file: 'prompts/arena/max/PROMPT_MAX_INVESTOR.md', target: 'investor', level: 'L4' },
+  { id: 'finance-config', title: 'Финансовая конфигурация студии — 14 значений для 13 метрик', file: 'prompts/studio-os/PROMPT_STUDIO_FINANCE_CONFIG.md', target: 'Games-watchtower', level: 'данные' },
 ]
 
 export function listArenaPrompts() {

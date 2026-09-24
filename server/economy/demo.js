@@ -15,8 +15,13 @@ function seeded(seed = 20260923) {
 
 const GAMES = ['ares1', 'aof', 'neonrelay', 'guttercaps']
 
-export function demoEvents({ days = 90, players = 420, now = Date.now(), seed = 20260923 } = {}) {
+/**
+ * Демо-поток детерминирован: одинаковая опорная дата (UTC-сутки) + seed → байт-идентичный набор.
+ * Опорная точка — начало UTC-суток, иначе окно метрик «дрожит» на границе суток (±1 мс менял набор событий).
+ */
+export function demoEvents({ days = 90, players = 420, now = Date.now(), seed = 20260923, anchorToDay = true } = {}) {
   const rand = seeded(seed)
+  const anchor = anchorToDay ? Math.floor(now / DAY) * DAY : now
   const events = []
   const wallets = Array.from({ length: players }, (_, i) => `demo_wallet_${(i + 1).toString(36)}`)
 
@@ -25,7 +30,7 @@ export function demoEvents({ days = 90, players = 420, now = Date.now(), seed = 
   const weightSum = weights.reduce((a, b) => a + b, 0)
 
   for (let d = days; d >= 0; d -= 1) {
-    const ts = now - d * DAY
+    const ts = anchor - d * DAY
     const dayOfWeek = new Date(ts).getUTCDay()
     const weekendBoost = dayOfWeek === 0 || dayOfWeek === 6 ? 1.25 : 1
     const growth = 1 + (days - d) / days * 0.8

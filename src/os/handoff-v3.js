@@ -1,3 +1,4 @@
+import { esc, escJson } from './escape.js'
 /**
  * Watchtower OS v3 — Handoff per game — что отдавать в работу каждой игре где промты
  */
@@ -236,7 +237,7 @@ export function renderHandoff(container, osData = {}) {
           <h2>📦 Handoff per game — что отдавать в работу каждой игре — где промты</h2>
           <p>9 промтов v3 ideal free stack 33 компонента 19 layers duplicates deprecated — что отдавать в работу каждой игре — где промты — быстрый доступ</p>
         </div>
-        <span class="status-pill healthy"><i></i>OS v${config.version || '3.0.0'} — ${totalComponents} components — 9 prompts games-v3 — 19 control panels 🎛️ — handoff per game</span>
+        <span class="status-pill healthy"><i></i>OS v${esc(config.version || '3.0.0')} — ${esc(totalComponents)} components — 9 prompts games-v3 — 19 control panels 🎛️ — handoff per game</span>
       </div>
 
       <div style="margin-bottom:16px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px;">

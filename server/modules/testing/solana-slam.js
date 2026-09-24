@@ -1,6 +1,8 @@
 /**
  * Solana SLAM — framework for simplifying writing modular tests for Solana programs. Stack: Solana, LiteSVM, Anchor, Mocha
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const SOLANA_SLAM_CONFIG = {
   framework: 'solana-slam',
   type: 'testing framework',
@@ -32,5 +34,6 @@ export function solanaSlamSetup({ gameId = 'generic' } = {}) {
 }
 
 export function solanaSlamHealth() {
-  return { configured: true, framework: SOLANA_SLAM_CONFIG.framework, free: true, bestFree: true, category: 'testing', stack: SOLANA_SLAM_CONFIG.stack }
+  return { configured: false,
+    configurationReason: 'Тестовый фреймворк не установлен', framework: SOLANA_SLAM_CONFIG.framework, free: true, bestFree: true, category: 'testing', stack: SOLANA_SLAM_CONFIG.stack }
 }

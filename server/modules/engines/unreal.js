@@ -4,6 +4,8 @@
  * Bifrost использует C# (Solnet), C++ и Blueprints, поддерживает минтинг Metaplex NFT и встроенные игровые платежи
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const UNREAL_SDK_CONFIG = {
   engine: 'unreal',
   sdks: [
@@ -81,7 +83,8 @@ export function unrealHealth(env = process.env) {
   return {
     engine: 'unreal',
     sdks: UNREAL_SDK_CONFIG.sdks,
-    configured: true,
+    configured: false,
+    configurationReason: 'Плагин Unreal устанавливается в проект игры, а не в хаб',
     platforms: UNREAL_SDK_CONFIG.platforms,
     writes: false,
     dataQuality: 'partial',

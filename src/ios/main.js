@@ -78,6 +78,7 @@ async function loadAll() {
     audit: '/api/audit',
     controlPolicy: '/api/control/policy',
     ingestion: '/api/ingestion/status',
+    economyCatalog: '/api/economy/catalog',
   }
   const entries = await Promise.all(Object.entries(targets).map(async ([key, path]) => {
     try { return [key, { ok: true, value: await api(path) }] } catch (error) { return [key, { ok: false, error: error.message }] }
@@ -110,6 +111,51 @@ function economyFamilyWhy(id) {
   const families = state.economy?.catalog?.families || []
   return families.find((f) => f.id === id)?.why || ''
 }
+/**
+ * Трафик: плитки по счётчикам, которые реально есть в ответе API.
+ * Значения берутся как есть; отсутствующий счётчик показывает «—», а не ноль.
+ */
+/**
+ * Кросс-игровые сегменты: API отдаёт объект с группами oneGame / twoGames / threeOrMore,
+ * а не плоский массив. Показываем три реальные группы и честные нули вместо выдуманных сегментов.
+ */
+function crossGameRows(cross) {
+  const groups = cross?.segments && !Array.isArray(cross.segments) ? cross.segments : null
+  const counts = cross?.counts || {}
+  const rows = groups
+    ? [
+      ['В одной игре', counts.oneGame, (groups.oneGame || []).length],
+      ['В двух играх', counts.twoGames, (groups.twoGames || []).length],
+      ['В трёх и более играх', counts.threeOrMore, (groups.threeOrMore || []).length],
+    ]
+    : []
+  if (!rows.length || rows.every(([, value, list]) => !value && !list)) {
+    return '<div class="list-item"><div class="list-item-detail">Сегментов пока нет — нужны подключённые игры</div></div>'
+  }
+  return rows.map(([title, value, list]) => `
+          <div class="list-item"><div style="flex:1"><div class="list-item-title">${esc(title)}</div><div class="list-item-detail">Общий псевдоним кошелька, ${esc(list)} человек(а) в группе</div></div><b>${esc(value ?? '—')}</b></div>`).join('')
+}
+
+function trafficRows(traffic) {
+  const t = traffic?.totals || {}
+  const v = traffic?.visitorsByType || {}
+  const rows = [
+    ['Визиты (page views)', t.pageViews, 'Просмотры страниц за окно наблюдения'],
+    ['Сессии', t.sessions, 'Псевдонимные идентификаторы sess_<hash>'],
+    ['Уникальные псевдо-посетители', t.uniquePseudoVisitors, 'Разные идентификаторы без привязки к личности'],
+    ['Клики по CTA', t.ctaClicks, 'Клик по призыву к действию'],
+    ['Дошли до целевой страницы', t.landingReached, 'Требуется подтверждение перехода (пока не подтверждается)'],
+    ['Боты / реальные', `${v.bot ?? '—'} / ${v.real ?? '—'}`, 'Не смешиваются в агрегатах'],
+    ['p50 / p95 времени сессии', `${t.p50 ?? '—'} / ${t.p95 ?? '—'}`, 'Медиана и 95-й процентиль в секундах'],
+    ['Data gap события', t.dataGaps, 'Пропуски в данных и их лечение (dataGapsHealed)'],
+    ['Ограничено rate-limit', t.rateLimited, 'События, отброшенные экспортёром по лимиту'],
+    ['Дубликаты отклонены', t.duplicates, 'Идемпотентность на стороне хаба'],
+    ['Синтетика исключена', t.syntheticExcluded, 'Ботовые/синтетические события вне агрегатов'],
+  ]
+  return rows.map(([title, value, detail]) => `
+        <div class="list-item"><div style="flex:1"><div class="list-item-title">${esc(title)}</div><div class="list-item-detail">${esc(detail)}</div></div><b>${esc(value ?? '—')}</b></div>`).join('')
+}
+
 function formatMetricValue(metric) {
   if (metric.value === null || metric.value === undefined) return '—'
   const value = Number(metric.value)
@@ -311,7 +357,9 @@ function sectionEconomy() {
     ${badge(`события в окне: ${economy.inputs?.eventsHuman ?? 0}`, 'neutral')}
     ${badge(`боты исключены: ${economy.inputs?.eventsExcludedAsBot ?? 0}`, 'neutral')}
     ${badge(`окно: ${esc(economy.window)} (${esc(economy.timezone)})`, 'accent')}
+    ${economy.inputs?.configPeriodDays ? badge(`выручка/расходы заданы за ${economy.inputs.configPeriodDays} дней`, 'neutral') : ''}
   </div>
+  ${economy.inputs?.configPeriodDays ? `<p class="tiny muted">Финансовые факты студии (выручка, расходы и их разбивка) задаются за ${esc(economy.inputs.configPeriodDays)} дней и приводятся к выбранному окну пропорционально дням. Такие метрики помечены «Неполные данные»: это расчётная величина, а не измеренная за окно.</p>` : ''}
 
   <div class="grid grid-2">
     ${families.map((family) => {
@@ -342,6 +390,7 @@ function sectionEconomy() {
                   <div><b>Окно:</b> ${esc(m.window || economy.window)} · <b>Часовой пояс:</b> ${esc(m.timezone)}</div>
                   ${m.needs?.length ? `<div><b>Нужны события:</b> ${esc(m.needs.join(', '))}</div>` : ''}
                   ${m.novelties?.length ? `<div><b>Актуальность 2026:</b> ${esc(m.novelties.join(', '))}</div>` : ''}
+                  ${m.note ? `<div><b>Примечание:</b> ${esc(m.note)}</div>` : ''}
                   ${m.reason ? `<div><b>Почему нет данных:</b> ${esc(m.reason)}</div>` : ''}
                 </div>
               </details>
@@ -360,6 +409,20 @@ function sectionAnalytics() {
   const cross = d('crossGame')
   const ai = d('aiReport')
   const meta = traffic?.dataQuality || 'unavailable'
+  const catalog = d('economyCatalog') || state.economy?.catalog || null
+  const coverage = catalog?.coverage || null
+  const adapters = d('adapters')?.adapters || []
+  const adapterCount = adapters.length
+  const adapterEventTypes = adapters.flatMap((a) => a.eventTypes || [])
+  const acceptedCount = new Set(adapterEventTypes).size
+  const acceptedTotal = adapterEventTypes.length
+  const needEventsText = [...new Set((coverage?.needEvents || []).flatMap((m) => m.events))].join(', ') || 'нет — все нужные события принимаются'
+  const needConfigText = [...new Set((coverage?.needConfig || []).flatMap((m) => m.config))].join(', ') || 'нет — конфигурация не требуется'
+  const coverageGroups = [
+    { title: 'Считаются из событий', ids: coverage?.fromEvents || [] },
+    { title: 'Ждут новых событий', ids: (coverage?.needEvents || []).map((m) => m.id) },
+    { title: 'Ждут конфигурации студии', ids: (coverage?.needConfig || []).map((m) => m.id) },
+  ]
   return `
   <div class="section-head">
     <div>
@@ -375,9 +438,7 @@ function sectionAnalytics() {
       <p>Источник — движок TalkChart: визиты, сессии, боты отделены от реальных пользователей.</p>
       <div class="hr"></div>
       <div class="list">
-        <div class="list-item"><div style="flex:1"><div class="list-item-title">Визиты</div><div class="list-item-detail">Page views за окно наблюдения</div></div><b>${esc(traffic?.totals?.pageViews ?? '—')}</b></div>
-        <div class="list-item"><div style="flex:1"><div class="list-item-title">Сессии</div><div class="list-item-detail">Псевдонимные идентификаторы sess_&lt;hash&gt;</div></div><b>${esc(traffic?.totals?.sessions ?? '—')}</b></div>
-        <div class="list-item"><div style="flex:1"><div class="list-item-title">Боты / реальные</div><div class="list-item-detail">Не смешиваются в агрегатах</div></div><b>${esc(traffic?.visitorsByType?.bot ?? '—')} / ${esc(traffic?.visitorsByType?.real ?? '—')}</b></div>
+        ${trafficRows(traffic)}
       </div>
     </div>
 
@@ -396,9 +457,25 @@ function sectionAnalytics() {
       <p>Игроки, найденные в двух и более играх по единому идентификатору. Это основа переплетения экосистемы.</p>
       <div class="hr"></div>
       <div class="list">
-        ${(cross?.segments || []).slice(0, 4).map((s) => `<div class="list-item"><div style="flex:1"><div class="list-item-title">${esc(s.name || s.id || 'сегмент')}</div><div class="list-item-detail">${esc(s.detail || '')}</div></div><b>${esc(s.players ?? '—')}</b></div>`).join('') || '<div class="list-item"><div class="list-item-detail">Сегментов пока нет — нужны подключённые игры</div></div>'}
+        ${crossGameRows(cross)}
       </div>
     </div>
+  </div>
+
+  <div class="card card-static" style="margin-top:16px">
+    <div class="row-between"><h3>Покрытие метрик: что считается сейчас, а что ждёт данных</h3>${badge(`каталог ${coverage?.total ?? 0}`, 'accent')}</div>
+    <p>Полный каталог — ${esc(coverage?.total ?? '—')} метрик в ${esc((catalog?.families || []).length || '—')} семействах по ${esc((catalog?.windows || []).length || '—')} окнам. Мы принимаем ${esc(acceptedTotal)} типов событий (${esc(acceptedCount)} уникальных) от ${esc(adapterCount)} игр и приложений; пустое значение метрики означает «данных нет», а не ноль.</p>
+    <div class="grid grid-3" style="margin-top:8px">
+      <div class="card card-static"><div class="row-between"><b>Считаются из событий</b>${badge(String(coverage?.fromEvents?.length ?? 0), (coverage?.fromEvents?.length || 0) ? 'ok' : 'neutral')}</div><div class="tiny muted" style="margin-top:6px">События этих типов игры уже передают — метрика заполнится сразу после потока.</div></div>
+      <div class="card card-static"><div class="row-between"><b>Ждут новых событий от игр</b>${badge(String(coverage?.needEvents?.length ?? 0), (coverage?.needEvents?.length || 0) ? 'warn' : 'ok')}</div><div class="tiny muted" style="margin-top:6px">${esc(needEventsText)}</div></div>
+      <div class="card card-static"><div class="row-between"><b>Ждут конфигурации студии</b>${badge(String(coverage?.needConfig?.length ?? 0), (coverage?.needConfig?.length || 0) ? 'warn' : 'ok')}</div><div class="tiny muted" style="margin-top:6px">${esc(needConfigText)}</div></div>
+    </div>
+    <details class="fold" style="margin-top:10px">
+      <summary class="tiny">Все метрики по категориям покрытия</summary>
+      <div class="fold-body">
+        ${coverageGroups.map((group) => `<div style="margin-bottom:8px"><b>${esc(group.title)} (${group.ids.length})</b><div class="tiny muted">${esc(group.ids.join(', '))}</div></div>`).join('')}
+      </div>
+    </details>
   </div>
 
   <div class="card card-static" style="margin-top:16px">
@@ -735,6 +812,7 @@ document.addEventListener('click', async (event) => {
   if (action === 'refresh') {
     toast('Обновляю данные…')
     await loadAll()
+    if (state.section === 'economy' || state.economy) await loadEconomy()
     render()
   }
   if (action === 'theme') {
@@ -817,9 +895,13 @@ document.addEventListener('input', (event) => {
   }
 })
 
-window.addEventListener('hashchange', () => {
+window.addEventListener('hashchange', async () => {
   const next = location.hash.replace('#', '') || 'overview'
-  if (next !== state.section) { state.section = next; renderSection() }
+  if (next === state.section) return
+  state.section = next
+  // Прямая ссылка на раздел «Экономика» обязана подгрузить метрики, а не показать пустые карточки.
+  if (next === 'economy' && !state.economy) await loadEconomy()
+  renderSection()
 })
 
 // ---------------------------------------------------------------------------

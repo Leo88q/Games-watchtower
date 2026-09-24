@@ -73,4 +73,11 @@ const main = async () => {
   }
 }
 
-main().catch((error) => { console.error(`check-ecosystem-target: ${error.message}`); process.exit(1) })
+main().catch((error) => {
+  const unreachable = /fetch failed|ECONNREFUSED|ENOTFOUND|socket hang up/i.test(String(error?.message))
+  const hint = unreachable
+    ? ` — хаб недоступен по ${base}. Запустите API (npm run start) или задайте WATCHTOWER_API_URL и WATCHTOWER_READ_TOKEN.`
+    : ''
+  console.error(`check-ecosystem-target: ${error.message}${hint}`)
+  process.exit(1)
+})

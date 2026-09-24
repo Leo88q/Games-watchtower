@@ -48,7 +48,12 @@ pub mod session_keys_registry {
         Ok(())
     }
 
-    pub fn validate_session(ctx: Context<ValidateSession>) -> Result<bool> {
+    /// Проверка сессии перед использованием. instruction — имя вызываемой инструкции:
+    /// запрещённые инструкции отклоняются, даже если программа входит в scope.
+    pub fn validate_session(
+        ctx: Context<ValidateSession>,
+        instruction: String,
+    ) -> Result<bool> {
         let session = &ctx.accounts.session;
         if session.is_revoked {
             return Ok(false);
@@ -57,7 +62,9 @@ pub mod session_keys_registry {
         if now > session.expires_at {
             return Ok(false);
         }
-        // Check scope
+        if session.denied_instructions.iter().any(|item| item == &instruction) {
+            return Ok(false);
+        }
         if !session.allowed_programs.contains(&ctx.accounts.target_program.key()) {
             return Ok(false);
         }
@@ -97,6 +104,7 @@ pub struct RevokeSession<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(instruction: String)]
 pub struct ValidateSession<'info> {
     #[account(
         seeds = [b"session", owner.key().as_ref(), session_key.key().as_ref()],

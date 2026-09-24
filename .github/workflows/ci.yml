@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      WATCHTOWER_PII_SALT: ci-salt-0123456789abcdef
+      WATCHTOWER_ALLOW_DEMO: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Установка зависимостей
+        run: npm ci --no-audit --no-fund
+      - name: Сборка интерфейса
+        run: npm run build
+      - name: Unit-тесты
+        run: npm run test:unit
+      - name: Интеграционные проверки API
+        run: npm run test:hardening
+      - name: Приватность игровых идентификаторов
+        run: npm run test:privacy
+      - name: Read-only инвариант
+        run: npm run test:readonly
+      - name: Согласованность документации и ENV
+        run: npm run test:docs
+      - name: DOM-проверка интерфейса (jsdom)
+        run: npm run test:ui
+      - name: Smoke-тест на живом сервере
+        env:
+          # Без токенов write-маршруты отдают 503, и смоук проверял бы не то поведение.
+          WATCHTOWER_INGEST_TOKEN: ci-ingest-token
+          WATCHTOWER_READ_TOKEN: ci-read-token
+          WATCHTOWER_API_URL: http://127.0.0.1:8787
+        run: |
+          node server/index.js & echo $! > /tmp/watchtower.pid
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/health >/dev/null && break; sleep 1; done
+          npm run test:smoke
+          kill "$(cat /tmp/watchtower.pid)"
+      - name: Мутационная проверка (гейт устойчивости математики)
+        run: npm run test:mutation
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Проверка сборки образа
+        run: docker build -t watchtower-os:ci .
+      - name: 'Проверка: образ запускается и отвечает на /api/health'
+        run: |
+          # Регрессия F-020: без src/data и ios.html образ собирался, но падал на старте.
+          docker run -d --name watchtower-ci -p 8787:8787 \
+            -e NODE_ENV=production \
+            -e WATCHTOWER_INGEST_TOKEN=ci-ingest-token \
+            -e WATCHTOWER_READ_TOKEN=ci-read-token \
+            -e WATCHTOWER_PII_SALT=ci-salt-0123456789abcdef \
+            watchtower-os:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/health >/dev/null && break; sleep 1; done
+          curl -s http://127.0.0.1:8787/api/health | grep -q '"writes":false'
+          curl -s -H "Authorization: Bearer ci-read-token" http://127.0.0.1:8787/api/games | grep -q '"ares1"'
+          curl -sf -o /dev/null http://127.0.0.1:8787/
+          curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8787/api/ingest/solana | grep -q 401
+          docker logs watchtower-ci
+          docker rm -f watchtower-ci
+
+      - name: 'Проверка: образ отказывается стартовать без секретов приёма'
+        run: |
+          # В production образ обязан отказаться стартовать без секретов приёма — с кодом 1 и понятным текстом.
+          set +e
+          output=$(docker run --rm -e NODE_ENV=production watchtower-os:ci 2>&1)
+          code=$?
+          set -e
+          echo "$output"
+          test "$code" -ne 0
+          echo "$output" | grep -q "WATCHTOWER_INGEST_TOKEN"

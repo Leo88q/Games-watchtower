@@ -1,14 +1,16 @@
 import { randomUUID } from 'node:crypto'
+import { assertSafeAmount, payloadSize, sanitizeIdentifier, sanitizePayload, sanitizeText, LIMITS } from './schema.js'
+import { IDENTIFIER_FIELDS } from '../security/pii.js'
 
 export const COMMITMENTS = new Set(['processed', 'confirmed', 'finalized'])
 
 function offchainFields(input, payload) {
   return {
-    campaignId: input.campaignId || payload.campaignId || null,
-    pageId: input.pageId || payload.pageId || null,
-    sessionId: input.sessionId || payload.sessionId || null,
-    sourceId: input.sourceId || payload.sourceId || null,
-    sourceType: input.sourceType || payload.sourceType || 'unknown',
+    campaignId: sanitizeIdentifier(input.campaignId || payload.campaignId) || null,
+    pageId: sanitizeIdentifier(input.pageId || payload.pageId) || null,
+    sessionId: sanitizeIdentifier(input.sessionId || payload.sessionId) || null,
+    sourceId: sanitizeIdentifier(input.sourceId || payload.sourceId) || null,
+    sourceType: sanitizeIdentifier(input.sourceType || payload.sourceType) || 'unknown',
     seq: input.seq ?? payload.seq ?? null,
   }
 }
@@ -17,60 +19,112 @@ function offchainIdentity(input, provider, fields) {
   return input.identity || ['offchain', provider, fields.campaignId || 'unknown', fields.pageId || 'unknown', fields.sessionId || 'unknown', fields.seq ?? 0].join(':')
 }
 
+const KNOWN_GAMES = new Set(['ares1', 'aof', 'neonrelay', 'guttercaps', 'trafficgen'])
+
 export function normalizeEvent(input, { provider = 'unknown', parserVersion = 'raw-v1' } = {}) {
-  const offchain = input.chain === 'offchain'
-  const payload = input.payload || {}
-  const fields = offchain ? offchainFields(input, payload) : {}
+  const safeInput = input && typeof input === 'object' && !Array.isArray(input) ? input : {}
+  const offchain = safeInput.chain === 'offchain'
+  const sanitized = sanitizePayload(safeInput.payload)
+  const payload = sanitized.value
+  const fields = offchain ? offchainFields(safeInput, payload) : {}
+  const gameId = sanitizeIdentifier(safeInput.gameId || payload.gameId) || null
   const dataQualityDefault = offchain
-    ? (input.eventType && fields.campaignId ? 'partial' : 'unavailable')
-    : (input.eventType && input.programId ? 'partial' : 'unavailable')
+    ? (safeInput.eventType && fields.campaignId ? 'partial' : 'unavailable')
+    : (safeInput.eventType && safeInput.programId ? 'partial' : 'unavailable')
+  const slot = assertSafeAmount(safeInput.slot, { name: 'slot', max: Number.MAX_SAFE_INTEGER })
   return {
-    eventId: input.eventId || randomUUID(),
+    eventId: typeof safeInput.eventId === 'string' && safeInput.eventId.length <= 128 ? safeInput.eventId : randomUUID(),
     identity: offchain
-      ? offchainIdentity(input, provider, fields)
-      : [input.cluster || 'unknown', input.slot ?? 'unknown', input.signature || 'unknown', input.instructionIndex ?? 0, input.innerIndex ?? 0].join(':'),
+      ? offchainIdentity(safeInput, provider, fields)
+      : [sanitizeIdentifier(safeInput.cluster) || 'unknown', slot.value ?? 'unknown', sanitizeIdentifier(safeInput.signature) || 'unknown', safeInput.instructionIndex ?? 0, safeInput.innerIndex ?? 0].join(':'),
     chain: offchain ? 'offchain' : 'solana',
-    cluster: offchain ? 'web' : (input.cluster || 'unknown'),
-    slot: offchain ? null : (input.slot ?? null),
-    blockTime: offchain ? null : (input.blockTime || null),
-    signature: offchain ? null : (input.signature || null),
-    programId: offchain ? null : (input.programId || null),
-    instructionIndex: offchain ? 0 : (input.instructionIndex ?? 0),
-    innerIndex: offchain ? 0 : (input.innerIndex ?? 0),
-    eventType: input.eventType || 'Unknown',
-    commitment: offchain ? 'confirmed' : (COMMITMENTS.has(input.commitment) ? input.commitment : 'confirmed'),
-    success: input.success !== false,
+    cluster: offchain ? 'web' : (sanitizeIdentifier(safeInput.cluster) || 'unknown'),
+    slot: offchain ? null : (slot.value ?? null),
+    blockTime: offchain ? null : (sanitizeText(safeInput.blockTime, 64) || null),
+    signature: offchain ? null : (sanitizeIdentifier(safeInput.signature) || null),
+    programId: offchain ? null : (sanitizeIdentifier(safeInput.programId) || null),
+    instructionIndex: offchain ? 0 : (Number.isInteger(safeInput.instructionIndex) ? safeInput.instructionIndex : 0),
+    innerIndex: offchain ? 0 : (Number.isInteger(safeInput.innerIndex) ? safeInput.innerIndex : 0),
+    eventType: sanitizeIdentifier(safeInput.eventType) || 'Unknown',
+    commitment: offchain ? 'confirmed' : (COMMITMENTS.has(safeInput.commitment) ? safeInput.commitment : 'confirmed'),
+    success: safeInput.success !== false,
     payload,
-    source: input.app || provider,
-    app: input.app || null,
+    gameId,
+    sanitizationWarnings: [...sanitized.warnings],
+    source: sanitizeIdentifier(safeInput.app) || provider,
+    app: sanitizeIdentifier(safeInput.app) || null,
     campaignId: fields.campaignId ?? null,
     pageId: fields.pageId ?? null,
     sessionId: fields.sessionId ?? null,
     sourceId: fields.sourceId ?? null,
     sourceType: fields.sourceType ?? 'unknown',
     seq: fields.seq ?? null,
-    timestamp: input.timestamp || null,
+    timestamp: sanitizeText(safeInput.timestamp, 64) || null,
     parserVersion,
-    observedAt: input.observedAt || new Date().toISOString(),
-    dataQuality: input.dataQuality || dataQualityDefault,
+    observedAt: sanitizeText(safeInput.observedAt, 64) || new Date().toISOString(),
+    dataQuality: ['complete', 'partial', 'unavailable'].includes(safeInput.dataQuality) ? safeInput.dataQuality : dataQualityDefault,
+    warnings: [...sanitized.warnings, ...(sanitized.warnings.length ? ['payload_sanitized'] : [])],
   }
 }
 
-export function validateEvent(event) {
+/**
+ * Строгая валидация перед записью в inbox. Возвращает { valid, errors }.
+ * Ошибки — не «на будущее», а условия, при которых событие исказит публикуемые числа.
+ */
+export function validateEvent(event, { allowUnknownGames = false, maxEventAmount = Number.MAX_SAFE_INTEGER, now = Date.now() } = {}) {
   const errors = []
+  if (!event || typeof event !== 'object') return { valid: false, errors: ['event must be an object'] }
+
   if (event.chain === 'offchain') {
     if (!event.timestamp) errors.push('timestamp is required')
-    return { valid: errors.length === 0, errors }
+    else if (!Number.isFinite(Date.parse(event.timestamp))) errors.push('timestamp must be an ISO-8601 date or epoch')
+  } else {
+    if (!event.signature) errors.push('signature is required')
+    if (!event.programId) errors.push('programId is required')
+    if (event.slot !== null && (!Number.isInteger(event.slot) || event.slot < 0)) errors.push('slot must be a non-negative integer')
   }
-  if (!event.signature) errors.push('signature is required')
-  if (!event.programId) errors.push('programId is required')
-  if (event.slot !== null && (!Number.isInteger(event.slot) || event.slot < 0)) errors.push('slot must be a non-negative integer')
+
+  if (!event.eventType || event.eventType === 'Unknown') errors.push('eventType is required')
+  if (event.gameId && !allowUnknownGames && !KNOWN_GAMES.has(event.gameId)) errors.push(`unknown gameId: ${event.gameId}`)
+
+  const payloadBytes = payloadSize(event.payload)
+  if (!Number.isFinite(payloadBytes)) errors.push('payload is not serializable')
+  else if (payloadBytes > LIMITS.payloadJson) errors.push(`payload too large: ${payloadBytes} bytes > ${LIMITS.payloadJson}`)
+
+  // Числовые поля, из которых строятся суммы метрик.
+  for (const key of ['amount', 'lamports', 'value', 'price', 'quantity']) {
+    if (event.payload && key in event.payload && event.payload[key] !== null && event.payload[key] !== undefined) {
+      const check = assertSafeAmount(event.payload[key], { name: `payload.${key}`, max: maxEventAmount })
+      if (!check.ok) errors.push(check.error)
+    }
+  }
+
+  // Идентификаторы игроков: только примитивы. Объект на месте идентификатора нельзя
+  // корректно псевдонимизировать — он превратился бы в '[object Object]' и склеил бы игроков.
+  if (event.payload && typeof event.payload === 'object') {
+    for (const field of IDENTIFIER_FIELDS) {
+      const value = event.payload[field]
+      if (value === undefined || value === null) continue
+      if (typeof value === 'object') errors.push(`payload.${field} must be a string or number`)
+      else if (typeof value === 'number' && !Number.isFinite(value)) errors.push(`payload.${field} must be finite`)
+    }
+  }
+
+  if (event.observedAt && !Number.isFinite(Date.parse(event.observedAt))) errors.push('observedAt must be a valid date')
+  if (event.observedAt && Date.parse(event.observedAt) - now > 5 * 60_000) errors.push('observedAt is in the future')
+
   return { valid: errors.length === 0, errors }
 }
 
+/**
+ * Тестовый двойник: не выполняет сетевых вызовов, поэтому его health не может быть «ok».
+ * Если он нужен в проде — это ошибка конфигурации, и она должна быть видна, а не скрыта.
+ */
 export class MockProvider {
-  constructor(events = []) { this.id = 'mock'; this.events = events }
-  async health() { return { ok: true, provider: this.id, mode: 'offline' } }
+  constructor(events = []) { this.id = 'mock'; this.events = events; this.simulated = true }
+  async health() {
+    return { ok: false, provider: this.id, mode: 'offline', simulated: true, configured: false, reason: 'MockProvider не проверяет внешний источник: health не подтверждён' }
+  }
   async *stream() { for (const event of this.events) yield normalizeEvent(event, { provider: this.id }) }
   async backfill() { return { provider: this.id, events: this.events.length, replayable: true } }
 }
@@ -142,7 +196,7 @@ export function createTrafficgenProvider(config = process.env) {
 }
 
 export function createProvider(config = process.env) {
-  const mode = config.WATCHTOWER_PROVIDER || 'mock'
+  const mode = config.WATCHTOWER_PROVIDER || 'http-ingest'
   if (mode === 'native-rpc') return new NativeRpcProvider({ url: config.SOLANA_RPC_URL })
   if (mode === 'trafficgen') return new TrafficgenProvider({ baseUrl: config.TRAFFICGEN_API_BASE_URL })
   return new MockProvider()

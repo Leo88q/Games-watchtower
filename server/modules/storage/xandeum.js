@@ -1,6 +1,8 @@
 /**
  * Xandeum — scalable storage layer for dApps on Solana, allows saving game states, assets, player data in decentralized storage network that can grow to exabytes
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const XANDEUM_CONFIG = {
   project: 'xandeum',
   type: 'scalable storage layer',
@@ -34,5 +36,6 @@ export function xandeumSetup({ gameId = 'generic' } = {}) {
 }
 
 export function xandeumHealth() {
-  return { configured: true, project: XANDEUM_CONFIG.project, free: true, bestFree: true, category: 'storage', scalable: 'exabytes' }
+  return { configured: dependencyInstalled('@xandeum/sdk'),
+    configurationReason: 'Пакет @xandeum/sdk не установлен', project: XANDEUM_CONFIG.project, free: true, bestFree: true, category: 'storage', scalable: 'exabytes' }
 }

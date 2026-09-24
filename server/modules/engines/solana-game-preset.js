@@ -4,6 +4,8 @@
  * npx-пресет с готовой Anchor-программой и клиентами на JS и Unity, каркас для быстрого прототипирования
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const SOLANA_GAME_PRESET_CONFIG = {
   sdk: 'solana-game-preset',
   repo: 'https://github.com/solana-developers/solana-game-preset',
@@ -16,7 +18,7 @@ export const SOLANA_GAME_PRESET_CONFIG = {
     unityClient: 'Unity client — Solana.Unity-SDK based',
     tests: 'Anchor tests + JS tests',
   },
-  command: 'npx create-solana-game --preset game-preset',
+  command: 'npx create-solana-game <project> --preset <template>',
 }
 
 export function solanaGamePresetSetup({ gameId, template = 'action' } = {}) {
@@ -25,7 +27,7 @@ export function solanaGamePresetSetup({ gameId, template = 'action' } = {}) {
     gameId,
     template, // action, farming, racing, card, etc
     install: {
-      npx: `npx create-solana-game ${gameId} --preset ${SOLANA_GAME_PRESET_CONFIG.command}`,
+      npx: `npx create-solana-game ${gameId || '<project>'} --preset ${template || '<template>'}`,
       clone: `git clone ${SOLANA_GAME_PRESET_CONFIG.repo}`,
     },
     includes: SOLANA_GAME_PRESET_CONFIG.includes,
@@ -132,7 +134,8 @@ export function solanaGamePresetHealth(env = process.env) {
     owner: SOLANA_GAME_PRESET_CONFIG.owner,
     includes: Object.keys(SOLANA_GAME_PRESET_CONFIG.includes),
     command: SOLANA_GAME_PRESET_CONFIG.command,
-    configured: true,
+    configured: dependencyInstalled('create-solana-game'),
+    configurationReason: 'Пресет запускается в проекте игры через npx, в хаб не устанавливается',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),

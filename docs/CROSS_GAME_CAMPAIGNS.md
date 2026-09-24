@@ -37,3 +37,11 @@ Required production gates:
 - operator approval;
 - delivery provider audit;
 - attribution and rollback.
+
+## Where asset transfer between games stands
+
+`GET /api/cross-game/projection` observes real transfer events only (`BridgeIn`, `BridgeOut`,
+`CrossGameLinked`, `CrossGameAssetGranted`). With no such events it returns `dataQuality: "unavailable"`
+and the list of events it needs — it never invents links or items. The in-game mechanic
+(items from one game appearing in another) is not implemented in any game yet; the full status,
+gaps and the three implementation levels are in `docs/INTERWEAVING_STATUS.md`.

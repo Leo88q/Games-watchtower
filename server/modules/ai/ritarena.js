@@ -1,6 +1,8 @@
 /**
  * RitArena SDK — TypeScript SDK for creating arenas AI agents on Solana, where autonomous bots compete for prizes. Supports full lifecycle management arena with retry logic and event emission
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const RITARENA_CONFIG = {
   sdk: 'ritarena-sdk',
   type: 'AI agents arena',
@@ -37,5 +39,6 @@ export function ritarenaSetup({ gameId = 'generic' } = {}) {
 }
 
 export function ritarenaHealth() {
-  return { configured: true, sdk: RITARENA_CONFIG.sdk, free: true, bestFree: true, category: 'ai-agents', replaces: 'Aureus as best free' }
+  return { configured: dependencyInstalled('ritarena-sdk'),
+    configurationReason: 'Пакет ritarena-sdk не установлен', sdk: RITARENA_CONFIG.sdk, free: true, bestFree: true, category: 'ai-agents', replaces: 'Aureus as best free' }
 }

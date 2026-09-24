@@ -1,6 +1,8 @@
 /**
  * Private State Toolkit (PST) — infrastructure for private but verifiable state of applications. Stores only cryptographic commitments on-chain, encrypted state off-chain. Ideal for games with hidden logic (card games)
  */
+
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
 export const PST_CONFIG = {
   project: 'private-state-toolkit',
   short: 'PST',
@@ -35,5 +37,6 @@ export function privateStateToolkitSetup({ gameId = 'generic' } = {}) {
 }
 
 export function privateStateToolkitHealth() {
-  return { configured: true, project: PST_CONFIG.project, free: true, bestFree: true, category: 'privacy' }
+  return { configured: dependencyInstalled('@private-state-toolkit/sdk'),
+    configurationReason: 'Пакет @private-state-toolkit/sdk не установлен', project: PST_CONFIG.project, free: true, bestFree: true, category: 'privacy' }
 }

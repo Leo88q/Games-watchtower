@@ -4,6 +4,8 @@
  * Идеально если в одной из игр планируются механики ставок или элементы казино
  */
 
+import { dependencyInstalled, anyEnvConfigured } from '../_support/installed.js'
+
 export const GAMBA_SDK_CONFIG = {
   sdk: 'gamba',
   repo: 'https://github.com/gamba-labs/gamba',
@@ -118,7 +120,8 @@ export function gambaHealth(env = process.env) {
     purpose: GAMBA_SDK_CONFIG.purpose,
     components: Object.keys(GAMBA_SDK_CONFIG.components),
     idealFor: GAMBA_SDK_CONFIG.idealFor,
-    configured: true,
+    configured: dependencyInstalled('gamba'),
+    configurationReason: 'Пакет gamba не установлен в этом репозитории',
     writes: false,
     dataQuality: 'partial',
     generatedAt: new Date().toISOString(),
