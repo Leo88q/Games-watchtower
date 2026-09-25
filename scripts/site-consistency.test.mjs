@@ -104,6 +104,26 @@ test('тарифы сайта паритетны между языками', () 
   for (const fact of ['50 млн']) assert.ok(ru.includes(fact) && en.includes('50M'), 'лимит событий Studio')
 })
 
+test('секция возможностей и пути развития описаны и паритетны на обоих языках', () => {
+  const ru = read('watchtower-site/index.html')
+  const en = read('watchtower-site/en.html')
+  // Якоря и структура новых секций есть на обеих версиях.
+  for (const [lang, html] of [['RU', ru], ['EN', en]]) {
+    for (const mark of ['id="capabilities"', 'class="tracks rv"', 'class="track"', '#roadmap']) {
+      assert.ok(html.includes(mark), `${lang}: нет разметки «${mark}»`)
+    }
+    const cap = html.slice(html.indexOf('id="capabilities"'), html.indexOf('id="games"'))
+    assert.equal((cap.match(/<article class="tile rv"><span class="stage/g) || []).length, 6, `${lang}: групп возможностей должно быть шесть`)
+    const tracks = html.slice(html.indexOf('class="tracks rv"'), html.indexOf('class="lane rv"'))
+    assert.equal((tracks.match(/class="track"/g) || []).length, 4, `${lang}: путей развития должно быть ровно четыре`)
+  }
+  // Фактические опоры не должны отличаться между языками.
+  for (const fact of ['40', '0–100', '0.8', '21', 'L0 → L4', 'test:readonly', 'writes: false',
+    '?demo=1', 'DEMO DATA', 'DNT/GPC', 'Launchpad 3–5%', 'Q1 2027', 'Q4 2027', '2028']) {
+    assert.ok(ru.includes(fact) && en.includes(fact), `факт «${fact}» должен быть на обеих версиях сайта`)
+  }
+})
+
 // ── 3. Анти-хайп: стоп-лист X_POSTS.md действует на публичных страницах ────
 
 test('на страницах нет обещаний дохода из стоп-листа (кроме явного отрицания)', () => {

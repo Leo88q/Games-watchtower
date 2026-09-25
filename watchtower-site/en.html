@@ -128,6 +128,19 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .wl .msg{width:100%;margin:4px 0 0;color:var(--dim);font-size:14px}
 .wl .hp{position:absolute;left:-9999px;opacity:0}
 @media (max-width:900px){.plans{grid-template-columns:1fr}}
+/* capabilities: lists inside tiles */
+.tile ul{list-style:none;padding:0;margin:16px 0 0}
+.tile li{position:relative;padding:7px 0 7px 20px;border-top:1px solid var(--line);color:var(--dim);font-size:15px}
+.tile li b{color:var(--ink);font-weight:600}
+.tile li::before{content:"";position:absolute;left:0;top:14px;width:8px;height:8px;border-radius:2px;background:var(--c1);opacity:.8}
+/* development paths */
+.tracks{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:36px 0 8px}
+.track{padding:26px;border-radius:22px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(12px)}
+.track .tag{display:inline-block;font:600 11px "JetBrains Mono";padding:4px 10px;border-radius:99px;border:1px solid var(--line);color:var(--dim);margin-bottom:12px;text-transform:uppercase;letter-spacing:.08em}
+.track h3{font-size:19px;margin:0 0 12px}
+.track ol{margin:0;padding-left:22px;color:var(--dim);font-size:15px}
+.track li{margin:8px 0}
+.track li b{color:var(--ink);font-weight:600}
 /* command palette */
 dialog{border:1px solid var(--line);border-radius:22px;background:rgba(10,14,24,.92);backdrop-filter:blur(20px);color:var(--ink);width:min(560px,92vw);padding:0}
 dialog::backdrop{background:rgba(2,4,8,.6);backdrop-filter:blur(4px)}
@@ -137,7 +150,7 @@ dialog li a{display:flex;justify-content:space-between;padding:12px 14px;border-
 dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
 /* reveal on scroll */
 .rv{opacity:0;transform:translateY(30px);transition:opacity .8s,transform .8s cubic-bezier(.2,.7,.2,1)}.rv.in{opacity:1;transform:none}
-@media (max-width:900px){.bento{grid-template-columns:1fr}.tile,.tile.w3,.tile.w4{grid-column:auto}.two{grid-template-columns:1fr}.proof{grid-template-columns:1fr 1fr}.island a.l{display:none}}
+@media (max-width:900px){.bento{grid-template-columns:1fr}.tile,.tile.w3,.tile.w4{grid-column:auto}.two{grid-template-columns:1fr}.proof{grid-template-columns:1fr 1fr}.island a.l{display:none}.tracks{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
 </style>
 </head>
@@ -146,7 +159,7 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
 
 <header><nav class="island" aria-label="Navigation">
   <b><i></i>Watchtower OS</b>
-  <a class="l" href="#platform">Platform</a><a class="l" href="#games">Games</a><a class="l" href="#api">API</a><a class="l" href="#pricing">Pricing</a><a class="l" href="#roadmap">2035</a>
+  <a class="l" href="#platform">Platform</a><a class="l" href="#capabilities">Capabilities</a><a class="l" href="#games">Games</a><a class="l" href="#api">API</a><a class="l" href="#pricing">Pricing</a><a class="l" href="#roadmap">2035</a>
   <button class="kbd" id="cmdk" aria-label="Command palette">⌘K</button>
   <a class="kbd" href="index.html" lang="ru">RU</a>
   <a class="cta" href="../token-landing/en.html">$WTWR →</a>
@@ -186,9 +199,65 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
   </div>
 </div></section>
 
+<section id="capabilities"><div class="wrap">
+  <div class="eyebrow rv">02 · Capabilities</div>
+  <h2 class="rv">Everything the platform<br>can do today.</h2>
+  <p class="lead rv">An inventory, not a wishlist: every feature carries its honest stage. Anything not in production is labeled “code ready” or with a launch year.</p>
+  <div class="bento" style="margin-top:44px">
+    <article class="tile rv"><span class="stage s-live">live</span>
+      <h3>Truthful data</h3>
+      <ul>
+        <li><b>Every metric carries a quality flag:</b> complete, partial or unavailable — the trust level is visible at a glance.</li>
+        <li><b>“—” instead of zeros:</b> missing data never pretends to be a value; demo mode only with <span class="mono">?demo=1</span> and a “DEMO DATA” badge, disabled by flag in production.</li>
+        <li><b>One event layer:</b> on-chain and off-chain, deduplication, cursors, backfill, gap detection and healing.</li>
+      </ul>
+    </article>
+    <article class="tile rv"><span class="stage s-live">live</span>
+      <h3>Economy under lock</h3>
+      <ul>
+        <li><b>40 metrics in 8 families:</b> mint/burn, sources and sinks, velocity, fairness, risk, game interweaving.</li>
+        <li><b>A 0–100 health index</b> for each game and for the whole ecosystem — one number with a full breakdown.</li>
+        <li><b>Golden tests + a 0.8 mutation gate:</b> a formula cannot break silently — CI fails first.</li>
+      </ul>
+    </article>
+    <article class="tile rv"><span class="stage s-live">live</span>
+      <h3>Control without keys</h3>
+      <ul>
+        <li><b>Changes only via proposal:</b> 2 signatures + 2FA, an audit log for every action, an emergency pause.</li>
+        <li><b>The hub cannot sign transactions:</b> enforced by the <span class="mono">test:readonly</span> suite, not by a promise.</li>
+        <li><b>Contracts as specification:</b> cross_game_inventory, studio_treasury, session_keys — verifiable invariants and <span class="mono">writes: false</span>.</li>
+      </ul>
+    </article>
+    <article class="tile rv"><span class="stage s-ready">code ready</span>
+      <h3>Traffic with proof</h3>
+      <ul>
+        <li><b>“Post → game” visits confirmed by click-id</b> without PII, honouring DNT/GPC — attendance is proven, not guessed.</li>
+        <li><b>21 counters + an integrity layer:</b> bots and humans kept strictly apart; duplicates, gaps and rate limits visible, not hidden.</li>
+        <li><b>Funnels up to 6 steps,</b> cross-game segments and campaigns: from the source to the first match.</li>
+      </ul>
+    </article>
+    <article class="tile rv"><span class="stage s-live">live</span>
+      <h3>The investor layer</h3>
+      <ul>
+        <li><b>Reports, snapshots and trends via API:</b> a share holder sees the same numbers as the founder.</li>
+        <li><b>Maturity levels L0–L4 per game,</b> ecosystem target coverage and audit finding totals.</li>
+        <li><b>The “Get to work” button:</b> a ready Arena prompt straight from the dashboard — from report to action in one click.</li>
+      </ul>
+    </article>
+    <article class="tile rv"><span class="stage s-live">live</span>
+      <h3>Big-league operations</h3>
+      <ul>
+        <li><b>One non-root container:</b> healthcheck, graceful shutdown, Prometheus metrics on <span class="mono">/metrics</span>.</li>
+        <li><b>Studio release pipeline:</b> release:check across every repo, a no-side-effects plan, deploy only with an explicit flag.</li>
+        <li><b>Privacy by default:</b> PII is pseudonymised with a salt, erasure on request, retention; secrets only via env — startup fails fast without them.</li>
+      </ul>
+    </article>
+  </div>
+</div></section>
+
 <section id="games"><div class="wrap two">
   <div>
-    <div class="eyebrow rv">02 · Ecosystem</div>
+    <div class="eyebrow rv">03 · Ecosystem</div>
     <h2 class="rv">Four games<br>in one orbit.</h2>
     <p class="lead rv">The games are linked by mechanics, not just a shared logo.</p>
     <ul class="links rv">
@@ -209,7 +278,7 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
 </div></section>
 
 <section id="principles"><div class="wrap">
-  <div class="eyebrow rv">03 · Principles</div>
+  <div class="eyebrow rv">04 · Principles</div>
   <h2 class="rv">Trust<br>you can verify.</h2>
   <div class="proof">
     <div class="rv"><b class="grad">0</b><span>signing keys in the hub — enforced by a test</span></div>
@@ -221,7 +290,7 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
 
 <section id="api"><div class="wrap two">
   <div>
-    <div class="eyebrow rv">04 · Studio API · 2027</div>
+    <div class="eyebrow rv">05 · Studio API · 2027</div>
     <h2 class="rv">Your game —<br>in the same system.</h2>
     <p class="lead rv">One event contract for any Solana game. Plug in an adapter and get funnels, cohorts, traffic and control. Pay in USDC, or in $WTWR at a discount.</p>
   </div>
@@ -250,7 +319,7 @@ wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
 </div></section>
 
 <section id="pricing"><div class="wrap">
-  <div class="eyebrow rv">05 · Pricing</div>
+  <div class="eyebrow rv">06 · Pricing</div>
   <h2 class="rv">Pay for scale,<br>not for access.</h2>
   <p class="lead rv">Studio API plans open in 2027. The figures below are guidance and will be finalised before launch. Leo Games titles already run on Watchtower.</p>
   <div class="plans">
@@ -268,8 +337,42 @@ wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
 </div></section>
 
 <section id="roadmap"><div class="wrap">
-  <div class="eyebrow rv">06 · Path</div>
-  <h2 class="rv">From 2D games<br>to spatial worlds.</h2>
+  <div class="eyebrow rv">07 · Development paths</div>
+  <h2 class="rv">Four paths,<br>one timeline.</h2>
+  <p class="lead rv">Development moves along four tracks at once. Statuses are honest: “today” is verifiable in the repository, the rest is a plan with dates.</p>
+  <div class="tracks rv">
+    <div class="track"><span class="tag">games</span><h3>Game integration: L0 → L4</h3>
+      <ol>
+        <li><b>L0 — contract and patches</b> fixed for all 4 games (today).</li>
+        <li><b>L1 — landing tracking:</b> wt_click confirms “post → game” visits.</li>
+        <li><b>L2 — live events</b> flowing into Watchtower instead of a demo stream.</li>
+        <li><b>L3 — live economy and players:</b> 40 metrics on real data.</li>
+        <li><b>L4 — the full loop:</b> game parameters controlled via proposals.</li>
+      </ol>
+    </div>
+    <div class="track"><span class="tag">business</span><h3>Product &amp; revenue</h3>
+      <ol>
+        <li><b>Today:</b> Watchtower serves the studio's 4 games — its own first customer.</li>
+        <li><b>2027 — Studio API</b> for external teams: Indie $0 / Studio $299 / Launchpad 3–5%.</li>
+        <li><b>2027–2028 — Compute Grid rental:</b> AI and rendering on owned hardware.</li>
+      </ol>
+    </div>
+    <div class="track"><span class="tag">trust</span><h3>Compliance &amp; transparency</h3>
+      <ol>
+        <li><b>Q4 2026:</b> contract audits, MiCA white paper, Terms for the profit-share NFT.</li>
+        <li><b>Multisig treasury</b> and public quarterly reports with transaction links.</li>
+        <li><b>Q1 2027:</b> the dividend contract and the first USDC payout.</li>
+      </ol>
+    </div>
+    <div class="track"><span class="tag">technology</span><h3>Ecosystem depth</h3>
+      <ol>
+        <li><b>Real data for all 4 games</b> replacing demo mode in every section.</li>
+        <li><b>A real-time AI analyst</b> on Compute Grid (Q4 2027).</li>
+        <li><b>Cross-game mechanics and the Passport,</b> then the VR line (2028+).</li>
+      </ol>
+    </div>
+  </div>
+  <p class="lead rv" style="margin-top:36px;font-size:16px">The timeline:</p>
   <div class="lane rv">
     <div style="--c:var(--c1)"><span class="q">Q4 2026</span><h3>Audit &amp; presale</h3><p>Contract audits, TalkChart to production, Compute Grid raise.</p></div>
     <div style="--c:var(--c1)"><span class="q">Q1 2027</span><h3>Mainnet</h3><p>ARES-1 and GutterCaps on mainnet, CapsStake season 1.</p></div>
@@ -366,7 +469,7 @@ if (!reduce) document.querySelectorAll('.tile').forEach(t => {
 })
 
 // command palette ⌘K / Ctrl+K
-const CMDS = [['Platform', '#platform'], ['Games & ecosystem', '#games'], ['Principles', '#principles'], ['Studio API', '#api'], ['Pricing', '#pricing'], ['Roadmap to 2035', '#roadmap'], ['$WTWR token', '../token-landing/en.html'], ['Токен $WTWR (RU)', '../token-landing/index.html'], ['Русская версия сайта', 'index.html']]
+const CMDS = [['Platform', '#platform'], ['Platform capabilities', '#capabilities'], ['Games & ecosystem', '#games'], ['Principles', '#principles'], ['Studio API', '#api'], ['Studio API waitlist', '#api-waitlist'], ['Pricing', '#pricing'], ['Development paths to 2035', '#roadmap'], ['$WTWR token', '../token-landing/en.html'], ['Токен $WTWR (RU)', '../token-landing/index.html'], ['Русская версия сайта', 'index.html']]
 const pal = document.getElementById('pal'), q = document.getElementById('q'), res = document.getElementById('res')
 let sel = 0
 function render() {

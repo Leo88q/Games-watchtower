@@ -6,7 +6,7 @@
 
 | Площадка | Каталог | Назначение |
 |---|---|---|
-| Сайт Watchtower OS | `watchtower-site/` (`index.html` = RU, `en.html` = EN) | продукт, модули, цены Studio API, карта до 2035, лист ожидания API |
+| Сайт Watchtower OS | `watchtower-site/` (`index.html` = RU, `en.html` = EN) | продукт, модули, полный инвентарь возможностей (#capabilities), цены Studio API, четыре пути развития + линия времени (#roadmap), лист ожидания API |
 | Лендинг $WTWR | `token-landing/` | токеномика, три раунда (NFT + пресейл), стейкинг CapsStake, Compute Grid, риски, вайтлист |
 | Общий слой | `web-shared/` | трекер переходов, параметры запуска, логика форм, favicon, OG-обложки |
 
