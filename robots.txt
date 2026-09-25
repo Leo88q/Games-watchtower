@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap добавляется после выбора прод-домена (см. WEBSITES.md):
+# Sitemap: https://<домен>/sitemap.xml

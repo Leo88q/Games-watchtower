@@ -2,7 +2,8 @@
 """Карточки 1600x900 для постов X из цифр лендинга.
 
 Запуск: python3 token-landing/x-cards/render.py   (нужен Pillow)
-Цифры ALLOC/FUNDS/HW парсятся из index.html / en.html, чтобы картинки не расходились со страницей.
+Цифры парсятся из token-data.mjs — единого источника чисел лендинга (см. WEBSITES.md),
+поэтому карточки не могут разойтись со страницей или между языками.
 """
 import math, re, sys
 from pathlib import Path
@@ -25,13 +26,42 @@ def font(size, bold=False, mono=False):
     return ImageFont.truetype('Arial.ttf', size)
 
 
-def parse(html, name):
-    block = re.search(r'const %s = \[(.*?)\n\]' % name, html, re.S).group(1)
-    rows = []
-    for line in block.strip().splitlines():
-        parts = re.findall(r"'((?:[^'\\]|\\.)*)'|([\d.]+)", line)
-        rows.append([s if s else float(n) for s, n in parts])
-    return rows
+DATA = ROOT / 'token-data.mjs'
+
+
+def _objects(name):
+    text = DATA.read_text(encoding='utf-8')
+    block = re.search(r'export const %s = \[(.*?)\n\]' % name, text, re.S)
+    assert block, f'в token-data.mjs нет массива {name}'
+    return re.findall(r'\{(?:[^{}]|\{[^{}]*\})*\}', block.group(1))
+
+
+def _tr(obj, lang):
+    m = re.search(r"(?:key|name|item):\s*\{\s*ru:\s*'((?:[^'\\]|\\.)*)',\s*en:\s*'((?:[^'\\]|\\.)*)'", obj)
+    assert m, obj[:120]
+    return m.group(1 if lang == 'ru' else 2)
+
+
+def _num(obj, field):
+    m = re.search(r'%s:\s*([\d._]+)' % field, obj)
+    assert m, obj[:120]
+    return float(m.group(1).replace('_', ''))
+
+
+def _color(obj):
+    m = re.search(r"color:\s*'(#[0-9a-fA-F]{6})'", obj)
+    return m.group(1) if m else MUTED
+
+
+def parse_alloc(lang):
+    """[(name, pct, color, unlock)] из token-data.mjs — единого источника чисел."""
+    return [(_tr(o, lang), _num(o, 'pct'), _color(o), None) for o in _objects('ALLOC')]
+
+
+def parse_hw(lang):
+    """[(name, usd, what)] из token-data.mjs — единого источника чисел."""
+    return [(_tr(o, lang), int(_num(o, 'usd')), None) for o in _objects('HW')]
+
 
 
 def base(title, sub, lang):
@@ -59,8 +89,8 @@ def pct(p, lang):
     return s.replace('.', ',') if lang == 'ru' else s
 
 
-def card_alloc(html, lang):
-    rows = parse(html, 'ALLOC')
+def card_alloc(lang):
+    rows = parse_alloc(lang)
     assert abs(sum(r[1] for r in rows) - 100) < 1e-9
     im, d = base('Токеномика: 1 000 000 000 $WTWR' if lang == 'ru' else 'Tokenomics: 1,000,000,000 $WTWR',
                  'Фиксированная эмиссия, право выпуска отзывается' if lang == 'ru' else 'Fixed supply, mint authority revoked', lang)
@@ -160,8 +190,8 @@ def card_tree(lang):
     return im
 
 
-def card_hw(html, lang):
-    rows = parse(html, 'HW')
+def card_hw(lang):
+    rows = parse_hw(lang)
     total = sum(r[1] for r in rows)
     assert total == 50000
     ru = lang == 'ru'
@@ -178,10 +208,9 @@ def card_hw(html, lang):
 
 def main():
     out = HERE
-    for lang, page in (('ru', 'index.html'), ('en', 'en.html')):
-        html = (ROOT / page).read_text(encoding='utf-8')
-        cards = {'1-tree': card_tree(lang), '2-alloc': card_alloc(html, lang), '3-rounds': card_rounds(lang),
-                 '4-profit': card_profit(lang), '5-hardware': card_hw(html, lang)}
+    for lang in ('ru', 'en'):
+        cards = {'1-tree': card_tree(lang), '2-alloc': card_alloc(lang), '3-rounds': card_rounds(lang),
+                 '4-profit': card_profit(lang), '5-hardware': card_hw(lang)}
         for k, im in cards.items():
             p = out / f'{k}-{lang}.png'
             im.save(p, optimize=True)

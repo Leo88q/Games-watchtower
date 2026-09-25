@@ -7,6 +7,13 @@
 <meta name="description" content="$WTWR is the token of the Watchtower platform: analytics, traffic and control for Web3 games. Raise target $350,000 — $WTWR presale $250,000 and Ecosystem Share NFT $100,000. Tokenomics, staking in GutterCaps, Compute Grid hardware, roadmap to VR.">
 <meta property="og:title" content="Watchtower Coin ($WTWR)">
 <meta property="og:description" content="One coin, the whole ecosystem: 4 games, analytics, traffic, a path to VR. Raise $350,000.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="../web-shared/og-wtwr.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#04060b">
+<meta name="wt-page" content="target_wtwr_en">
+<link rel="alternate" hreflang="ru" href="index.html">
+<link rel="icon" type="image/svg+xml" href="../web-shared/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -226,7 +233,15 @@ input{background:var(--panel2);border:1px solid var(--line);color:var(--text);pa
       <tr><td class="muted">Bonus</td><td class="num">read-only access to the Watchtower investor dashboard</td></tr>
     </tbody></table>
     <p class="muted" style="font-size:14px;margin:12px 0 0">A quarter with no profit pays 0. Example, not a promise: at $200,000 annual profit one NFT receives $500 per year. The NFT pool is paid from profit before the $WTWR buyback, so token and NFT holders share one income source without competing for supply.</p>
+    <div style="overflow-x:auto;margin-top:16px">
+      <table id="dividends">
+        <thead><tr><th class="num">Net profit / yr</th><th class="num">Pool (25%)</th><th class="num">Per NFT / yr</th><th class="num">Per NFT / qtr</th><th class="num">% of $1,000 price / yr</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="muted" style="font-size:13px;margin:8px 0 0">Three scenarios — an illustration, not an income promise. All inputs (revenue and expenses) are published in the quarterly report so any holder can recompute the payout.</p>
+    </div>
     <div class="warn" style="margin-top:12px">A profit-share right is legally a security. The sale opens only after legal sign-off and publication of separate Terms and a document under prospectus rules (MiCA does not cover it).</div>
+    <p style="margin:12px 0 0"><a data-wt-terms hidden>Profit-share Terms (round 0 document) →</a></p>
   </div>
 
   <h3 style="margin-top:44px">Use of the $350,000 (all three rounds)</h3>
@@ -235,11 +250,15 @@ input{background:var(--panel2);border:1px solid var(--line);color:var(--text);pa
 
   <div class="card" id="waitlist" style="margin-top:22px">
     <h3>Round 1 waitlist</h3>
-    <p class="muted">The participation address is published only here and in official channels. No team member will DM you first.</p>
-    <form onsubmit="event.preventDefault();this.querySelector('p').hidden=false" style="display:flex;gap:10px;flex-wrap:wrap">
-      <input type="email" required placeholder="email to get notified at launch"><button class="btn">Join</button>
-      <p class="muted" hidden style="width:100%;margin:6px 0 0">Demo form: submission will be connected before the round starts.</p>
+    <p class="muted">The participation address is published only here and in official channels. No team member will DM you first. One e-mail before launch — no newsletter.</p>
+    <form data-wt-waitlist="token-presale" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+      <input type="email" name="email" required placeholder="email to get notified at launch" autocomplete="email">
+      <input type="text" data-wt-hp name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0">
+      <button class="btn" type="submit">Join</button>
+      <p data-wt-msg class="muted" hidden style="width:100%;margin:6px 0 0"></p>
     </form>
+    <a class="btn ghost" data-wt-buy hidden style="margin-top:12px" rel="noopener">Go to mint →</a>
+    <a data-wt-contact hidden style="display:block;margin-top:12px;font-size:14px">Ask the team a question →</a>
   </div>
 </div></section>
 
@@ -335,55 +354,16 @@ input{background:var(--panel2);border:1px solid var(--line);color:var(--text);pa
 </div></section>
 
 <footer><div class="wrap">
+  <p><span id="data-check" class="badge" style="margin-bottom:14px;display:inline-block"></span></p>
   <p><a href="../watchtower-site/en.html">Watchtower OS</a> · © 2026 Leo Games Studio · Watchtower Coin ($WTWR). This material is for information only and is not investment advice or an offer. The crypto-asset white paper is published before the sale starts. Figures are a plan and may change.</p>
 </div></footer>
 
-<script>
-const ALLOC = [
-  ['Presale · round 1', 6, '#37e5a0', '10% at TGE, 1-month cliff, 9 months linear'],
-  ['Presale · round 2', 2.5, '#7af0c2', '15% at TGE, 6 months linear'],
-  ['DEX liquidity', 4, '#5cc8ff', 'pool locked for 12 months'],
-  ['CapsStake airdrop (GutterCaps)', 10, '#ffb85c', '4 seasons × 25M'],
-  ['Player rewards', 20, '#ffd89c', 'emitted over 4 years, decreasing'],
-  ['Development team', 15, '#a78bfa', '12-month lock, then 24 months linear'],
-  ['Builders fund', 8, '#c9b8ff', 'milestone grants, after acceptance'],
-  ['Treasury and Compute Grid', 19.5, '#8392a8', 'multisig, quarterly report'],
-  ['Launchpad and partners', 8, '#ff6b8a', 'per deal, locked'],
-  ['Marketing and community', 7, '#ff9db3', '12 months linear'],
-]
-const FUNDS = [
-  ['Development (salaries)', 125000, '4 games and the platform until mainnet, monthly'],
-  ['Compute Grid — hardware', 50000, 'GPU nodes, VR headsets, Seeker test devices'],
-  ['Security audits', 50000, 'game contracts, CapsStake and the NFT dividend contract'],
-  ['DEX liquidity', 37500, '$WTWR/USDC pair at the round 2 price'],
-  ['Marketing', 35000, 'TalkChart, KOLs, contests'],
-  ['Real data in Watchtower', 25000, 'adapters for 4 games, indexers, event stream'],
-  ['Legal and compliance', 15000, 'MiCA for the token, prospectus and Terms for the NFT'],
-  ['Operating reserve', 12500, 'infrastructure, contingencies'],
-]
-const HW = [
-  ['Analytics & AI GPU node', 18000, 'server with 2 RTX 5090-class GPUs: real-time AI analyst, content generation'],
-  ['Build & render node', 9000, 'game builds, trailer and TalkChart video rendering'],
-  ['VR development rig', 6000, 'Quest 3 and Vision Pro headsets for VR prototypes'],
-  ['Storage and backups', 5000, 'NAS + off-site copies of Watchtower events'],
-  ['Seeker test farm', 5000, '10 Solana Seeker phones: game and SKR flow tests'],
-  ['Network, UPS, hosting 12 mo', 7000, 'colocation and uninterruptible power'],
-]
-const fmt = (n) => n.toLocaleString('en-US')
-let acc = 0
-document.getElementById('donut').style.background = 'conic-gradient(' + ALLOC.map(([, p, c]) => { const s = acc; acc += p; return `${c} ${s}% ${acc}%` }).join(',') + ')'
-document.querySelector('#alloc tbody').innerHTML = ALLOC.map(([n, p, c, u]) =>
-  `<tr><td><span class="dot" style="background:${c}"></span>${n}</td><td class="num">${String(p)}</td><td class="num">${fmt(p * 1e7)}</td><td class="muted" style="font-size:13px">${u}</td></tr>`).join('')
-document.querySelector('#funds tbody').innerHTML = FUNDS.map(([n, p, w]) =>
-  `<tr><td><b>${n}</b></td><td class="num">${String(Math.round(p / 350) / 10).replace('.', '.')}</td><td class="num">$${fmt(p)}</td><td class="muted">${w}</td></tr>`).join('')
-document.getElementById('hw').innerHTML = HW.map(([n, usd, w]) =>
-  `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px"><h3>${n}</h3><span class="num">$${fmt(usd)}</span></div><p class="muted" style="font-size:14px">${w}</p><div class="bar"><i style="width:0%"></i></div><div class="muted mono" style="font-size:12px;margin-top:6px">raised $0 of $${fmt(usd)} · cost estimate</div></div>`).join('')
-// self-check: the page must never show figures that do not add up
-console.assert(ALLOC.reduce((s, a) => s + a[1], 0) === 100, 'allocation ≠ 100%')
-console.assert(FUNDS.reduce((s, a) => s + a[1], 0) === 350000, 'use of funds ≠ $350,000')
-console.assert(HW.reduce((s, a) => s + a[1], 0) === 50000, 'hardware ≠ $50,000')
-console.assert(100 * 1000 + 60e6 * 0.0025 + 25e6 * 0.004 === 350000, 'rounds ≠ $350,000')
-</script>
+<script src="../web-shared/wt-landing.js" defer></script>
+<script src="../web-shared/wt-params.js" defer></script>
+<!-- Figures are rendered from token-data.mjs — a single source for both languages;
+     the sum self-check is shown as the #data-check badge in the footer and enforced in CI (test:site). -->
+<script type="module" src="token-render.mjs"></script>
+<script src="../web-shared/wt-forms.js" defer></script>
 <script src="skin-2035.js" defer></script>
 </body>
 </html>
