@@ -91,6 +91,11 @@ background:radial-gradient(circle at 35% 30%,rgba(55,229,160,.35),rgba(10,14,24,
 .planet b{display:block;font-family:Unbounded;font-size:15px}.planet span{font:12px "JetBrains Mono";color:var(--dim)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
 .links li{margin:10px 0;color:var(--dim)}.links b{color:var(--ink)}
+/* продукт в фокусе — арт-рамка */
+.art{position:relative;border-radius:var(--r);border:1px solid var(--line);overflow:hidden;background:rgba(6,10,18,.72);box-shadow:0 40px 120px -40px rgba(255,184,92,.45)}
+.art img{display:block;width:100%;height:auto}
+.art .stage{z-index:2;top:16px;right:16px;background:rgba(4,6,11,.55);backdrop-filter:blur(6px)}
+.art-cap{position:absolute;left:0;right:0;bottom:0;padding:28px 18px 12px;font:12px "JetBrains Mono";color:var(--dim);background:linear-gradient(transparent,rgba(4,6,11,.92))}
 /* гарантии */
 .proof{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:44px}
 .proof div{padding:24px;border-radius:20px;border:1px solid var(--line);background:var(--glass)}
@@ -159,7 +164,7 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
 
 <header><nav class="island" aria-label="Навигация">
   <b><i></i>Watchtower OS</b>
-  <a class="l" href="#platform">Платформа</a><a class="l" href="#capabilities">Возможности</a><a class="l" href="#games">Игры</a><a class="l" href="#api">API</a><a class="l" href="#pricing">Цены</a><a class="l" href="#roadmap">2035</a>
+  <a class="l" href="#platform">Платформа</a><a class="l" href="#capabilities">Возможности</a><a class="l" href="#games">Игры</a><a class="l" href="#potato-ares-1">ARES-1</a><a class="l" href="#api">API</a><a class="l" href="#pricing">Цены</a><a class="l" href="#roadmap">2035</a>
   <button class="kbd" id="cmdk" aria-label="Палитра команд">⌘K</button>
   <a class="kbd" href="en.html" lang="en">EN</a>
   <a class="cta" href="../token-landing/index.html">$WTWR →</a>
@@ -277,8 +282,29 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
   </div>
 </div></section>
 
+<section id="potato-ares-1"><div class="wrap two">
+  <div class="art rv">
+    <span class="stage s-live">бета · $POTATO</span>
+    <img src="assets/potato-ares-1.jpg" alt="Картофель-астронавт машет у купола-теплицы с урожаем на Марсе" loading="lazy">
+    <div class="art-cap">ARES-1 · купол №1 · урожай растёт ончейн</div>
+  </div>
+  <div>
+    <div class="eyebrow rv">04 · Продукт студии</div>
+    <h2 class="rv">Potato Ares 1.<br><span class="grad">Ферма под куполами Марса.</span></h2>
+    <p class="lead rv">Ончейн-ферма на Solana: выращивай картофель под куполами Марса, прокачивай делянки до 50 уровня, торгуй урожаем на живой бирже и собирай нашивки за достижения.</p>
+    <ul class="links rv">
+      <li><b>Купола и делянки:</b> теплицы на красной почве, прокачка делянок до 50 уровня.</li>
+      <li><b>Живая биржа:</b> урожай торгуется прямо в сети — ордера и сделки живут в контракте.</li>
+      <li><b>Нашивки:</b> достижения клеймятся ончейн и складываются в Паспорт Watchtower.</li>
+      <li><b>Никакого офчейна:</b> поля, рынок и награды — в смарт-контрактах.</li>
+    </ul>
+    <p class="lead rv" style="margin-top:18px;font-size:16px">Собранный $POTATO становится семенами в Age of Farming — игры связаны экономикой.</p>
+    <div class="row rv"><a class="btn prime" href="#games">Место в экосистеме</a></div>
+  </div>
+</div></section>
+
 <section id="principles"><div class="wrap">
-  <div class="eyebrow rv">04 · Принципы</div>
+  <div class="eyebrow rv">05 · Принципы</div>
   <h2 class="rv">Доверие,<br>которое можно проверить.</h2>
   <div class="proof">
     <div class="rv"><b class="grad">0</b><span>ключей подписи в хабе — это проверяет тест</span></div>
@@ -290,7 +316,7 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
 
 <section id="api"><div class="wrap two">
   <div>
-    <div class="eyebrow rv">05 · Studio API · 2027</div>
+    <div class="eyebrow rv">06 · Studio API · 2027</div>
     <h2 class="rv">Ваша игра —<br>в той же системе.</h2>
     <p class="lead rv">Один контракт событий для любой игры на Solana. Подключили адаптер — и получили воронки, когорты, трафик и контроль. Оплата в USDC или в $WTWR со скидкой.</p>
   </div>
@@ -319,7 +345,7 @@ wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
 </div></section>
 
 <section id="pricing"><div class="wrap">
-  <div class="eyebrow rv">06 · Цены</div>
+  <div class="eyebrow rv">07 · Цены</div>
   <h2 class="rv">Платите за масштаб,<br>а не за доступ.</h2>
   <p class="lead rv">Тарифы Studio API откроются в 2027 году. Цифры ниже — ориентир, мы уточним их до запуска. Игры Leo Games уже работают на Watchtower.</p>
   <div class="plans">
@@ -337,7 +363,7 @@ wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
 </div></section>
 
 <section id="roadmap"><div class="wrap">
-  <div class="eyebrow rv">07 · Пути развития</div>
+  <div class="eyebrow rv">08 · Пути развития</div>
   <h2 class="rv">Четыре пути,<br>одна линия времени.</h2>
   <p class="lead rv">Развитие идёт параллельно по четырём направлениям. Статусы честные: «сегодня» — это то, что можно проверить в репозитории, остальное — план с датами.</p>
   <div class="tracks rv">
@@ -469,7 +495,7 @@ if (!reduce) document.querySelectorAll('.tile').forEach(t => {
 })
 
 // палитра команд ⌘K / Ctrl+K
-const CMDS = [['Платформа', '#platform'], ['Возможности платформы', '#capabilities'], ['Игры и экосистема', '#games'], ['Принципы', '#principles'], ['Studio API', '#api'], ['Лист ожидания Studio API', '#api-waitlist'], ['Цены', '#pricing'], ['Пути развития до 2035', '#roadmap'], ['Токен $WTWR', '../token-landing/index.html'], ['Token $WTWR (EN)', '../token-landing/en.html'], ['English site', 'en.html']]
+const CMDS = [['Платформа', '#platform'], ['Возможности платформы', '#capabilities'], ['Игры и экосистема', '#games'], ['Potato Ares 1 — ферма на Марсе', '#potato-ares-1'], ['Принципы', '#principles'], ['Studio API', '#api'], ['Лист ожидания Studio API', '#api-waitlist'], ['Цены', '#pricing'], ['Пути развития до 2035', '#roadmap'], ['Токен $WTWR', '../token-landing/index.html'], ['Token $WTWR (EN)', '../token-landing/en.html'], ['English site', 'en.html']]
 const pal = document.getElementById('pal'), q = document.getElementById('q'), res = document.getElementById('res')
 let sel = 0
 function render() {

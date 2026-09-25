@@ -91,6 +91,11 @@ background:radial-gradient(circle at 35% 30%,rgba(55,229,160,.35),rgba(10,14,24,
 .planet b{display:block;font-family:Unbounded;font-size:15px}.planet span{font:12px "JetBrains Mono";color:var(--dim)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
 .links li{margin:10px 0;color:var(--dim)}.links b{color:var(--ink)}
+/* product spotlight — art frame */
+.art{position:relative;border-radius:var(--r);border:1px solid var(--line);overflow:hidden;background:rgba(6,10,18,.72);box-shadow:0 40px 120px -40px rgba(255,184,92,.45)}
+.art img{display:block;width:100%;height:auto}
+.art .stage{z-index:2;top:16px;right:16px;background:rgba(4,6,11,.55);backdrop-filter:blur(6px)}
+.art-cap{position:absolute;left:0;right:0;bottom:0;padding:28px 18px 12px;font:12px "JetBrains Mono";color:var(--dim);background:linear-gradient(transparent,rgba(4,6,11,.92))}
 /* guarantees */
 .proof{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:44px}
 .proof div{padding:24px;border-radius:20px;border:1px solid var(--line);background:var(--glass)}
@@ -159,7 +164,7 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
 
 <header><nav class="island" aria-label="Navigation">
   <b><i></i>Watchtower OS</b>
-  <a class="l" href="#platform">Platform</a><a class="l" href="#capabilities">Capabilities</a><a class="l" href="#games">Games</a><a class="l" href="#api">API</a><a class="l" href="#pricing">Pricing</a><a class="l" href="#roadmap">2035</a>
+  <a class="l" href="#platform">Platform</a><a class="l" href="#capabilities">Capabilities</a><a class="l" href="#games">Games</a><a class="l" href="#potato-ares-1">ARES-1</a><a class="l" href="#api">API</a><a class="l" href="#pricing">Pricing</a><a class="l" href="#roadmap">2035</a>
   <button class="kbd" id="cmdk" aria-label="Command palette">⌘K</button>
   <a class="kbd" href="index.html" lang="ru">RU</a>
   <a class="cta" href="../token-landing/en.html">$WTWR →</a>
@@ -277,8 +282,29 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
   </div>
 </div></section>
 
+<section id="potato-ares-1"><div class="wrap two">
+  <div class="art rv">
+    <span class="stage s-live">beta · $POTATO</span>
+    <img src="assets/potato-ares-1.jpg" alt="Potato astronaut waving by a greenhouse dome full of harvest on Mars" loading="lazy">
+    <div class="art-cap">ARES-1 · dome 1 · the harvest grows on-chain</div>
+  </div>
+  <div>
+    <div class="eyebrow rv">04 · Studio product</div>
+    <h2 class="rv">Potato Ares 1.<br><span class="grad">A farm under the domes of Mars.</span></h2>
+    <p class="lead rv">An on-chain farm on Solana: grow potatoes under the domes of Mars, upgrade plots to level 50, trade the harvest on a live market and collect patches for achievements.</p>
+    <ul class="links rv">
+      <li><b>Domes & plots:</b> greenhouses on red soil, plots upgradeable to level 50.</li>
+      <li><b>Live market:</b> the harvest trades right on-chain — orders and fills live in the contract.</li>
+      <li><b>Patches:</b> achievements are claimed on-chain and count toward the Watchtower Passport.</li>
+      <li><b>Nothing off-chain:</b> fields, market and rewards all live in smart contracts.</li>
+    </ul>
+    <p class="lead rv" style="margin-top:18px;font-size:16px">Harvested $POTATO becomes seeds in Age of Farming — the games share one economy.</p>
+    <div class="row rv"><a class="btn prime" href="#games">Place in the ecosystem</a></div>
+  </div>
+</div></section>
+
 <section id="principles"><div class="wrap">
-  <div class="eyebrow rv">04 · Principles</div>
+  <div class="eyebrow rv">05 · Principles</div>
   <h2 class="rv">Trust<br>you can verify.</h2>
   <div class="proof">
     <div class="rv"><b class="grad">0</b><span>signing keys in the hub — enforced by a test</span></div>
@@ -290,7 +316,7 @@ dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
 
 <section id="api"><div class="wrap two">
   <div>
-    <div class="eyebrow rv">05 · Studio API · 2027</div>
+    <div class="eyebrow rv">06 · Studio API · 2027</div>
     <h2 class="rv">Your game —<br>in the same system.</h2>
     <p class="lead rv">One event contract for any Solana game. Plug in an adapter and get funnels, cohorts, traffic and control. Pay in USDC, or in $WTWR at a discount.</p>
   </div>
@@ -319,7 +345,7 @@ wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
 </div></section>
 
 <section id="pricing"><div class="wrap">
-  <div class="eyebrow rv">06 · Pricing</div>
+  <div class="eyebrow rv">07 · Pricing</div>
   <h2 class="rv">Pay for scale,<br>not for access.</h2>
   <p class="lead rv">Studio API plans open in 2027. The figures below are guidance and will be finalised before launch. Leo Games titles already run on Watchtower.</p>
   <div class="plans">
@@ -337,7 +363,7 @@ wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
 </div></section>
 
 <section id="roadmap"><div class="wrap">
-  <div class="eyebrow rv">07 · Development paths</div>
+  <div class="eyebrow rv">08 · Development paths</div>
   <h2 class="rv">Four paths,<br>one timeline.</h2>
   <p class="lead rv">Development moves along four tracks at once. Statuses are honest: “today” is verifiable in the repository, the rest is a plan with dates.</p>
   <div class="tracks rv">
@@ -469,7 +495,7 @@ if (!reduce) document.querySelectorAll('.tile').forEach(t => {
 })
 
 // command palette ⌘K / Ctrl+K
-const CMDS = [['Platform', '#platform'], ['Platform capabilities', '#capabilities'], ['Games & ecosystem', '#games'], ['Principles', '#principles'], ['Studio API', '#api'], ['Studio API waitlist', '#api-waitlist'], ['Pricing', '#pricing'], ['Development paths to 2035', '#roadmap'], ['$WTWR token', '../token-landing/en.html'], ['Токен $WTWR (RU)', '../token-landing/index.html'], ['Русская версия сайта', 'index.html']]
+const CMDS = [['Platform', '#platform'], ['Platform capabilities', '#capabilities'], ['Games & ecosystem', '#games'], ['Potato Ares 1 — farm on Mars', '#potato-ares-1'], ['Principles', '#principles'], ['Studio API', '#api'], ['Studio API waitlist', '#api-waitlist'], ['Pricing', '#pricing'], ['Development paths to 2035', '#roadmap'], ['$WTWR token', '../token-landing/en.html'], ['Токен $WTWR (RU)', '../token-landing/index.html'], ['Русская версия сайта', 'index.html']]
 const pal = document.getElementById('pal'), q = document.getElementById('q'), res = document.getElementById('res')
 let sel = 0
 function render() {
