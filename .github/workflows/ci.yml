@@ -39,6 +39,8 @@ jobs:
         run: npm run test:docs
       - name: DOM-проверка интерфейса (jsdom)
         run: npm run test:ui
+      - name: Согласованность сайта и лендинга
+        run: npm run test:site
       - name: Smoke-тест на живом сервере
         env:
           # Без токенов write-маршруты отдают 503, и смоук проверял бы не то поведение.

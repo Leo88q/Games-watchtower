@@ -72,6 +72,9 @@ Games Watchtower знает об off-chain приложении **TalkChart Traf
 - Кампании: `talkchart_seo, talkchart_social_x, talkchart_video_reels, talkchart_interactive_radar, tiplink_welcome_drop`
 - Источники: `x_twitter, perplexity_ai, chatgpt_search, google_search, short_video, tiplink_referral, direct_web, factory_pipeline` (bot)
 - Страницы: `target_terminal, target_sixsec` (SixSec), `target_duel` (CandleDuel), `target_crash` (MemeCrash), `target_quest` (WhaleQuest), `target_tiplink_claim`
+- Целевые страницы студии (2026-09-24): публичные площадки также помечены трекером —
+  `target_wtos_ru/en` (сайт Watchtower OS) и `target_wtwr_ru/en` (лендинг $WTWR), см. `WEBSITES.md`;
+  приём включается параметром `TRAFFICGEN_URL` в `web-shared/wt-params.js`
 
 ## Что уже есть в Watchtower — ОБНОВЛЕНО
 

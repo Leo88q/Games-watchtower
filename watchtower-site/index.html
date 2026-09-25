@@ -7,6 +7,14 @@
 <meta name="theme-color" content="#04060b">
 <title>Watchtower OS — операционная система для Web3-игр</title>
 <meta name="description" content="Watchtower OS: аналитика, трафик, контроль и запуск игр на Solana в одной системе. Хаб только читает блокчейн и не может подписать транзакцию.">
+<meta property="og:title" content="Watchtower OS — операционная система для Web3-игр">
+<meta property="og:description" content="Аналитика, трафик, контроль и запуск игр на Solana в одной системе. 4 игры · 1 OS · 0 скрытых цифр.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="../web-shared/og-watchtower.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="wt-page" content="target_wtos_ru">
+<link rel="alternate" hreflang="en" href="en.html">
+<link rel="icon" type="image/svg+xml" href="../web-shared/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Inter+Tight:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -110,6 +118,15 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .plan ul{list-style:none;padding:0;margin:22px 0 28px;flex:1}.plan li{padding:8px 0;border-top:1px solid var(--line);color:var(--dim);font-size:15.5px}.plan li::before{content:"✓  ";color:var(--c1)}
 .plan .btn{text-align:center}
 .note{margin-top:22px;color:var(--dim);font-size:14.5px}
+/* лист ожидания Studio API */
+.wl{margin-top:44px;padding:36px;border-radius:var(--r);border:1px solid rgba(92,200,255,.32);background:var(--glass);backdrop-filter:blur(12px)}
+.wl h3{font-size:clamp(22px,3vw,30px)}
+.wl p{color:var(--dim);max-width:560px}
+.wl form{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+.wl input{flex:1;min-width:240px;padding:14px 18px;border-radius:14px;border:1px solid var(--line);background:rgba(6,10,18,.7);color:var(--ink);font:16px "Inter Tight";outline:none}
+.wl input:focus{border-color:var(--c2)}
+.wl .msg{width:100%;margin:4px 0 0;color:var(--dim);font-size:14px}
+.wl .hp{position:absolute;left:-9999px;opacity:0}
 @media (max-width:900px){.plans{grid-template-columns:1fr}}
 /* палитра команд */
 dialog{border:1px solid var(--line);border-radius:22px;background:rgba(10,14,24,.92);backdrop-filter:blur(20px);color:var(--ink);width:min(560px,92vw);padding:0}
@@ -217,6 +234,19 @@ wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
 
 <span class="k">const</span> f = <span class="k">await</span> wt.funnel([<span class="s">'landing'</span>, <span class="s">'wallet'</span>, <span class="s">'first_match'</span>])
 <span class="c">// → { steps: [...], quality: 'complete' }</span></pre>
+</div>
+<div class="wrap">
+  <div class="wl rv" id="api-waitlist">
+    <h3>Лист ожидания Studio API</h3>
+    <p>Оставьте почту — сообщим о старте публичного доступа и финальных тарифах. Одно письмо перед открытием, никакой рассылки.</p>
+    <form data-wt-waitlist="studio-api">
+      <input type="email" name="email" required placeholder="рабочая почта" autocomplete="email" aria-label="рабочая почта">
+      <input type="text" class="hp" data-wt-hp name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn prime" type="submit">Записаться</button>
+      <p class="msg" data-wt-msg hidden></p>
+    </form>
+    <a data-wt-contact hidden style="display:inline-block;margin-top:14px;font-size:14.5px">Задать вопрос команде →</a>
+  </div>
 </div></section>
 
 <section id="pricing"><div class="wrap">
@@ -226,10 +256,10 @@ wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
   <div class="plans">
     <article class="plan rv"><h3>Indie</h3><div class="price">$0<small> / мес</small></div><span class="mono" style="color:var(--dim);font-size:13px">для первой игры</span>
       <ul><li>1 игра</li><li>до 1 млн событий в месяц</li><li>история 30 дней</li><li>воронки и пометки качества данных</li><li>контроль только на чтение</li></ul>
-      <a class="btn" href="#api">Лист ожидания API</a></article>
+      <a class="btn" href="#api-waitlist">Лист ожидания API</a></article>
     <article class="plan hot rv"><span class="tag">ОСНОВНОЙ</span><h3>Studio</h3><div class="price">$299<small> / мес</small></div><span class="mono" style="color:var(--dim);font-size:13px">ориентир · скидка при оплате в $WTWR</span>
       <ul><li>до 5 игр, кросс-игровые сегменты</li><li>до 50 млн событий в месяц</li><li>история 12 месяцев</li><li>контроль: 2 подписи + 2FA, журнал аудита</li><li>кампании TalkChart с подтверждением переходов</li></ul>
-      <a class="btn prime" href="#api">Хочу Studio</a></article>
+      <a class="btn prime" href="#api-waitlist">Хочу Studio</a></article>
     <article class="plan rv"><h3>Launchpad</h3><div class="price">3–5%<small> от сбора</small></div><span class="mono" style="color:var(--dim);font-size:13px">2027 · приоритет стейкерам $WTWR</span>
       <ul><li>всё из Studio на время запуска</li><li>аудит-чеклист и защита контрактов</li><li>трафик на старте через TalkChart</li><li>сбор в $WTWR и витрина в экосистеме</li><li>ресурсы Compute Grid для ИИ и рендера</li></ul>
       <a class="btn" href="../token-landing/index.html">Условия $WTWR</a></article>
@@ -353,5 +383,8 @@ q.onkeydown = e => { const n = res.children.length
   if (e.key === 'Enter') { const a = res.querySelectorAll('a')[sel]; if (a) { pal.close(); a.click() } } }
 res.onclick = e => { if (e.target.closest('a')) pal.close() }
 </script>
+<script src="../web-shared/wt-landing.js" defer></script>
+<script src="../web-shared/wt-params.js" defer></script>
+<script src="../web-shared/wt-forms.js" defer></script>
 </body>
 </html>

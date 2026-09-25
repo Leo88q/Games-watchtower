@@ -7,7 +7,13 @@
 <meta name="description" content="$WTWR — токен платформы Watchtower: аналитика, трафик и управление Web3-играми. Сбор: цель $350 000 — пресейл $WTWR $250 000 и NFT Ecosystem Share $100 000. Токеномика, стейкинг в GutterCaps, железо Compute Grid, дорожная карта до VR.">
 <meta property="og:title" content="Watchtower Coin ($WTWR)">
 <meta property="og:description" content="Одна монета — вся экосистема: 4 игры, аналитика, трафик, путь в VR. Сбор $350 000.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="../web-shared/og-wtwr.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#04060b">
+<meta name="wt-page" content="target_wtwr_ru">
 <link rel="alternate" hreflang="en" href="en.html">
+<link rel="icon" type="image/svg+xml" href="../web-shared/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -227,7 +233,15 @@ input{background:var(--panel2);border:1px solid var(--line);color:var(--text);pa
       <tr><td class="muted">Бонус</td><td class="num">read-only доступ к инвестор-дашборду Watchtower</td></tr>
     </tbody></table>
     <p class="muted" style="font-size:14px;margin:12px 0 0">Квартал без прибыли — выплата 0. Пример, а не обещание: при прибыли $200 000 в год на один NFT приходится $500 в год. Пул NFT идёт из прибыли до выкупа $WTWR, поэтому держатели токена и NFT получают доход из одного источника, не конкурируя за эмиссию.</p>
+    <div style="overflow-x:auto;margin-top:16px">
+      <table id="dividends">
+        <thead><tr><th class="num">Чистая прибыль/год</th><th class="num">Пул 25%</th><th class="num">На NFT в год</th><th class="num">На NFT в квартал</th><th class="num">% от цены $1 000/год</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="muted" style="font-size:13px;margin:8px 0 0">Три сценария — иллюстрация, не обещание дохода. Все входные данные (выручка и расходы) публикуются в квартальном отчёте, чтобы любой держатель пересчитал выплату сам.</p>
+    </div>
     <div class="warn" style="margin-top:12px">Право на долю прибыли юридически — ценная бумага. Продажа откроется только после заключения юриста и публикации отдельных Terms и документа по правилам о проспекте эмиссии (MiCA на неё не распространяется).</div>
+    <p style="margin:12px 0 0"><a data-wt-terms hidden>Правила доли прибыли (Terms раунда 0) →</a></p>
   </div>
 
   <h3 style="margin-top:44px">На что пойдут $350 000 (все три раунда)</h3>
@@ -236,11 +250,15 @@ input{background:var(--panel2);border:1px solid var(--line);color:var(--text);pa
 
   <div class="card" id="waitlist" style="margin-top:22px">
     <h3>Вайтлист раунда 1</h3>
-    <p class="muted">Адрес для участия публикуется только здесь и в официальных каналах. Никто из команды не пишет первым в личку.</p>
-    <form onsubmit="event.preventDefault();this.querySelector('p').hidden=false" style="display:flex;gap:10px;flex-wrap:wrap">
-      <input type="email" required placeholder="email для уведомления о старте"><button class="btn">Записаться</button>
-      <p class="muted" hidden style="width:100%;margin:6px 0 0">Форма в демо-режиме: отправка подключится перед стартом раунда.</p>
+    <p class="muted">Адрес для участия публикуется только здесь и в официальных каналах. Никто из команды не пишет первым в личку. Одно письмо перед стартом — никакой рассылки.</p>
+    <form data-wt-waitlist="token-presale" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+      <input type="email" name="email" required placeholder="email для уведомления о старте" autocomplete="email">
+      <input type="text" data-wt-hp name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0">
+      <button class="btn" type="submit">Записаться</button>
+      <p data-wt-msg class="muted" hidden style="width:100%;margin:6px 0 0"></p>
     </form>
+    <a class="btn ghost" data-wt-buy hidden style="margin-top:12px" rel="noopener">К покупке (mint) →</a>
+    <a data-wt-contact hidden style="display:block;margin-top:12px;font-size:14px">Задать вопрос команде →</a>
   </div>
 </div></section>
 
@@ -336,55 +354,16 @@ input{background:var(--panel2);border:1px solid var(--line);color:var(--text);pa
 </div></section>
 
 <footer><div class="wrap">
+  <p><span id="data-check" class="badge" style="margin-bottom:14px;display:inline-block"></span></p>
   <p><a href="../watchtower-site/index.html">Watchtower OS</a> · © 2026 Leo Games Studio · Watchtower Coin ($WTWR). Материал носит информационный характер и не является инвестиционной рекомендацией или офертой. Документ о криптоактиве (white paper) публикуется до начала продажи. Цифры — план и могут меняться.</p>
 </div></footer>
 
-<script>
-const ALLOC = [
-  ['Пресейл · раунд 1', 6, '#37e5a0', '10% сразу, 1 мес. пауза, 9 мес. равномерно'],
-  ['Пресейл · раунд 2', 2.5, '#7af0c2', '15% сразу, 6 мес. равномерно'],
-  ['Ликвидность DEX', 4, '#5cc8ff', 'пул заблокирован на 12 мес.'],
-  ['Airdrop CapsStake (GutterCaps)', 10, '#ffb85c', '4 сезона по 25 млн'],
-  ['Награды игрокам', 20, '#ffd89c', 'эмиссия на 4 года, по убывающей'],
-  ['Команда разработчиков', 15, '#a78bfa', '12 мес. лок, затем 24 мес. равномерно'],
-  ['Фонд билдеров', 8, '#c9b8ff', 'гранты за этапы, после приёмки'],
-  ['Казна и Compute Grid', 19.5, '#8392a8', 'мультиподпись, отчёт раз в квартал'],
-  ['Launchpad и партнёры', 8, '#ff6b8a', 'по сделкам, с локом'],
-  ['Маркетинг и сообщество', 7, '#ff9db3', '12 мес. равномерно'],
-]
-const FUNDS = [
-  ['Разработка (зарплаты)', 125000, '4 игры и платформа до mainnet, помесячно'],
-  ['Compute Grid — железо', 50000, 'GPU-узлы, VR-шлемы, тестовые Seeker-устройства'],
-  ['Аудиты безопасности', 50000, 'контракты игр, CapsStake и дивидендный контракт NFT'],
-  ['Ликвидность DEX', 37500, 'пара $WTWR/USDC по цене раунда 2'],
-  ['Маркетинг', 35000, 'TalkChart, KOL, конкурсы'],
-  ['Реальные данные в Watchtower', 25000, 'адаптеры 4 игр, индексаторы, поток событий'],
-  ['Юристы и комплаенс', 15000, 'MiCA для токена, проспект и Terms для NFT'],
-  ['Операционный резерв', 12500, 'инфраструктура, непредвиденное'],
-]
-const HW = [
-  ['GPU-узел аналитики и ИИ', 18000, 'сервер с 2 GPU класса RTX 5090: ИИ-аналитик в реальном времени, генерация контента'],
-  ['Узел сборки и рендера', 9000, 'сборки игр, рендер трейлеров и видео TalkChart'],
-  ['VR-стенд разработки', 6000, 'шлемы Quest 3 и Vision Pro для прототипов VR'],
-  ['Хранилище и бэкапы', 5000, 'NAS + внешние копии событий Watchtower'],
-  ['Тестовая ферма Seeker', 5000, '10 телефонов Solana Seeker: тесты игр и SKR-сценариев'],
-  ['Сеть, ИБП, размещение 12 мес.', 7000, 'колокация и бесперебойное питание'],
-]
-const fmt = (n) => n.toLocaleString('ru-RU')
-let acc = 0
-document.getElementById('donut').style.background = 'conic-gradient(' + ALLOC.map(([, p, c]) => { const s = acc; acc += p; return `${c} ${s}% ${acc}%` }).join(',') + ')'
-document.querySelector('#alloc tbody').innerHTML = ALLOC.map(([n, p, c, u]) =>
-  `<tr><td><span class="dot" style="background:${c}"></span>${n}</td><td class="num">${String(p).replace('.', ',')}</td><td class="num">${fmt(p * 1e7)}</td><td class="muted" style="font-size:13px">${u}</td></tr>`).join('')
-document.querySelector('#funds tbody').innerHTML = FUNDS.map(([n, p, w]) =>
-  `<tr><td><b>${n}</b></td><td class="num">${String(Math.round(p / 350) / 10).replace('.', ',')}</td><td class="num">$${fmt(p)}</td><td class="muted">${w}</td></tr>`).join('')
-document.getElementById('hw').innerHTML = HW.map(([n, usd, w]) =>
-  `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px"><h3>${n}</h3><span class="num">$${fmt(usd)}</span></div><p class="muted" style="font-size:14px">${w}</p><div class="bar"><i style="width:0%"></i></div><div class="muted mono" style="font-size:12px;margin-top:6px">собрано $0 из $${fmt(usd)} · оценка стоимости</div></div>`).join('')
-// самопроверка сумм: страница не должна показывать несходящиеся цифры
-console.assert(ALLOC.reduce((s, a) => s + a[1], 0) === 100, 'аллокация ≠ 100%')
-console.assert(FUNDS.reduce((s, a) => s + a[1], 0) === 350000, 'статьи сбора ≠ $350 000')
-console.assert(HW.reduce((s, a) => s + a[1], 0) === 50000, 'железо ≠ $50 000')
-console.assert(100 * 1000 + 60e6 * 0.0025 + 25e6 * 0.004 === 350000, 'раунды ≠ $350 000')
-</script>
+<script src="../web-shared/wt-landing.js" defer></script>
+<script src="../web-shared/wt-params.js" defer></script>
+<!-- Числа рендерятся из token-data.mjs — единый источник для RU и EN версий;
+     самопроверка сумм выводится плашкой #data-check в подвале и проверяется в CI (test:site). -->
+<script type="module" src="token-render.mjs"></script>
+<script src="../web-shared/wt-forms.js" defer></script>
 <script src="skin-2035.js" defer></script>
 </body>
 </html>

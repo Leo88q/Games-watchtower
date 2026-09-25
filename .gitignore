@@ -6,3 +6,4 @@ dist/
 dist-ui-smoke/
 # Отчёты прогонов prod-release.mjs (артефакт, не источник).
 reports/prod-release-*.md
+__pycache__/
