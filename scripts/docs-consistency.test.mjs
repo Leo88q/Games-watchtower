@@ -135,11 +135,11 @@ test('Dockerfile и .dockerignore согласованы с требования
 
 test('CI запускает те же проверки, что и локальный скрипт', () => {
   const workflow = read('.github/workflows/ci.yml')
-  for (const step of ['npm run test:unit', 'npm run test:hardening', 'npm run test:privacy', 'npm run test:readonly', 'npm run build']) {
+  for (const step of ['npm run test:unit', 'npm run test:hardening', 'npm run test:privacy', 'npm run test:readonly', 'npm run test:source-safety', 'npm run build']) {
     assert.ok(workflow.includes(step), `CI не запускает ${step}`)
   }
   const pkg = JSON.parse(read('package.json'))
-  for (const script of ['test:unit', 'test:hardening', 'test:privacy', 'test:readonly', 'test:mutation', 'verify']) {
+  for (const script of ['test:unit', 'test:hardening', 'test:privacy', 'test:readonly', 'test:source-safety', 'test:mutation', 'verify']) {
     assert.ok(pkg.scripts[script], `package.json не содержит скрипт ${script}`)
   }
 })
@@ -212,6 +212,22 @@ test('Dockerfile копирует всё, что нужно сборке и се
   // 3. Промпты — часть продукта (раздел «Промпты» в интерфейсе), их нельзя выбрасывать из образа.
   assert.ok(dockerfile.includes('COPY prompts ./prompts'), 'промпты должны попадать в образ')
   assert.ok(!read('.dockerignore').split('\n').includes('prompts'), '.dockerignore не должен исключать prompts')
+})
+
+test('Anchor security specs retain critical guard markers and stay explicitly unverified', () => {
+  const inventory = read('server/contracts/cross_game_inventory/lib.rs')
+  for (const marker of ['seeds =', 'has_one = owner', 'PROFILE_VERSION', 'validate_label', 'DuplicateItem', 'UsedGameLimit', 'profile_space()']) {
+    assert.ok(inventory.includes(marker), `cross_game_inventory lost guard marker: ${marker}`)
+  }
+  const session = read('server/contracts/session_keys/lib.rs')
+  for (const marker of ['session_key: Signer', 'allowed_instruction_discriminators', 'load_current_index_checked', 'load_instruction_at_checked', 'session.target_program', 'MAX_ALLOWED_INSTRUCTIONS']) {
+    assert.ok(session.includes(marker), `session_keys lost guard marker: ${marker}`)
+  }
+  const treasury = read('server/contracts/studio_treasury/lib.rs')
+  for (const marker of ['MIN_TIMELOCK_SECONDS', 'minimum_balance', 'try_borrow_mut_lamports', 'checked_add(amount)', 'SystemAccount']) {
+    assert.ok(treasury.includes(marker), `studio_treasury lost guard marker: ${marker}`)
+  }
+  assert.ok(read('server/contracts/README.md').includes('не считаются скомпилированной защитой'), 'contract spec must remain marked as unverified until Rust/Anchor CI runs')
 })
 
 test('CI: файл workflow корректен (экранирование и обязательные шаги)', () => {

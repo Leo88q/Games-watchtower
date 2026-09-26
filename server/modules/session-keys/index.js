@@ -1,156 +1,207 @@
 /**
- * Session Keys — временные ключи как JWT для Web3
- * API: createSession(targetProgramPublicKey, topUp, expiryInMinutes)
- *      signAndSendTransaction
+ * Session Keys — локальная модель для UI/API Watchtower, НЕ кошелёк и НЕ signing service.
+ * Приватные ключи никогда не создаются и не хранятся здесь. Все ответы явно simulated.
  *
- * Интеграция: доступна в Solana Unity SDK из коробки, поддерживает пользовательские программы
- * Риски ограничены: только временный keypair + 0.01 SOL
+ * Защитные свойства:
+ *  - bearer-секрет генерируется CSPRNG, в памяти хранится только SHA-256 отпечаток;
+ *  - секрет выдаётся только в ответе на create и никогда не возвращается list/get;
+ *  - исключены lookup по bearer в URL, чтобы не утекать в access logs/referrer;
+ *  - scope закрытый: нужны точные targetProgram + allowlisted instruction;
+ *  - предел сессий и чистка expired/revoked записей снижают риск memory DoS.
  */
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { anonymizeIdentifier } from '../../security/pii.js'
 
-export const SESSION_KEYS_CONFIG = {
-  defaultTopUpLamports: 10_000_000, // 0.01 SOL
+export const SESSION_KEYS_CONFIG = Object.freeze({
+  defaultTopUpLamports: 10_000_000,
   defaultExpiryMinutes: 60,
-  maxExpiryMinutes: 24 * 60, // 24h
+  maxExpiryMinutes: 24 * 60,
   minExpiryMinutes: 5,
-  maxTopUpLamports: 100_000_000, // 0.1 SOL max
+  maxTopUpLamports: 100_000_000,
+  maxSessions: 10_000,
+  maxTransactionBytes: 64 * 1024,
+})
+
+const sessions = new Map() // sessionId -> public session record
+const tokenIndex = new Map() // sha256(bearer) -> sessionId; bearer itself is never retained
+
+function tokenDigest(token) {
+  return createHash('sha256').update(String(token)).digest('hex')
 }
 
-const sessions = new Map() // sessionToken -> session
+function safeEqual(a, b) {
+  const left = Buffer.from(String(a))
+  const right = Buffer.from(String(b))
+  return left.length === right.length && timingSafeEqual(left, right)
+}
+
+function cleanExpired(now = Date.now()) {
+  for (const [sessionId, session] of sessions) {
+    if (session.status !== 'active' || Date.parse(session.expiresAt) <= now) {
+      sessions.delete(sessionId)
+      if (session.tokenDigest) tokenIndex.delete(session.tokenDigest)
+    }
+  }
+}
+
+function publicSession(session) {
+  if (!session) return null
+  const { tokenDigest: _tokenDigest, ...safe } = session
+  return safe
+}
 
 export function createSession({ targetProgramPublicKey, topUpLamports, expiryInMinutes, walletAddress, gameId } = {}) {
-  if (!targetProgramPublicKey) throw new Error('targetProgramPublicKey required')
-  if (!walletAddress) throw new Error('walletAddress required')
+  if (typeof targetProgramPublicKey !== 'string' || !targetProgramPublicKey.trim() || targetProgramPublicKey.length > 64) {
+    throw new Error('targetProgramPublicKey must be a non-empty public-key string')
+  }
+  if (typeof walletAddress !== 'string' || !walletAddress.trim() || walletAddress.length > 128) {
+    throw new Error('walletAddress must be a non-empty identifier')
+  }
+  const topUp = topUpLamports === undefined ? SESSION_KEYS_CONFIG.defaultTopUpLamports : topUpLamports
+  const expiry = expiryInMinutes === undefined ? SESSION_KEYS_CONFIG.defaultExpiryMinutes : expiryInMinutes
+  if (!Number.isSafeInteger(topUp) || topUp < 1_000_000 || topUp > SESSION_KEYS_CONFIG.maxTopUpLamports) {
+    throw new Error(`topUpLamports must be an integer in [1000000, ${SESSION_KEYS_CONFIG.maxTopUpLamports}]`)
+  }
+  if (!Number.isSafeInteger(expiry) || expiry < SESSION_KEYS_CONFIG.minExpiryMinutes || expiry > SESSION_KEYS_CONFIG.maxExpiryMinutes) {
+    throw new Error(`expiryInMinutes must be an integer in [${SESSION_KEYS_CONFIG.minExpiryMinutes}, ${SESSION_KEYS_CONFIG.maxExpiryMinutes}]`)
+  }
+  if (gameId !== undefined && (typeof gameId !== 'string' || gameId.length > 64)) throw new Error('gameId is invalid')
 
-  const topUp = Math.min(
-    Math.max(topUpLamports || SESSION_KEYS_CONFIG.defaultTopUpLamports, 1_000_000),
-    SESSION_KEYS_CONFIG.maxTopUpLamports
-  )
-  const expiry = Math.min(
-    Math.max(expiryInMinutes || SESSION_KEYS_CONFIG.defaultExpiryMinutes, SESSION_KEYS_CONFIG.minExpiryMinutes),
-    SESSION_KEYS_CONFIG.maxExpiryMinutes
-  )
+  cleanExpired()
+  if (sessions.size >= SESSION_KEYS_CONFIG.maxSessions) throw new Error('session_capacity_reached')
 
-  // Генерируется временная пара ключей на клиенте, здесь только токен-модель (server never sees private key)
+  // High-entropy capability, returned once to the caller. Only its hash is stored server-side.
+  const sessionToken = randomBytes(32).toString('base64url')
+  const digest = tokenDigest(sessionToken)
   const sessionId = randomUUID()
-  const temporaryPublicKey = `sess_${sessionId.slice(0, 8)}_${Date.now().toString(36)}` // placeholder, client generates real keypair
   const now = Date.now()
-  const expiresAt = new Date(now + expiry * 60 * 1000).toISOString()
-
   const session = {
     sessionId,
-    sessionToken: `sess_tok_${Buffer.from(`${walletAddress}:${sessionId}:${now}`).toString('base64url')}`,
-    walletAddress,
-    temporaryPublicKey,
+    tokenDigest: digest,
+    walletAlias: anonymizeIdentifier(walletAddress),
+    // This is deliberately not a real Solana key; the client must generate the actual keypair.
+    temporaryPublicKey: `simulated:${randomUUID()}`,
     targetProgram: targetProgramPublicKey,
     topUpLamports: topUp,
     topUpSol: topUp / 1_000_000_000,
     expiryInMinutes: expiry,
     createdAt: new Date(now).toISOString(),
-    expiresAt,
+    expiresAt: new Date(now + expiry * 60_000).toISOString(),
     gameId: gameId || 'unknown',
     status: 'active',
     scope: {
-      // Ограниченная область действия
       allowedPrograms: [targetProgramPublicKey],
-      maxLamportsPerTx: 1000000,
-      allowedInstructions: ['game_action', 'move', 'craft', 'harvest', 'play'], // no treasury withdraw
+      maxLamportsPerTx: 1_000_000,
+      allowedInstructions: ['game_action', 'move', 'craft', 'harvest', 'play'],
       deniedInstructions: ['withdraw_treasury', 'update_authority', 'mint_unlimited'],
     },
-    risk: {
-      maxLoss: `${topUp / 1_000_000_000} SOL`,
-      note: 'В худшем случае атака затрагивает только временный keypair и средства на нём',
-    },
-    writes: false, // Watchtower only tracks, client signs
+    writes: false,
+    simulated: true,
     dataQuality: 'partial',
   }
+  sessions.set(sessionId, session)
+  tokenIndex.set(digest, sessionId)
 
-  sessions.set(session.sessionToken, session)
+  // Do not persist this response or expose the token through list/get endpoints.
+  return { ...publicSession(session), sessionToken }
+}
+
+function sessionForToken(sessionToken) {
+  if (typeof sessionToken !== 'string' || sessionToken.length < 32 || sessionToken.length > 128) return null
+  const digest = tokenDigest(sessionToken)
+  const sessionId = tokenIndex.get(digest)
+  if (!sessionId) return null
+  const session = sessions.get(sessionId)
+  if (!session) return null
+  // Constant-time comparison protects against future changes to the index implementation.
+  if (!safeEqual(session.tokenDigest, digest)) return null
+  if (Date.parse(session.expiresAt) <= Date.now()) {
+    sessions.delete(sessionId)
+    tokenIndex.delete(digest)
+    return null
+  }
   return session
 }
 
-export function getSession(sessionToken) {
-  if (!sessionToken) return null
-  const s = sessions.get(sessionToken)
-  if (!s) return null
-  if (new Date(s.expiresAt).getTime() < Date.now()) {
-    s.status = 'expired'
-    return s
-  }
-  return s
+export function getSession(sessionId) {
+  if (typeof sessionId !== 'string') return null
+  cleanExpired()
+  return publicSession(sessions.get(sessionId))
 }
 
 export function revokeSession(sessionToken, { reason } = {}) {
-  const s = sessions.get(sessionToken)
-  if (!s) return { revoked: false, reason: 'not_found' }
-  s.status = 'revoked'
-  s.revokedAt = new Date().toISOString()
-  s.revokeReason = reason || 'user_request'
-  return { revoked: true, sessionId: s.sessionId }
+  const session = sessionForToken(sessionToken)
+  if (!session) return { revoked: false, reason: 'not_found_or_expired' }
+  session.status = 'revoked'
+  session.revokedAt = new Date().toISOString()
+  session.revokeReason = typeof reason === 'string' ? reason.slice(0, 120) : 'user_request'
+  tokenIndex.delete(session.tokenDigest)
+  return { revoked: true, sessionId: session.sessionId }
 }
 
 export function listSessions({ walletAddress, gameId, status } = {}) {
+  cleanExpired()
   let list = [...sessions.values()]
-  if (walletAddress) list = list.filter(s => s.walletAddress === walletAddress)
-  if (gameId) list = list.filter(s => s.gameId === gameId)
-  if (status) list = list.filter(s => s.status === status)
-  return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  if (walletAddress) {
+    const alias = anonymizeIdentifier(walletAddress)
+    list = list.filter((session) => session.walletAlias === alias)
+  }
+  if (gameId) list = list.filter((session) => session.gameId === gameId)
+  if (status) list = list.filter((session) => session.status === status)
+  return list.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).map(publicSession)
 }
 
 /**
- * ВНИМАНИЕ: это НЕ подпись и НЕ отправка транзакции. Функция возвращает модель решения
- * (scope/expiry/topup) для клиента; подпись выполняет SDK игры на стороне клиента.
- * Ответ всегда содержит simulated: true, чтобы вызывающая сторона не считала транзакцию отправленной.
+ * Policy-only simulation. This function does not parse, sign, submit, or echo transaction bytes.
+ * Actual authorization must be enforced on-chain by the target program, not by this mock API.
  */
-export function signAndSendTransaction({ sessionToken, transaction, targetProgram } = {}) {
-  // sessionKeys.signAndSendTransaction в Unity SDK подписывает транзакции, не раскрывая приватный ключ основного кошелька
-  const session = getSession(sessionToken)
-  if (!session) return { ok: false, error: 'session_not_found' }
-  if (session.status !== 'active') return { ok: false, error: `session_${session.status}` }
-  if (targetProgram && !session.scope.allowedPrograms.includes(targetProgram)) {
-    return { ok: false, error: 'program_not_allowed_in_session_scope' }
+export function signAndSendTransaction({ sessionToken, transaction, targetProgram, instruction, lamports = 0 } = {}) {
+  const session = sessionForToken(sessionToken)
+  if (!session) return { ok: false, simulated: true, blockchainWrite: false, error: 'session_not_found_or_expired' }
+  if (session.status !== 'active') return { ok: false, simulated: true, blockchainWrite: false, error: `session_${session.status}` }
+  if (targetProgram !== session.targetProgram) return { ok: false, simulated: true, blockchainWrite: false, error: 'program_not_allowed_in_session_scope' }
+  if (!session.scope.allowedInstructions.includes(instruction) || session.scope.deniedInstructions.includes(instruction)) {
+    return { ok: false, simulated: true, blockchainWrite: false, error: 'instruction_not_allowed_in_session_scope' }
+  }
+  if (!Number.isSafeInteger(lamports) || lamports < 0 || lamports > session.scope.maxLamportsPerTx) {
+    return { ok: false, simulated: true, blockchainWrite: false, error: 'transaction_amount_out_of_scope' }
+  }
+  if (transaction !== undefined) {
+    if (typeof transaction !== 'string' || transaction.length > SESSION_KEYS_CONFIG.maxTransactionBytes * 2) {
+      return { ok: false, simulated: true, blockchainWrite: false, error: 'transaction_payload_invalid' }
+    }
   }
 
   return {
     ok: true,
     simulated: true,
     blockchainWrite: false,
-    note: 'Хаб не подписывает и не отправляет транзакции: ответ описывает, что сделал бы клиентский SDK.',
+    note: 'Policy simulation only: Watchtower does not sign or send. The target on-chain program must enforce authorization.',
     sessionId: session.sessionId,
-    temporaryPublicKey: session.temporaryPublicKey,
-    walletAddress: session.walletAddress,
-    // Client would actually sign here
-    simulation: {
-      signedBy: 'session_key',
-      mainWalletNotExposed: true,
-      gasPaidFrom: 'session_topup',
-      topUpRemaining: session.topUpLamports - 5000, // расчётная комиссия, не фактическая
-    },
-    transaction: transaction || 'base64_tx_placeholder',
+    targetProgram: session.targetProgram,
+    instruction,
+    amountLamports: lamports,
     dataQuality: 'partial',
     writes: false,
   }
 }
 
-export function sessionKeysHealth(env = process.env) {
-  const active = [...sessions.values()].filter(s => s.status === 'active').length
+export function sessionKeysHealth() {
+  cleanExpired()
   return {
     layer: 'session-keys',
-    configured: true, // реализация целиком в репозитории, внешних зависимостей нет
+    configured: false,
     simulated: true,
-    activeSessions: active,
+    activeSessions: [...sessions.values()].filter((session) => session.status === 'active').length,
     totalSessions: sessions.size,
     config: SESSION_KEYS_CONFIG,
-    unitySdk: {
-      available: true,
-      integration: 'Solana.Unity-SDK из коробки',
-      methods: ['createSession', 'signAndSendTransaction', 'revokeSession'],
-    },
     security: {
-      isolation: 'Временный keypair изолирован, max loss = topUp',
-      scopeLimited: true,
-      autoExpiry: true,
+      signingEnabled: false,
+      privateKeysStored: false,
+      scopeEnforcedByThisService: false,
+      scopeSimulationOnly: true,
+      bearerStoredAsHash: true,
     },
     writes: false,
     dataQuality: 'partial',
@@ -161,34 +212,21 @@ export function sessionKeysHealth(env = process.env) {
 export function sessionKeysConfig() {
   return {
     layer: 'session-keys',
+    mode: 'simulation-only',
+    warning: 'Not a wallet, signer, or transaction relay. Never use this API as an authorization oracle.',
     api: {
-      createSession: 'createSession(targetProgramPublicKey, topUp, expiryInMinutes)',
-      signAndSend: 'signAndSendTransaction(sessionToken, transaction)',
-      revoke: 'revokeSession(sessionToken)',
+      createSession: 'POST /api/session-keys/create (returns one-time simulated bearer)',
+      simulate: 'POST /api/session-keys/sign (policy check only; requires targetProgram + instruction)',
+      revoke: 'POST /api/session-keys/revoke (requires bearer)',
+      list: 'GET /api/session-keys/list (redacted; no bearer tokens)',
     },
-    unity: {
-      package: 'com.solana.unity-sdk',
-      example: `
-var session = await SessionKeys.CreateSession(
-  targetProgramPublicKey: new PublicKey("GameProgram111..."),
-  topUp: 0.01f, // SOL
-  expiryInMinutes: 60
-);
-var tx = await session.SignAndSendTransaction(instruction);
-`,
-    },
-    web: {
-      package: '@solana/kit + custom session-keys',
-      example: `
-const session = await createSession({
-  targetProgramPublicKey: gameProgramId,
-  topUp: 0.01 * LAMPORTS_PER_SOL,
-  expiryInMinutes: 60
-});
-const signed = await signAndSendTransaction(session.sessionToken, tx);
-`,
-    },
+    bounds: SESSION_KEYS_CONFIG,
     dataQuality: 'partial',
     writes: false,
   }
+}
+
+export function resetSessionsForTests() {
+  sessions.clear()
+  tokenIndex.clear()
 }

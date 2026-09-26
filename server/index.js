@@ -459,16 +459,20 @@ async function route(req, res) {
   if (method === 'GET' && pathname === '/api/session-keys/health') return respond(200, sessionKeysHealth(process.env))
   if (method === 'GET' && pathname === '/api/session-keys/list') return respond(200, { sessions: listSessions({ gameId: url.searchParams.get('gameId') || undefined }), simulated: true })
   if (method === 'POST' && pathname === '/api/session-keys/create') {
-    const body = await body()
-    return respond(201, createSession({ targetProgramPublicKey: body.targetProgramPublicKey, topUpLamports: body.topUpLamports, expiryInMinutes: body.expiryInMinutes, walletAddress: body.walletAddress, gameId: body.gameId }))
+    const payload = await body()
+    try {
+      return respond(201, createSession({ targetProgramPublicKey: payload.targetProgramPublicKey, topUpLamports: payload.topUpLamports, expiryInMinutes: payload.expiryInMinutes, walletAddress: payload.walletAddress, gameId: payload.gameId }))
+    } catch (error) {
+      throw new HttpError(422, 'session_invalid', error.message)
+    }
   }
   if (method === 'POST' && pathname === '/api/session-keys/sign') {
-    const body = await body()
-    return respond(200, signAndSendTransaction({ sessionToken: body.sessionToken, transaction: body.transaction, targetProgram: body.targetProgram }))
+    const payload = await body()
+    return respond(200, signAndSendTransaction({ sessionToken: payload.sessionToken, transaction: payload.transaction, targetProgram: payload.targetProgram, instruction: payload.instruction, lamports: payload.lamports ?? 0 }))
   }
   if (method === 'POST' && pathname === '/api/session-keys/revoke') {
-    const body = await body()
-    return respond(200, revokeSession(body.sessionToken, { reason: body.reason }))
+    const payload = await body()
+    return respond(200, revokeSession(payload.sessionToken, { reason: payload.reason }))
   }
   if (method === 'GET' && parts[0] === 'api' && parts[1] === 'session-keys' && parts[2] && parts[2] !== 'create' && parts[2] !== 'list' && parts[2] !== 'sign' && parts[2] !== 'revoke')
     return respond(200, getSession(parts[2]) || { error: 'session_not_found' })

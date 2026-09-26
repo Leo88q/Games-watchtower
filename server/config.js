@@ -134,7 +134,8 @@ export function loadConfig(env = process.env, options = {}) {
       throw new ConfigError('В production нельзя запускать хаб без секрета приёма событий (WATCHTOWER_INGEST_TOKEN / WATCHTOWER_INGEST_HMAC_SECRET)', details)
     }
     if (!readToken) {
-      details.push('WATCHTOWER_READ_TOKEN — иначе все read-маршруты /api/* будут публичными')
+      details.push('WATCHTOWER_READ_TOKEN обязателен: без него все read-маршруты /api/* будут публичными')
+      throw new ConfigError('В production нельзя запускать API без WATCHTOWER_READ_TOKEN', details)
     }
     if (piiSalt.length < 16) {
       details.push('WATCHTOWER_PII_SALT (≥16 символов) — иначе псевдонимы игроков можно перебрать по словарю кошельков')

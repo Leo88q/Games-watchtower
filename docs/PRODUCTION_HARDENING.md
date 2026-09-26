@@ -1,6 +1,6 @@
 # Production hardening
 
-The API now supports optional read-only authentication and basic operational protection.
+The API requires read-only authentication in production and provides operational protection. In development/test, read auth may be omitted for local use only.
 
 ## Environment
 
@@ -9,7 +9,7 @@ WATCHTOWER_READ_TOKEN=long-random-read-only-token
 WATCHTOWER_RATE_LIMIT=120
 ```
 
-When `WATCHTOWER_READ_TOKEN` is set, protected API calls must include:
+Protected API calls must include `WATCHTOWER_READ_TOKEN`; production startup fails if it is missing. The HMAC ingest path rejects a repeated signed request inside its freshness window in a single process. This replay cache is process-local; use a shared atomic nonce store before running multiple replicas.
 
 ```text
 Authorization: Bearer <token>

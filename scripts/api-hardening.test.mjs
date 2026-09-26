@@ -13,6 +13,76 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { startTestServer, startExpectingFailure, sampleEvent } from './test-server.mjs'
 
+test('session keys: bearer выдаётся один раз, скрыт в list/get и scope проверяется fail-closed', async () => {
+  const server = await startTestServer()
+  try {
+    const created = await server.request('/api/session-keys/create', {
+      method: 'POST', token: 'test-ingest-token',
+      body: { targetProgramPublicKey: 'GameProgram111', walletAddress: 'wallet-test', gameId: 'ares1' },
+    })
+    assert.equal(created.status, 201)
+    assert.equal(created.body.simulated, true)
+    assert.ok(!JSON.stringify(created.body).includes('wallet-test'), 'raw wallet identifiers must not leave the session service')
+    assert.equal(typeof created.body.sessionToken, 'string')
+    assert.ok(created.body.sessionToken.length >= 40)
+    const token = created.body.sessionToken
+
+    const invalidConfig = await server.request('/api/session-keys/create', {
+      method: 'POST', token: 'test-ingest-token',
+      body: { targetProgramPublicKey: 'GameProgram111', walletAddress: 'wallet-test', topUpLamports: 0 },
+    })
+    assert.equal(invalidConfig.status, 422, 'invalid bounds must fail as client error')
+
+    const listed = await server.request('/api/session-keys/list')
+    assert.equal(listed.status, 200)
+    assert.equal(listed.body.sessions.length, 1)
+    assert.equal(Object.hasOwn(listed.body.sessions[0], 'sessionToken'), false)
+    assert.equal(JSON.stringify(listed.body).includes(token), false, 'list не должен раскрывать bearer')
+    assert.equal(JSON.stringify(listed.body).includes('wallet-test'), false, 'list не должен раскрывать raw wallet')
+
+    const byId = await server.request(`/api/session-keys/${created.body.sessionId}`)
+    assert.equal(byId.status, 200)
+    assert.equal(Object.hasOwn(byId.body, 'sessionToken'), false)
+    assert.equal(JSON.stringify(byId.body).includes(token), false, 'get не должен раскрывать bearer')
+
+    const deniedMissingScope = await server.request('/api/session-keys/sign', {
+      method: 'POST', token: 'test-ingest-token', body: { sessionToken: token, transaction: 'opaque' },
+    })
+    assert.equal(deniedMissingScope.status, 200)
+    assert.equal(deniedMissingScope.body.ok, false)
+    assert.equal(deniedMissingScope.body.error, 'program_not_allowed_in_session_scope')
+
+    const deniedInstruction = await server.request('/api/session-keys/sign', {
+      method: 'POST', token: 'test-ingest-token', body: { sessionToken: token, targetProgram: 'GameProgram111', instruction: 'withdraw_treasury' },
+    })
+    assert.equal(deniedInstruction.body.error, 'instruction_not_allowed_in_session_scope')
+
+    const deniedAmount = await server.request('/api/session-keys/sign', {
+      method: 'POST', token: 'test-ingest-token', body: { sessionToken: token, targetProgram: 'GameProgram111', instruction: 'harvest', lamports: 1_000_001 },
+    })
+    assert.equal(deniedAmount.body.error, 'transaction_amount_out_of_scope')
+
+    const allowedSimulation = await server.request('/api/session-keys/sign', {
+      method: 'POST', token: 'test-ingest-token', body: { sessionToken: token, targetProgram: 'GameProgram111', instruction: 'harvest', lamports: 1000, transaction: 'opaque' },
+    })
+    assert.equal(allowedSimulation.body.ok, true)
+    assert.equal(allowedSimulation.body.simulated, true)
+    assert.equal(allowedSimulation.body.blockchainWrite, false)
+    assert.equal(Object.hasOwn(allowedSimulation.body, 'transaction'), false, 'opaque transaction must not be echoed')
+
+    const revoked = await server.request('/api/session-keys/revoke', {
+      method: 'POST', token: 'test-ingest-token', body: { sessionToken: token },
+    })
+    assert.equal(revoked.body.revoked, true)
+    const afterRevoke = await server.request('/api/session-keys/sign', {
+      method: 'POST', token: 'test-ingest-token', body: { sessionToken: token, targetProgram: 'GameProgram111', instruction: 'harvest' },
+    })
+    assert.equal(afterRevoke.body.ok, false)
+  } finally {
+    await server.stop()
+  }
+})
+
 test('health: writes=false, capabilities и отсутствие секретов в ответе', async () => {
   const server = await startTestServer()
   try {
@@ -76,6 +146,13 @@ test('HMAC-подпись тела: принимается корректная,
     const good = signIngestBody({ rawBody: body, timestamp: now, secret })
     const accepted = await server.request('/api/ingest/solana', { method: 'POST', body, token: null, headers: good.headers })
     assert.equal(accepted.status, 202, JSON.stringify(accepted.body).slice(0, 200))
+
+    const crossRoute = await server.request('/api/control/requests', { method: 'POST', body, token: null, headers: good.headers })
+    assert.equal(crossRoute.status, 401, 'signature for one path must not authorize another write route')
+
+    const replay = await server.request('/api/ingest/solana', { method: 'POST', body, token: null, headers: good.headers })
+    assert.equal(replay.status, 401)
+    assert.equal(replay.body.error, 'signature_replayed')
 
     const stale = signIngestBody({ rawBody: body, timestamp: now - 30 * 60_000, secret })
     const rejected = await server.request('/api/ingest/solana', { method: 'POST', body, token: null, headers: stale.headers })
@@ -441,12 +518,18 @@ test('fail-fast: небезопасные или мусорные значени
   }
 })
 
-test('fail-fast: production без секрета приёма и с коротким PII-солью не стартует', async () => {
+test('fail-fast: production без read/write токенов и с короткой PII-солью не стартует', async () => {
   const noSecret = await startExpectingFailure({
     env: { NODE_ENV: 'production', WATCHTOWER_INGEST_TOKEN: '', WATCHTOWER_INGEST_HMAC_SECRET: '', WATCHTOWER_READ_TOKEN: 'r'.repeat(24), WATCHTOWER_PII_SALT: 'p'.repeat(20) },
   })
   assert.notEqual(noSecret.code, 0)
   assert.ok(/WATCHTOWER_INGEST_TOKEN|WATCHTOWER_INGEST_HMAC_SECRET/.test(noSecret.output))
+
+  const noReadToken = await startExpectingFailure({
+    env: { NODE_ENV: 'production', WATCHTOWER_INGEST_TOKEN: 'i'.repeat(24), WATCHTOWER_READ_TOKEN: '', WATCHTOWER_PII_SALT: 'p'.repeat(24) },
+  })
+  assert.notEqual(noReadToken.code, 0)
+  assert.ok(/WATCHTOWER_READ_TOKEN/.test(noReadToken.output), noReadToken.output.slice(0, 200))
 
   const weakSalt = await startExpectingFailure({
     env: { NODE_ENV: 'production', WATCHTOWER_INGEST_TOKEN: 'i'.repeat(24), WATCHTOWER_READ_TOKEN: 'r'.repeat(24), WATCHTOWER_PII_SALT: 'short' },

@@ -35,7 +35,7 @@ The unified endpoint is read-only and does not submit blockchain transactions. I
 |---|---|---|
 | public | `GET /api/health`, `GET /api/readyz`, `GET /metrics`, статика `dist/` | без токена; секретов и идентификаторов игроков в ответах нет |
 | read | все остальные `GET /api/*` | `Authorization: Bearer $WATCHTOWER_READ_TOKEN` (если токен задан; в production обязателен) |
-| write | `POST /api/ingest/*`, `POST /api/feedback`, `POST /api/control/requests`, `POST /api/campaigns/proposals`, `POST /api/investors/snapshots`, `POST /api/pii/erasure` | Bearer ingest-токен **или** HMAC-подпись тела (`X-Watchtower-Timestamp`, `X-Watchtower-Signature`, окно ±5 мин). Без настроенного секрета — `503 ingest_disabled_no_secret_configured` |
+| write | `POST /api/ingest/*`, `POST /api/feedback`, `POST /api/control/requests`, `POST /api/campaigns/proposals`, `POST /api/investors/snapshots`, `POST /api/pii/erasure` | Bearer ingest-токен **или** HMAC-SHA256 от `timestamp.method.pathname.rawBody` (`X-Watchtower-Timestamp`, `X-Watchtower-Signature`, окно ±5 мин; точный replay в процессе блокируется). Без настроенного секрета — `503 ingest_disabled_no_secret_configured` |
 
 Что ещё важно знать про ответы:
 
