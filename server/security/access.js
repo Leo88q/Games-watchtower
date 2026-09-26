@@ -12,6 +12,7 @@
 import crypto from 'node:crypto'
 
 const buckets = new Map()
+const seenHmacSignatures = new Map()
 const audit = []
 let auditLimit = 1000
 
@@ -70,10 +71,10 @@ function bearerToken(req) {
 }
 
 /**
- * Проверка HMAC-подписи тела запроса.
- * Заголовки: X-Watchtower-Timestamp (ISO или unix-ms), X-Watchtower-Signature (hex sha256 HMAC).
+ * HMAC binds the timestamp, HTTP method, URL pathname and exact raw body (prevents cross-route replay).
+ * Headers: X-Watchtower-Timestamp (ISO or unix-ms), X-Watchtower-Signature (hex SHA-256 HMAC).
  */
-export function verifyIngestSignature({ rawBody, headers, secret, now = Date.now(), toleranceMs = 5 * 60_000 }) {
+export function verifyIngestSignature({ rawBody, headers, secret, method = 'POST', pathname = '/api/ingest/solana', now = Date.now(), toleranceMs = 5 * 60_000 }) {
   if (!secret) return { valid: false, reason: 'hmac_not_configured' }
   const timestampRaw = headers['x-watchtower-timestamp']
   const signature = String(headers['x-watchtower-signature'] || '').trim().toLowerCase()
@@ -81,15 +82,29 @@ export function verifyIngestSignature({ rawBody, headers, secret, now = Date.now
   const parsedTimestamp = Number.isNaN(Number(timestampRaw)) ? Date.parse(String(timestampRaw)) : Number(timestampRaw)
   if (!Number.isFinite(parsedTimestamp)) return { valid: false, reason: 'signature_timestamp_invalid' }
   if (Math.abs(now - parsedTimestamp) > toleranceMs) return { valid: false, reason: 'signature_timestamp_out_of_window' }
-  const expected = crypto.createHmac('sha256', secret).update(`${timestampRaw}.${rawBody ?? ''}`).digest('hex')
+  const expected = crypto.createHmac('sha256', secret).update(`${timestampRaw}.${String(method).toUpperCase()}.${pathname}.${rawBody ?? ''}`).digest('hex')
   const valid = safeEqual(expected, signature)
   return { valid, reason: valid ? null : 'signature_mismatch' }
 }
 
-export function signIngestBody({ rawBody, timestamp = Date.now(), secret }) {
+/** Consume a valid signed request exactly once in this process, blocking captured-request replay. */
+function consumeHmacSignature(signature, now = Date.now(), ttlMs = 5 * 60_000) {
+  for (const [key, expiresAt] of seenHmacSignatures) if (expiresAt <= now) seenHmacSignatures.delete(key)
+  const fingerprint = crypto.createHash('sha256').update(signature).digest('hex')
+  if (seenHmacSignatures.has(fingerprint)) return false
+  seenHmacSignatures.set(fingerprint, now + ttlMs)
+  // Bounded memory in a long-lived process; old entries are pruned above.
+  if (seenHmacSignatures.size > 50_000) {
+    const oldest = seenHmacSignatures.keys().next().value
+    if (oldest) seenHmacSignatures.delete(oldest)
+  }
+  return true
+}
+
+export function signIngestBody({ rawBody, timestamp = Date.now(), secret, method = 'POST', pathname = '/api/ingest/solana' }) {
   const body = rawBody ?? ''
   const timestampRaw = String(timestamp)
-  const signature = crypto.createHmac('sha256', secret).update(`${timestampRaw}.${body}`).digest('hex')
+  const signature = crypto.createHmac('sha256', secret).update(`${timestampRaw}.${String(method).toUpperCase()}.${pathname}.${body}`).digest('hex')
   return { headers: { 'x-watchtower-timestamp': timestampRaw, 'x-watchtower-signature': signature } }
 }
 
@@ -107,8 +122,13 @@ export function authenticate(req, { kind = 'read', config, rawBody = '' } = {}) 
       if (!config.ingestSecret) return { ok: false, status: 401, reason: 'ingest_token_required' }
     }
     if (config.ingestSecret) {
-      const hmac = verifyIngestSignature({ rawBody, headers: req.headers, secret: config.ingestSecret })
-      if (hmac.valid) return { ok: true, scheme: 'hmac' }
+      const pathname = new URL(req.url || '/', 'http://watchtower.local').pathname
+      const hmac = verifyIngestSignature({ rawBody, headers: req.headers, secret: config.ingestSecret, method: req.method || 'POST', pathname })
+      if (hmac.valid) {
+        const signature = String(req.headers['x-watchtower-signature'] || '').trim().toLowerCase()
+        if (!consumeHmacSignature(signature)) return { ok: false, status: 401, reason: 'signature_replayed' }
+        return { ok: true, scheme: 'hmac' }
+      }
       if (!config.ingestToken) return { ok: false, status: 401, reason: hmac.reason || 'signature_required' }
       return { ok: false, status: 401, reason: 'ingest_auth_failed' }
     }
@@ -145,6 +165,7 @@ export function auditLog() {
 
 export function resetAccessStateForTests() {
   buckets.clear()
+  seenHmacSignatures.clear()
   audit.length = 0
   WINDOW_LIMIT = 120
 }

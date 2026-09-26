@@ -13,8 +13,9 @@
 | Программа | Инвариант в коде |
 |---|---|
 | `studio_treasury` | authority назначается подписью инициатора (`require_keys_eq!`), вывод — через timelock ≥ 24 ч (`queue_withdraw` → `execute_withdraw`), инвариант `deposited ≥ withdrawn + liabilities` перепроверяется при исполнении, арифметика через `checked_add` |
-| `cross_game_inventory` | изменение профиля только владельцем, `space` считается функцией `profile_space()`, строки и вектор ограничены `#[max_len]`, вставка сверх `MAX_CROSS_GAME_ITEMS` отклоняется |
-| `session_keys` | `validate_session(instruction)` проверяет `denied_instructions`, scope, срок и отзыв; ответ — только `bool` |
+| `cross_game_inventory` | изменение профиля только владельцем (`has_one` + PDA), версия профиля, ограничение ASCII-строк/списка использованных игр, дубликаты asset ID блокируются, `space` вычисляется `profile_space()` |
+| `session_keys` | ключ сессии должен подписать создание/валидацию; target program привязан к PDA; scope — allowlist 8-byte instruction discriminators, сравнивается с top-level instruction через Instructions sysvar; ограничены срок, top-up и размер scope |
 
-Перед деплоем в devnet/mainnet обязательны: сборка с toolchain, `anchor test`, проверка адресов,
-внешний аудит. До этого считать программы непроверенными.
+**Остаточные риски спецификации:** `cross_game_inventory` записывает предоставленный `asset_id`, но сам не доказывает владение NFT/cNFT и не должен использоваться для выдачи ценности без проверки актива по доверенному протоколу. Первичный `initialize_treasury` в текущем шаблоне всё ещё требует заранее заданного ожидаемого authority из доверенной конфигурации/атомарного bootstrap; равенство `multisig == payer` само по себе не устраняет гонку первого инициализатора. `session_keys` проверяет контекст CPI, но целевая игра обязана вызывать его и enforce-ить результат; registry не может навязать это сторонней программе.
+
+Перед деплоем в devnet/mainnet обязательны: Rust/Anchor сборка и `anchor test`, тесты замены аккаунтов и атакующих последовательностей, проверка IDL/адресов/инициализации, verified build и внешний аудит. Локальная среда этого checkout не содержит Rust/Anchor toolchain, поэтому изменения Rust пока статически просмотрены и не считаются скомпилированной защитой. До полного цикла считать программы непроверенными.

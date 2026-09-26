@@ -75,6 +75,8 @@ docker run -p 8787:8787 --env-file .env -v watchtower-data:/app/data watchtower-
 
 Эксплуатация, ротация секретов, алерты и разбор инцидентов — `docs/OPERATIONS.md`.
 
+Защитные меры и их фактическая применимость к хабу/играм сведены в `docs/SECURITY_CONTROL_COVERAGE_RU.md`; каталог угроз на 82 пункта — `docs/SOLANA_CRYPTO_GAME_SECURITY_CHECKLIST_RU.md`. CI проверяет read-only-инвариант и невидимые Unicode-символы (`npm run test:source-safety`); production без read-токена не запускается. Session-key API остаётся только симулятором — не signer и не wallet.
+
 Независимый аудит — `prompts/audit/`:
 
 | Промпт | Область |

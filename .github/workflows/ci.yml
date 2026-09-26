@@ -35,6 +35,8 @@ jobs:
         run: npm run test:privacy
       - name: Read-only инвариант
         run: npm run test:readonly
+      - name: Скрытые Unicode-инструкции в коде и аудиторских материалах
+        run: npm run test:source-safety
       - name: Согласованность документации и ENV
         run: npm run test:docs
       - name: DOM-проверка интерфейса (jsdom)

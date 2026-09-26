@@ -33,8 +33,9 @@ docker run -d --name watchtower -p 8787:8787 --env-file .env \
 | Условие | Поведение |
 |---|---|
 | `NODE_ENV=production` и нет `WATCHTOWER_INGEST_TOKEN` / `WATCHTOWER_INGEST_HMAC_SECRET` | выход с кодом 1, список отсутствующих переменных в stderr |
+| `NODE_ENV=production` и нет `WATCHTOWER_READ_TOKEN` | выход с кодом 1: защищённые `/api/*` не стартуют в публичном режиме |
 | `NODE_ENV=production` и `WATCHTOWER_PII_SALT` короче 16 символов | выход с кодом 1: псевдонимы игроков без соли перебираются |
-| нет `WATCHTOWER_READ_TOKEN` | `/api/*` открыты на чтение: допустимо только для локальной разработки |
+| нет `WATCHTOWER_READ_TOKEN` в development/test | `/api/*` доступны локально без токена; не выставлять такой режим в интернет |
 | `WATCHTOWER_TRUST_PROXY=0` (по умолчанию) | `X-Forwarded-For` игнорируется, IP берётся из сокета |
 | `WATCHTOWER_ALLOW_DEMO=0` (в production по умолчанию) | `?demo=1` отвечает `403 demo_disabled` |
 
@@ -48,7 +49,7 @@ docker run -d --name watchtower -p 8787:8787 --env-file .env \
 | Переменная | Назначение | Как ротировать |
 |---|---|---|
 | `WATCHTOWER_INGEST_TOKEN` | приём событий (`POST /api/ingest/*`) | выдать новый токен игре → дождаться смены → сменить переменную → перезапустить → старый токен больше не принимается |
-| `WATCHTOWER_INGEST_HMAC_SECRET` | альтернатива токену: подпись тела (`X-Watchtower-Timestamp`, `X-Watchtower-Signature`) | окно подписи ±5 мин: сначала выдать секрет отправителю, затем включить, затем убрать токен |
+| `WATCHTOWER_INGEST_HMAC_SECRET` | альтернатива токену: HMAC-SHA256 от `timestamp.method.pathname.rawBody` (`X-Watchtower-Timestamp`, `X-Watchtower-Signature`) | окно ±5 мин; точный повтор блокируется в памяти процесса. Для нескольких реплик/перезапусков нужна общая атомарная replay-cache (Redis `SET NX`/DB unique nonce) |
 | `WATCHTOWER_READ_TOKEN` | чтение `/api/*` | перезапуск с новым токеном; у операторов один ключ чтения — меняйте с уведомлением |
 | `WATCHTOWER_PII_SALT` | псевдонимизация игроков в ответах | смена соли меняет все псевдонимы: снимки инвесторов и дашборды «разъедутся». Менять только с полным пересчётом снимков |
 
@@ -58,6 +59,14 @@ docker run -d --name watchtower -p 8787:8787 --env-file .env \
 ```bash
 curl -s -H "Authorization: Bearer $WATCHTOWER_READ_TOKEN" localhost:8787/api/audit | head
 ```
+
+### Session-key demo API
+
+`/api/session-keys/*` — только локальная модель политики, не кошелёк, не подписант и не транзакционный relay. Bearer выдаётся только один раз при `POST /create`, генерируется CSPRNG и хранится в памяти только как SHA-256 digest; `list`/`GET` не возвращают его. `/sign` ничего не подписывает и требует точного target program и allowlisted instruction. Доверенная авторизация должна проверяться целевой on-chain программой; не считайте ответ API доказательством владения кошельком или прав на активы. Реальный wallet/signing integration в хаб не добавлять без отдельной архитектуры, внешнего аудита и review пользователя.
+
+### Ограничения replay-защиты
+
+HMAC-подписи проверяют свежесть timestamp (±5 минут) и точный replay-блок в памяти одного процесса. Это не распределённый nonce-store: при нескольких репликах, рестарте или failover обязательна общая атомарная replay-cache с TTL. Для bearer-токена ingestion использует дедупликацию событий; не используйте общий ingest-токен для финансовых операций/выплат.
 
 ## 3. Мониторинг: что и о чём говорит
 

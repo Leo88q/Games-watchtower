@@ -10,10 +10,29 @@ declare_id!("CgInv111111111111111111111111111111111111111");
 pub mod cross_game_inventory {
     use super::*;
 
+    pub const PROFILE_VERSION: u8 = 1;
+    pub const MAX_LABEL_BYTES: usize = 32;
+    pub const MAX_USED_GAMES: usize = 4;
+
+    fn validate_label(value: &str) -> Result<()> {
+        require!(
+            !value.is_empty() && value.len() <= MAX_LABEL_BYTES && value.is_ascii(),
+            ErrorCode::InvalidField
+        );
+        Ok(())
+    }
+
+    fn validate_profile_version(profile: &StudioProfile) -> Result<()> {
+        require!(profile.version == PROFILE_VERSION, ErrorCode::UnsupportedVersion);
+        Ok(())
+    }
+
     /// Создать кросс-игровой профиль — привязан к wallet, не к игре
     /// Используется Privy/Phantom/FirstStep unified identity
     pub fn create_profile(ctx: Context<CreateProfile>, game_id: String) -> Result<()> {
+        validate_label(&game_id)?;
         let profile = &mut ctx.accounts.profile;
+        profile.version = PROFILE_VERSION;
         profile.owner = ctx.accounts.owner.key();
         profile.game_id = game_id;
         profile.created_at = Clock::get()?.unix_timestamp;
@@ -33,8 +52,13 @@ pub mod cross_game_inventory {
         rarity: String,
         is_cnft: bool,
     ) -> Result<()> {
+        validate_label(&source_game)?;
+        validate_label(&item_type)?;
+        validate_label(&rarity)?;
         let profile = &mut ctx.accounts.profile;
+        validate_profile_version(profile)?;
         require!(profile.owner == ctx.accounts.owner.key(), ErrorCode::Unauthorized);
+        require!(!profile.cross_game_items.iter().any(|item| item.asset_id == asset_id), ErrorCode::DuplicateItem);
 
         let item = CrossGameItem {
             asset_id,
@@ -56,12 +80,15 @@ pub mod cross_game_inventory {
         asset_id: Pubkey,
         target_game: String,
     ) -> Result<()> {
+        validate_label(&target_game)?;
         let profile = &mut ctx.accounts.profile;
+        validate_profile_version(profile)?;
         require!(profile.owner == ctx.accounts.owner.key(), ErrorCode::Unauthorized);
 
         for item in &mut profile.cross_game_items {
             if item.asset_id == asset_id {
                 if !item.used_in_games.contains(&target_game) {
+                    require!(item.used_in_games.len() < MAX_USED_GAMES, ErrorCode::UsedGameLimit);
                     item.used_in_games.push(target_game);
                 }
                 return Ok(());
@@ -73,6 +100,7 @@ pub mod cross_game_inventory {
     /// Обновить количество игр — для аналитики Helika/GameSight
     pub fn increment_games_played(ctx: Context<UpdateProfile>) -> Result<()> {
         let profile = &mut ctx.accounts.profile;
+        validate_profile_version(profile)?;
         require!(profile.owner == ctx.accounts.owner.key(), ErrorCode::Unauthorized);
         profile.total_games_played = profile.total_games_played.checked_add(1).ok_or(ErrorCode::MathOverflow)?;
         Ok(())
@@ -105,7 +133,7 @@ fn cross_game_item_space() -> usize {
 
 /// Точный размер аккаунта: 8 discriminator + поля + вектор предметов.
 pub fn profile_space() -> usize {
-    8 + 32 + (4 + 32) + 8 + 8 + (4 + MAX_CROSS_GAME_ITEMS * cross_game_item_space()) + 1
+    8 + 32 + (4 + 32) + 8 + 8 + (4 + MAX_CROSS_GAME_ITEMS * cross_game_item_space()) + 1 + 1
 }
 
 #[derive(Accounts)]
@@ -113,7 +141,8 @@ pub struct AddCrossGameItem<'info> {
     #[account(
         mut,
         seeds = [b"studio_profile", owner.key().as_ref()],
-        bump = profile.bump
+        bump = profile.bump,
+        has_one = owner
     )]
     pub profile: Account<'info, StudioProfile>,
     pub owner: Signer<'info>,
@@ -124,7 +153,8 @@ pub struct LinkItemToGame<'info> {
     #[account(
         mut,
         seeds = [b"studio_profile", owner.key().as_ref()],
-        bump = profile.bump
+        bump = profile.bump,
+        has_one = owner
     )]
     pub profile: Account<'info, StudioProfile>,
     pub owner: Signer<'info>,
@@ -135,7 +165,8 @@ pub struct UpdateProfile<'info> {
     #[account(
         mut,
         seeds = [b"studio_profile", owner.key().as_ref()],
-        bump = profile.bump
+        bump = profile.bump,
+        has_one = owner
     )]
     pub profile: Account<'info, StudioProfile>,
     pub owner: Signer<'info>,
@@ -150,6 +181,7 @@ pub struct StudioProfile {
     pub total_games_played: u64,
     #[max_len(20)]
     pub cross_game_items: Vec<CrossGameItem>,
+    pub version: u8,
     pub bump: u8,
 }
 
@@ -178,4 +210,12 @@ pub enum ErrorCode {
     ProfileFull,
     #[msg("Math overflow")]
     MathOverflow,
+    #[msg("Field must be a non-empty ASCII string of at most 32 bytes")]
+    InvalidField,
+    #[msg("Duplicate asset in profile")]
+    DuplicateItem,
+    #[msg("Item already linked to the maximum number of games")]
+    UsedGameLimit,
+    #[msg("Unsupported profile version; migrate before use")]
+    UnsupportedVersion,
 }

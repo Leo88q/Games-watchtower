@@ -42,6 +42,8 @@ pub mod studio_treasury {
     }
 
     pub fn deposit(ctx: Context<Deposit>, amount: u64, game_id: String) -> Result<()> {
+        require!(amount > 0, ErrorCode::AmountMustBePositive);
+        require!(game_id.len() <= 32 && game_id.is_ascii(), ErrorCode::InvalidGameId);
         let ix = anchor_lang::solana_program::system_instruction::transfer(
             &ctx.accounts.depositor.key(),
             &ctx.accounts.treasury.key(),
@@ -70,6 +72,7 @@ pub mod studio_treasury {
 
     /// Постановка заявки на вывод. Средства не переводятся: только фиксируется намерение и срок.
     pub fn queue_withdraw(ctx: Context<QueueWithdraw>, amount: u64, game_id: String) -> Result<()> {
+        require!(game_id.len() <= 32 && game_id.is_ascii(), ErrorCode::InvalidGameId);
         require_keys_eq!(ctx.accounts.requester.key(), ctx.accounts.treasury.authority, ErrorCode::Unauthorized);
         require!(amount > 0, ErrorCode::AmountMustBePositive);
         require!(ctx.accounts.treasury.pending_release_at == 0, ErrorCode::PendingWithdrawalExists);
@@ -117,23 +120,25 @@ pub mod studio_treasury {
             .ok_or(ErrorCode::MathOverflow)?;
         require!(treasury.total_deposited >= reserved, ErrorCode::InsufficientFunds);
 
-        let ix = anchor_lang::solana_program::system_instruction::transfer(
-            &ctx.accounts.treasury.key(),
-            &ctx.accounts.recipient.key(),
-            amount,
-        );
-        anchor_lang::solana_program::program::invoke_signed(
-            &ix,
-            &[
-                ctx.accounts.treasury.to_account_info(),
-                ctx.accounts.recipient.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ],
-            &[&[b"studio_treasury", &[ctx.accounts.treasury.bump]]],
-        )?;
+        require_keys_neq!(ctx.accounts.treasury.key(), ctx.accounts.recipient.key(), ErrorCode::InvalidRecipient);
+        let treasury_info = ctx.accounts.treasury.to_account_info();
+        let recipient_info = ctx.accounts.recipient.to_account_info();
+        let rent_floor = Rent::get()?.minimum_balance(treasury_info.data_len());
+        let treasury_lamports = treasury_info.lamports();
+        let recipient_lamports = recipient_info.lamports();
+        let next_treasury_lamports = treasury_lamports
+            .checked_sub(amount)
+            .filter(|balance| *balance >= rent_floor)
+            .ok_or(ErrorCode::InsufficientLamports)?;
+        let next_recipient_lamports = recipient_lamports.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
+
+        // A program-owned PDA cannot be debited with SystemProgram::transfer. Mutate lamports
+        // directly under this program's ownership; transaction rollback preserves atomicity.
+        **treasury_info.try_borrow_mut_lamports()? = next_treasury_lamports;
+        **recipient_info.try_borrow_mut_lamports()? = next_recipient_lamports;
 
         let treasury = &mut ctx.accounts.treasury;
-        treasury.total_withdrawn = reserved - treasury.liabilities;
+        treasury.total_withdrawn = treasury.total_withdrawn.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
         treasury.pending_amount = 0;
         treasury.pending_recipient = Pubkey::default();
         treasury.pending_release_at = 0;
@@ -225,8 +230,7 @@ pub struct ExecuteWithdraw<'info> {
     pub requester: Signer<'info>,
     /// CHECK: адрес обязан совпадать с pending_recipient — проверяется в инструкции
     #[account(mut)]
-    pub recipient: UncheckedAccount<'info>,
-    pub system_program: Program<'info, System>,
+    pub recipient: SystemAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -319,4 +323,10 @@ pub enum ErrorCode {
     RecipientMismatch,
     #[msg("Amount must be positive")]
     AmountMustBePositive,
+    #[msg("Game ID must be ASCII and at most 32 bytes")]
+    InvalidGameId,
+    #[msg("Recipient must be distinct from treasury")]
+    InvalidRecipient,
+    #[msg("Treasury must retain its rent-exempt reserve after withdrawal")]
+    InsufficientLamports,
 }
