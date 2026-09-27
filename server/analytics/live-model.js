@@ -7,12 +7,37 @@
  */
 
 import { GAME_REGISTRY } from '../../src/data/registry.js'
-import { allEvents, list, windowEvents, inboxStatus, freshness } from '../ingestion/event-inbox.js'
+import { allEvents, list, windowEvents, inboxStatus, freshness, inboxRevision } from '../ingestion/event-inbox.js'
 import { classifyEvent, eventAmount, eventGame, eventPlayer, isBot } from '../economy/metrics.js'
 import { crossGameSegments } from '../ingestion/player-projections.js'
 import { adapterReadiness } from '../ingestion/game-adapters.js'
 
 const DAY_MS = 86_400_000
+
+/**
+ * Мемоизация внутри одного состояния inbox.
+ *
+ * Агрегаты и алерты — чистые функции от (окно, момент времени, содержимое inbox).
+ * Раньше один запрос /api/read-model пересчитывал liveAggregates до десятка раз
+ * (overview → adjacent → investor → alerts → conclusions), каждый раз проходя все события
+ * окна: при 30 000 событий это ~140 мс на запрос, и все они выполняются в одном потоке,
+ * блокируя event loop. Ключ включает ревизию inbox, поэтому «одинаковый ключ» означает
+ * «тот же вход», и устаревшее значение вернуть невозможно.
+ */
+const memo = new Map()
+
+function memoized(scope, { windowDays = 7, now = Date.now() }, compute) {
+  const key = `${scope}|${windowDays}|${now}|${inboxRevision()}`
+  const cached = memo.get(key)
+  if (cached) return cached
+  const value = Object.freeze(compute())
+  if (memo.size > 64) memo.clear()
+  memo.set(key, value)
+  return value
+}
+
+/** Только для тестов: сброс мемоизации без изменения inbox. */
+export function resetLiveModelMemoForTests() { memo.clear() }
 
 function firstSeenIndex(events) {
   const first = new Map()
@@ -45,7 +70,12 @@ function emptyGameRow(game) {
 /**
  * Агрегаты по играм за окно. Возвращает честные null там, где данных нет.
  */
-export function liveAggregates({ windowDays = 7, now = Date.now() } = {}) {
+export function liveAggregates(options = {}) {
+  const { windowDays = 7, now = Date.now() } = options
+  return memoized('aggregates', { windowDays, now }, () => computeAggregates({ windowDays, now }))
+}
+
+function computeAggregates({ windowDays = 7, now = Date.now() } = {}) {
   const since = now - windowDays * DAY_MS
   const windowed = windowEvents({ since, until: now })
   const all = allEvents()
@@ -125,7 +155,12 @@ export function liveAggregates({ windowDays = 7, now = Date.now() } = {}) {
 }
 
 /** Алерты строятся из фактов окна: тишина, концентрация, боты, отсутствие стоков. */
-export function liveAlerts({ windowDays = 7, now = Date.now() } = {}) {
+export function liveAlerts(options = {}) {
+  const { windowDays = 7, now = Date.now() } = options
+  return memoized('alerts', { windowDays, now }, () => computeAlerts({ windowDays, now }))
+}
+
+function computeAlerts({ windowDays = 7, now = Date.now() } = {}) {
   const aggregates = liveAggregates({ windowDays, now })
   const alerts = []
   const since = now - windowDays * DAY_MS

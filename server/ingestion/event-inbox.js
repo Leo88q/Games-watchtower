@@ -16,6 +16,12 @@ const events = new Map()
 const counters = { accepted: 0, duplicates: 0, rejected: 0, evictedByLimit: 0, evictedByTtl: 0, erased: 0 }
 let lastEventAt = null
 let lastSweepAt = 0
+// Ревизия состояния inbox: меняется при любой мутации содержимого. Нужна потребителям
+// (кэши/мемоизация), чтобы «одинаковый ключ» гарантировал одинаковые данные, а не только
+// одинаковое время. Без неё мемоизация могла бы вернуть числа до приёма события.
+let revision = 0
+
+export function inboxRevision() { return revision }
 
 const settings = {
   maxEvents: 250000,
@@ -47,6 +53,7 @@ function sweep(now = Date.now()) {
     if (time !== null && time < cutoff) {
       events.delete(identity)
       counters.evictedByTtl += 1
+      revision += 1
     }
   }
 }
@@ -57,6 +64,7 @@ function enforceLimit() {
     if (oldest.done) break
     events.delete(oldest.value)
     counters.evictedByLimit += 1
+    revision += 1
   }
 }
 
@@ -76,6 +84,7 @@ export function ingest(input, source = 'mock') {
   }
   events.set(event.identity, Object.freeze(event))
   counters.accepted += 1
+  revision += 1
   const time = eventTime(event)
   if (time !== null && (lastEventAt === null || time > lastEventAt)) lastEventAt = time
   sweep()
@@ -151,6 +160,7 @@ export function erasePlayer(rawIdentifier, options = {}) {
     if (hit) {
       events.delete(identity)
       removed += 1
+      revision += 1
     }
   }
   if (removed) {
@@ -191,6 +201,7 @@ export function freshness({ maxAgeSeconds = 0, now = Date.now() } = {}) {
 
 export function resetInboxForTests() {
   events.clear()
+  revision += 1
   lastEventAt = null
   lastSweepAt = 0
   for (const key of Object.keys(counters)) counters[key] = 0

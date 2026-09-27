@@ -14,7 +14,7 @@
  * или хотя бы один мутант не нашёл свой фрагмент в коде (дрейф списка мутаций).
  */
 
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
@@ -27,10 +27,14 @@ const arg = (name) => argv.find((item) => item.startsWith(`--${name}=`))?.split(
 const has = (name) => argv.includes(`--${name}`)
 const threshold = Number(arg('threshold') || 0.8)
 
+// Наборы тестов, которыми «убиваются» мутанты. Файлы обязаны существовать: набор,
+// указывающий на отсутствующий тест, даёт ложные «убийства» (spawnSync возвращает ненулевой код),
+// поэтому перед прогоном наличие файлов проверяется явно.
 const SUITES = {
   economy: ['scripts/economy-metrics.test.mjs'],
   security: ['scripts/api-hardening.test.mjs', 'scripts/pii-privacy.test.mjs'],
-  readonly: ['scripts/read-only.test.mjs'],
+  livemodel: ['scripts/live-model.test.mjs'],
+  state: ['scripts/state-durability.test.mjs'],
 }
 
 const M = 'server/economy/metrics.js'
@@ -137,11 +141,23 @@ const MUTANTS = [
   { id: 'pii-raw-events', name: '/api/events отдаёт исходные события', file: I, suite: 'security',
     find: "}).map((event) => anonymizeEvent(event, piiOptions))", replace: "})" },
   { id: 'erasure-noop', name: 'удаление данных игрока ничего не делает', file: 'server/ingestion/event-inbox.js', suite: 'security',
-    find: "    if (hit) {\n      events.delete(identity)\n      removed += 1\n    }",
-    replace: "    if (hit) {\n      removed += 1\n    }" },
+    find: "    if (hit) {\n      events.delete(identity)\n      removed += 1\n      revision += 1\n    }",
+    replace: "    if (hit) {\n      removed += 1\n      revision += 1\n    }" },
   { id: 'projection-fake-links', name: 'переплетение: выдуманные связки вместо реальных событий', file: 'server/ingestion/player-projections.js', suite: 'security',
     find: "  const linkList = [...links.values()]",
     replace: "  const linkList = links.size ? [...links.values()] : [{ sourceGame: 'guttercaps', targetGame: 'neonrelay', assetId: 'cgi_fake', itemType: 'golden_cap', rarity: 'legendary', isCnft: true, eventTypes: ['CrossGameLinked'], firstSeenAt: null, lastSeenAt: null }]" },
+  { id: 'memo-key-no-revision', name: 'мемоизация аналитики игнорирует ревизию inbox', file: 'server/analytics/live-model.js', suite: 'livemodel',
+    find: "  const key = `${scope}|${windowDays}|${now}|${inboxRevision()}`",
+    replace: "  const key = `${scope}|${windowDays}`" },
+  { id: 'inbox-revision-frozen', name: 'ревизия inbox не меняется при приёме события', file: 'server/ingestion/event-inbox.js', suite: 'livemodel',
+    find: "  counters.accepted += 1\n  revision += 1",
+    replace: "  counters.accepted += 1" },
+  { id: 'state-update-no-queue', name: 'файл состояния пишется без очереди (lost update)', file: 'server/state/json-store.js', suite: 'state',
+    find: "  return withFileQueue(file, async () => {\n    const current = await readJsonFile(file, fallback)",
+    replace: "  return (async () => {\n    const current = await readJsonFile(file, fallback)" },
+  { id: 'state-write-non-atomic', name: 'файл состояния пишется напрямую, без rename', file: 'server/state/json-store.js', suite: 'state',
+    find: "  try {\n    await fs.rename(temporary, file)\n  } catch (error) {\n    await fs.rm(temporary, { force: true })\n    throw error\n  }",
+    replace: "  await fs.writeFile(file, JSON.stringify(value, null, 2))" },
   { id: 'sanitize-off', name: 'санитизация идентификаторов отключена', file: S, suite: 'security',
     find: "  const cleaned = String(value).replace(CONTROL_CHARS, '').replace(HTML_CHARS, '').replace(IDENTIFIER_CHARS, '').replace(ACTIVE_SCHEMES, '').trim()",
     replace: "  const cleaned = String(value).trim()", expectAll: true },
@@ -174,6 +190,19 @@ function restoreAll() {
 
 process.on('exit', restoreAll)
 process.on('SIGINT', () => { restoreAll(); process.exit(130) })
+
+if (!selected.length) {
+  console.error(`❌ Для набора «${arg('suite') || 'по умолчанию'}» нет ни одной мутации: проверять нечего.`)
+  process.exit(1)
+}
+for (const [name, files] of Object.entries(SUITES)) {
+  for (const file of files) {
+    if (!existsSync(path.join(root, file))) {
+      console.error(`❌ Набор «${name}» ссылается на отсутствующий тест ${file}: результат проверки был бы ложным.`)
+      process.exit(1)
+    }
+  }
+}
 
 console.log(`Мутационная проверка: ${selected.length} мутаций, порог ${threshold}`)
 console.log(`Наборы тестов: ${Object.entries(SUITES).map(([name, files]) => `${name} (${files.length})`).join(', ')}\n`)

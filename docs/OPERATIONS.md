@@ -74,9 +74,17 @@ HMAC-подписи проверяют свежесть timestamp (±5 мину�
 - `GET /api/readyz` — готовность: 200, когда inbox не переполнен и данные свежие. 503 с
   `reason: ["freshness"]` означает «игры молчат», а не «сервер упал». Порог задаёт
   `WATCHTOWER_MAX_EVENT_AGE_SECONDS` (0 = выключено).
-- `GET /metrics` — Prometheus: `watchtower_events_total`, `watchtower_events_rejected_total`,
-  `watchtower_inbox_events`, `watchtower_inbox_evicted_total`, `watchtower_last_event_age_seconds`,
-  `watchtower_http_requests_total`, `watchtower_http_request_duration_seconds`, `watchtower_blockchain_writes_enabled 0`.
+- `GET /metrics` — Prometheus. Фактические имена метрик (совпадение с `/metrics` проверяет
+  `npm run test:docs`; полный список — `server/ops/metrics.js`):
+  `watchtower_ingestion_events_total`, `watchtower_ingestion_accepted_total`,
+  `watchtower_ingestion_duplicates_total`, `watchtower_ingestion_rejected_total`,
+  `watchtower_ingestion_evicted_total{reason="limit"|"ttl"}`, `watchtower_inbox_capacity_ratio`,
+  `watchtower_last_event_age_seconds`, `watchtower_data_stale`, `watchtower_blockchain_writes_enabled`,
+  `watchtower_http_requests_total`, `watchtower_http_responses_total{status=...}`,
+  `watchtower_http_rate_limited_total`, `watchtower_http_auth_rejected_total`,
+  `watchtower_http_request_duration_ms_sum|_max|_bucket`, `watchtower_audit_entries`,
+  `watchtower_process_resident_memory_bytes`, `watchtower_process_heap_used_bytes`,
+  `watchtower_uptime_seconds`, `watchtower_build_info`.
 - `GET /api/ingestion/status` — счётчики приёма, дубликаты, отклонения, вытеснение, свежесть, курсоры.
 
 Рекомендуемые алерты (PromQL-набросок):
@@ -84,10 +92,15 @@ HMAC-подписи проверяют свежесть timestamp (±5 мину�
 ```promql
 watchtower_blockchain_writes_enabled > 0        # критично: нарушен read-only инвариант
 watchtower_last_event_age_seconds > 3600        # игры не передают события
-increase(watchtower_events_rejected_total[15m]) > 100   # отправитель шлёт невалидные события
-watchtower_inbox_events / watchtower_inbox_capacity > 0.9  # приближается вытеснение по лимиту
-rate(watchtower_http_requests_total{status="429"}[5m]) > 5 # флуд или неверный прокси
+increase(watchtower_ingestion_rejected_total[15m]) > 100        # отправитель шлёт невалидные события
+watchtower_inbox_capacity_ratio > 0.8           # приближается вытеснение истории из inbox
+increase(watchtower_ingestion_evicted_total[15m]) > 0           # история уже теряется
+watchtower_http_request_duration_ms_max > 5000  # аналитика блокирует event loop
+rate(watchtower_http_rate_limited_total[5m]) > 5  # флуд или неверный прокси
 ```
+
+Пороги `inbox_capacity_ratio` и `evicted_total` важнее, чем кажется: вытеснение — это потеря
+истории, а не просто «очистка кэша». Причина и числа — `docs/STORAGE_AND_CAPACITY_RU.md`.
 
 ## 4. Данные: окно, retention, TTL
 
@@ -98,7 +111,12 @@ Inbox — оперативное хранилище, не архив:
 - `WATCHTOWER_EVENT_TTL_HOURS` (0 = выключено) — события старше TTL удаляются при приёме.
 - Экономические метрики считаются по окнам 7/30/90 дней из inbox: если события вытеснены,
   метрика честно вернёт `quality: unavailable` с причиной, а не заниженное число.
-- Файлы состояния: `data/ingestion-cursors.json`, `data/investor-snapshots.json`.
+- Файлы состояния: `data/ingestion-cursors.json`, `data/investor-snapshots.json` — это **единственное**
+  долговременное хранилище хаба (БД в проекте нет). Оба файла пишутся атомарно и под очередью
+  (`server/state/json-store.js`), но их потеря = потеря курсоров приёма и снимков отчётов.
+- Inbox в памяти: рестарт процесса стирает историю событий целиком, поэтому метрики после
+  перезапуска честно `unavailable`. Инвентарь хранилищ, измеренная ёмкость и порядок работ —
+  `docs/STORAGE_AND_CAPACITY_RU.md`.
 - Статика: бандл отдаётся из `WATCHTOWER_STATIC_DIR` (по умолчанию `./dist`). Если каталог задан
   явно и не существует — сервер не стартует: пустая страница вместо ошибки в проде недопустима.
   В образе переменная уже установлена (`/app/dist`). Запросы вне каталога отклоняются.
@@ -195,6 +213,19 @@ docker stop watchtower && docker run -d --name watchtower ... watchtower-os:$GIT
 источник правды — игры). Данные на диске (`data/*.json`) привязаны к тому же тегу схемы: при
 изменении формата снимков сначала разверните версию, которая умеет читать старый файл, или
 остановите запись снимков.
+
+## 7.1. Проверки перед выкатом
+
+```bash
+npm run verify            # тесты + мутационная проверка + сборка
+npm run test:load         # нагрузка: без ошибок, p95 < 2 с (пороговые утверждения)
+npm run test:agent-safety # границы агентной безопасности (пункты 71–82 каталога угроз)
+npm run test:state        # атомарность и отсутствие потерянных обновлений файлов состояния
+```
+
+Нагрузочный прогон на реальном объёме inbox (`npm run load:full`) обязателен перед тем, как пускать
+боевой поток: стоимость чтения растёт линейно по числу событий и при больших объёмах блокирует
+и приём, и health-check — числа в `docs/STORAGE_AND_CAPACITY_RU.md`, раздел 3.
 
 ## 8. Проверка исправности после выката
 

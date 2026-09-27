@@ -20,7 +20,9 @@ const SCAN_DIRS = ['server', 'scripts']
 const SCAN_ROOT_FILES = ['package.json', 'vite.config.js']
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'data', 'coverage'])
 // Файлы, где запрещённые паттерны перечислены как данные: сам список и эта проверка.
-const SKIP_FILES = new Set(['check-read-only.mjs', 'capabilities.js'])
+// Файлы, где запрещённые паттерны перечислены как данные: сам список, эта проверка
+// и агентный guard, который утверждает отсутствие Solana-зависимостей (а не использует их).
+const SKIP_FILES = new Set(['check-read-only.mjs', 'capabilities.js', 'agent-safety.test.mjs'])
 
 /**
  * Заменяет содержимое строк, шаблонов и комментариев пробелами, сохраняя длину и переводы строк.
