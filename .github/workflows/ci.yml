@@ -37,6 +37,8 @@ jobs:
         run: npm run test:readonly
       - name: Скрытые Unicode-инструкции в коде и аудиторских материалах
         run: npm run test:source-safety
+      - name: Границы агентной безопасности (пункты 71–82 каталога угроз)
+        run: npm run test:agent-safety
       - name: Согласованность документации и ENV
         run: npm run test:docs
       - name: DOM-проверка интерфейса (jsdom)
@@ -54,6 +56,8 @@ jobs:
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/health >/dev/null && break; sleep 1; done
           npm run test:smoke
           kill "$(cat /tmp/watchtower.pid)"
+      - name: Нагрузочная проверка API (латентность и отсутствие ошибок)
+        run: npm run test:load
       - name: Мутационная проверка (гейт устойчивости математики)
         run: npm run test:mutation
 

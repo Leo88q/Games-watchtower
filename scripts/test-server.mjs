@@ -48,13 +48,22 @@ export async function startTestServer({ env = {}, ingestToken = 'test-ingest-tok
 
   const base = `http://127.0.0.1:${port}`
   const deadline = Date.now() + 15000
+  let ready = false
   while (Date.now() < deadline) {
     try {
       const response = await fetch(`${base}/api/health`)
-      if (response.ok) break
+      if (response.ok) { ready = true; break }
     } catch {
       await new Promise((resolve) => setTimeout(resolve, 60))
     }
+  }
+  // Раньше таймаут молча возвращал «живой» дескриптор мёртвого сервера (например, когда
+  // конфигурация отклонена fail-fast), и тест падал с ECONNREFUSED вместо причины отказа.
+  if (!ready) {
+    try { child.kill('SIGKILL') } catch { /* уже вышел */ }
+    try { rmSync(stateDir, { recursive: true, force: true }) } catch { /* временный каталог */ }
+    const output = logs.join('').trim().split('\n').slice(-10).join('\n')
+    throw new Error(`Тестовый сервер не поднялся на порту ${port} за 15 с. Последние строки вывода:\n${output}`)
   }
 
   async function request(requestPath, { method = 'GET', body, token = readToken, headers = {}, raw = false } = {}) {

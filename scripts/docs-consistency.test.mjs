@@ -135,12 +135,18 @@ test('Dockerfile и .dockerignore согласованы с требования
 
 test('CI запускает те же проверки, что и локальный скрипт', () => {
   const workflow = read('.github/workflows/ci.yml')
-  for (const step of ['npm run test:unit', 'npm run test:hardening', 'npm run test:privacy', 'npm run test:readonly', 'npm run test:source-safety', 'npm run build']) {
+  for (const step of ['npm run test:unit', 'npm run test:hardening', 'npm run test:privacy', 'npm run test:readonly', 'npm run test:source-safety', 'npm run test:agent-safety', 'npm run test:load', 'npm run test:mutation', 'npm run build']) {
     assert.ok(workflow.includes(step), `CI не запускает ${step}`)
   }
   const pkg = JSON.parse(read('package.json'))
-  for (const script of ['test:unit', 'test:hardening', 'test:privacy', 'test:readonly', 'test:source-safety', 'test:mutation', 'verify']) {
+  for (const script of ['test:unit', 'test:hardening', 'test:privacy', 'test:readonly', 'test:source-safety', 'test:agent-safety', 'test:state', 'test:load', 'test:mutation', 'verify']) {
     assert.ok(pkg.scripts[script], `package.json не содержит скрипт ${script}`)
+  }
+  // Проверки, входящие в локальный `npm test`, обязаны присутствовать и в CI: иначе «зелено локально»
+  // ничего не значит, а новая проверка может тихо не запускаться (находка: мутационный гейт был только в CI).
+  const localSuites = pkg.scripts.test.split('&&').map((item) => item.trim().replace('npm run ', ''))
+  for (const suite of localSuites) {
+    assert.ok(workflow.includes(`npm run ${suite}`), `Проверка ${suite} есть в npm test, но отсутствует в CI`)
   }
 })
 
@@ -242,4 +248,35 @@ test('CI: файл workflow корректен (экранирование и о
   }
   // Образ обязан проверяться реальным запуском, а не только сборкой.
   assert.ok(workflow.includes('/api/health'), 'CI обязан проверять запущенный образ')
+})
+
+test('метрики, названные в runbook, действительно публикуются /metrics', async () => {
+  const { prometheusMetrics, observeRequest } = await import('../server/ops/metrics.js')
+  // Часть метрик появляется только после первого ответа (например responses_total по кодам):
+  // фиксируем один ответ, иначе проверка была бы строже самой метрики.
+  observeRequest({ status: 200, durMs: 5 })
+  const text = prometheusMetrics({ config: { provider: 'http-ingest', nodeEnv: 'test', readyMaxStaleSeconds: 3600 }, startedAt: Date.now(), now: Date.now() })
+  const published = new Set([...text.matchAll(/^([a-z][a-z0-9_]*)/gm)].map((match) => match[1]))
+  assert.ok(published.has('watchtower_blockchain_writes_enabled'), 'Метрика read-only инварианта обязана публиковаться')
+
+  // Раньше runbook называл watchtower_events_total / watchtower_inbox_events /
+  // watchtower_http_request_duration_seconds — их не существует, и дежурный искал метрики,
+  // которых нет. Теперь любое имя метрики в документации обязано существовать в /metrics.
+  const mentioned = new Set([...read('docs/OPERATIONS.md').matchAll(/(watchtower_[a-z0-9_]+)/g)].map((match) => match[1]))
+  const unknown = [...mentioned].filter((name) => !published.has(name))
+  assert.deepEqual(unknown, [], `В docs/OPERATIONS.md названы несуществующие метрики: ${unknown.join(', ')}`)
+  assert.ok(mentioned.size >= 8, 'Runbook обязан называть ключевые метрики, а не «есть метрики»')
+})
+
+test('переменные WATCHTOWER_* в runbook и документе о ёмкости существуют в конфиге', () => {
+  const known = new Set(CONFIG_ENV_KEYS)
+  const unknown = []
+  for (const file of ['docs/OPERATIONS.md', 'docs/STORAGE_AND_CAPACITY_RU.md']) {
+    const text = read(file)
+    for (const match of text.matchAll(/(WATCHTOWER_[A-Z0-9_]+)(\.md)?/g)) {
+      if (match[2]) continue // ссылка на файл (WATCHTOWER_OS_MASTER_PROMPTS.md), а не переменная
+      if (!known.has(match[1])) unknown.push(`${file}: ${match[1]}`)
+    }
+  }
+  assert.deepEqual(unknown, [], `Опечатки или устаревшие имена переменных: ${unknown.join(', ')}`)
 })
