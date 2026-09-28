@@ -62,7 +62,7 @@ node server/index.js
 Production:
 
 ```bash
-npm ci && npm run build
+npm ci --ignore-scripts && npm run build
 NODE_ENV=production node server/index.js    # без секретов приёма сервер не стартует: fail-fast
 ```
 
@@ -73,9 +73,9 @@ docker build -t watchtower-os .
 docker run -p 8787:8787 --env-file .env -v watchtower-data:/app/data watchtower-os
 ```
 
-Эксплуатация, ротация секретов, алерты и разбор инцидентов — `docs/OPERATIONS.md`.
+Эксплуатация, ротация секретов, алерты и разбор инцидентов — `docs/OPERATIONS.md`. CI сканирует рабочее дерево и полную доступную Git-историю через Gitleaks и TruffleHog; для локального pre-commit гейта выполните `python -m pip install pre-commit && pre-commit install` (конфигурация `.pre-commit-config.yaml`). Если сканер когда-либо найдёт credential, сначала отзовите/ротируйте его, затем очищайте историю.
 
-Защитные меры и их фактическая применимость к хабу/играм сведены в `docs/SECURITY_CONTROL_COVERAGE_RU.md`; каталог угроз на 82 пункта — `docs/SOLANA_CRYPTO_GAME_SECURITY_CHECKLIST_RU.md` (секции T–W — агентные ИИ-кошельки, отравление аудита, MCP, давление ИИ на скорость атак; пункт 82 — durable nonce и мультисиг). CI проверяет read-only-инвариант, невидимые Unicode (`npm run test:source-safety`) и границы агентной безопасности (`npm run test:agent-safety`: отсутствие агентных конфигов/авто-подтверждения, отсутствие LLM-зависимостей, read-only AI-слой, сохранность анти-инъекционных правил в аудиторских промптах); production без read-токена не запускается. Session-key API остаётся только симулятором — не signer и не wallet.
+Защитные меры и их фактическая применимость к хабу/играм сведены в `docs/SECURITY_CONTROL_COVERAGE_RU.md`; каталог угроз на 130 пунктов — `docs/SOLANA_CRYPTO_GAME_SECURITY_CHECKLIST_RU.md` (секции T–W — агентные ИИ-кошельки, отравление аудита, MCP, давление ИИ на скорость атак; пункт 82 — durable nonce и мультисиг; пункты 94–130 — контрольные сценарии 2026). CI проверяет read-only-инвариант, невидимые Unicode (`npm run test:source-safety`) и границы агентной безопасности (`npm run test:agent-safety`: отсутствие агентных конфигов/авто-подтверждения, отсутствие LLM-зависимостей, read-only AI-слой, сохранность анти-инъекционных правил в аудиторских промптах); production без read-токена не запускается. Session-key API остаётся только симулятором — не signer и не wallet.
 
 Независимый аудит — `prompts/audit/`:
 
@@ -127,7 +127,7 @@ npm run ecosystem:target    # фактические уровни L0..L4 по te
 - `token-landing/` — двуязычный лендинг $WTWR: токеномика, три раунда сбора ($350k: NFT $100k + токен $250k), CapsStake, Compute Grid, риски; все числа рендерятся из единого источника `token-data.mjs` с самопроверкой в браузере и в CI;
 - `web-shared/` — общий слой: трекер переходов TalkChart (копия патча для игр), параметры запуска в одном `wt-params.js`, честные формы вайтлиста, favicon и OG-обложки.
 
-Быстрый предпросмотр без сборки: `npm run site:preview`; проверки согласованности (числа, паритет RU/EN, стоп-лист хайпа, ссылки): `npm run test:site`. Чек-лист запуска и схема — `WEBSITES.md`.
+Быстрый предпросмотр без сборки: `npm run site:preview`; проверки согласованности (числа, паритет RU/EN, стоп-лист хайпа, ссылки): `npm run test:site`. Для production выполняйте `npm run build:public-site` и публикуйте только `dist-public/` — раздавать корень репозитория запрещено. Чек-лист запуска и схема — `WEBSITES.md`.
 
 ## Предлагаемая архитектура продукта
 

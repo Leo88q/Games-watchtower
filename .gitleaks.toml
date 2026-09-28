@@ -1,0 +1,30 @@
+title = "Games Watchtower Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+# Narrow, documented false positives in pre-existing history only:
+# - synthetic redaction-test fixtures were literal sentinel strings and are now generated at runtime;
+# - the AOF sessionKeys field is a public Solana program ID, not a credential;
+# - ci-read-token was a disposable local Docker smoke-test credential.
+# These allowlists require BOTH the exact path and the matching fixture/public-ID shape.
+[[allowlists]]
+description = "Synthetic sentinel values in historical API redaction tests"
+condition = "AND"
+paths = ['''^scripts/api-hardening\.test\.mjs$''']
+regexTarget = "secret"
+regexes = ['''(?i)^(?:[a-z]+-)*sentinel-[a-f0-9]+$''']
+
+[[allowlists]]
+description = "Public AOF session keys program ID in integration example"
+condition = "AND"
+paths = ['''^docs/integrations/aof\.md$''']
+regexTarget = "match"
+regexes = ['''sessionKeys:\s*'[1-9A-HJ-NP-Za-km-z]{44}'''']
+
+[[allowlists]]
+description = "Historical non-production Docker smoke-test bearer value"
+condition = "AND"
+paths = ['''^\.github/workflows/ci\.yml$''']
+regexTarget = "match"
+regexes = ['''Authorization:\s*Bearer\s+ci-read-token''']

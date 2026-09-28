@@ -8,6 +8,7 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { randomBytes } from 'node:crypto'
 import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -470,14 +471,16 @@ test('пустой POST на неизвестный маршрут не обхо
 })
 
 test('секреты окружения не попадают ни в один ответ API', async () => {
+  // Runtime-generated fixtures exercise redaction without committing credential-shaped literals.
+  const sentinel = () => `fixture-${randomBytes(24).toString('hex')}`
   const sentinels = {
-    WATCHTOWER_INGEST_TOKEN: 'ingest-sentinel-3f9a1c77',
-    WATCHTOWER_READ_TOKEN: 'read-sentinel-8b2e5d40',
-    WATCHTOWER_INGEST_HMAC_SECRET: 'hmac-sentinel-6c4a9e21',
-    WATCHTOWER_PII_SALT: 'pii-salt-sentinel-1d7b35',
-    HELIUS_API_KEY: 'helius-sentinel-aa11bb22',
-    SHYFT_API_KEY: 'shyft-sentinel-cc33dd44',
-    GAMESIGHT_API_KEY: 'gamesight-sentinel-ee55ff66',
+    WATCHTOWER_INGEST_TOKEN: sentinel(),
+    WATCHTOWER_READ_TOKEN: sentinel(),
+    WATCHTOWER_INGEST_HMAC_SECRET: sentinel(),
+    WATCHTOWER_PII_SALT: sentinel(),
+    HELIUS_API_KEY: sentinel(),
+    SHYFT_API_KEY: sentinel(),
+    GAMESIGHT_API_KEY: sentinel(),
   }
   // Публичные идентификаторы (например PRIVY_APP_ID) не считаем секретом: проверяем только ключи/токены/соли.
   const server = await startTestServer({ ingestToken: sentinels.WATCHTOWER_INGEST_TOKEN, readToken: sentinels.WATCHTOWER_READ_TOKEN, env: sentinels })

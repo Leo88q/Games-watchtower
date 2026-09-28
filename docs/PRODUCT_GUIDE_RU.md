@@ -153,7 +153,7 @@ docker run -p 8787:8787 --env-file .env watchtower-os
 **Вариант B — Node-хостинг (Railway/Render/Fly/VPS).**
 
 ```bash
-npm ci && npm run build
+npm ci --ignore-scripts && npm run build
 node server/index.js        # старт-команда
 # порт задаётся переменной API_PORT (по умолчанию 8787)
 ```

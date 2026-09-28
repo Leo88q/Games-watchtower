@@ -1,19 +1,13 @@
-# Watchtower OS — образ для деплоя одним сервисом.
-#
-#   docker build -t watchtower-os .
-#   docker run -p 8787:8787 --env-file .env -v watchtower-data:/app/data watchtower-os
-#
-# Собирает интерфейс и запускает read-only API, который раздаёт dist/ и /api/* с одного порта.
-# Секреты передаются только переменными окружения. В образе нет .env и ключей.
-# В production сервер не стартует без WATCHTOWER_INGEST_TOKEN (или HMAC-секрета) и WATCHTOWER_PII_SALT —
-# это проверка server/config.js, а не пожелание.
+# Watchtower OS — минимальный образ для API и собранного интерфейса.
+# Секреты передаются только через окружение / secret store; ни .env, ни ключи сюда не копируются.
 
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --no-audit --no-fund
+RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY vite.config.js index.html ios.html ./
 COPY src ./src
+COPY public ./public
 RUN npm run build
 
 FROM node:22-alpine AS runtime
@@ -29,18 +23,33 @@ ENV NODE_ENV=production \
     WATCHTOWER_SNAPSHOT_FILE=/app/data/investor-snapshots.json
 
 COPY package*.json ./
-RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean --force
 
 COPY server ./server
-COPY scripts ./scripts
-COPY docs ./docs
-COPY prompts ./prompts
 COPY studio.config.json ./
-# Серверные модули читают реестр игр из src/data — без него контейнер падал на старте.
+# Runtime reads only this public ecosystem spec and audit summaries, not the documentation tree.
+COPY docs/ecosystem-target.spec.json ./docs/ecosystem-target.spec.json
+COPY reports/*-audit.json ./reports/
+# The API serves this allowlist of prompts. Do not copy the full prompts repository into the image.
+COPY prompts/arena/PROMPT_ARENA_WATCHTOWER_HUB.md ./prompts/arena/PROMPT_ARENA_WATCHTOWER_HUB.md
+COPY prompts/arena/PROMPT_ARENA_ARES1.md ./prompts/arena/PROMPT_ARENA_ARES1.md
+COPY prompts/arena/PROMPT_ARENA_AOF.md ./prompts/arena/PROMPT_ARENA_AOF.md
+COPY prompts/arena/PROMPT_ARENA_NEONRELAY.md ./prompts/arena/PROMPT_ARENA_NEONRELAY.md
+COPY prompts/arena/PROMPT_ARENA_GUTTERCAPS.md ./prompts/arena/PROMPT_ARENA_GUTTERCAPS.md
+COPY prompts/arena/PROMPT_ARENA_TRAFFICGEN.md ./prompts/arena/PROMPT_ARENA_TRAFFICGEN.md
+COPY prompts/arena/max/PROMPT_MAX_HUB.md ./prompts/arena/max/PROMPT_MAX_HUB.md
+COPY prompts/arena/max/PROMPT_MAX_ARES1.md ./prompts/arena/max/PROMPT_MAX_ARES1.md
+COPY prompts/arena/max/PROMPT_MAX_AOF.md ./prompts/arena/max/PROMPT_MAX_AOF.md
+COPY prompts/arena/max/PROMPT_MAX_NEONRELAY.md ./prompts/arena/max/PROMPT_MAX_NEONRELAY.md
+COPY prompts/arena/max/PROMPT_MAX_GUTTERCAPS.md ./prompts/arena/max/PROMPT_MAX_GUTTERCAPS.md
+COPY prompts/arena/max/PROMPT_MAX_TRAFFICGEN.md ./prompts/arena/max/PROMPT_MAX_TRAFFICGEN.md
+COPY prompts/arena/max/PROMPT_MAX_INVESTOR.md ./prompts/arena/max/PROMPT_MAX_INVESTOR.md
+COPY prompts/studio-os/PROMPT_STUDIO_FINANCE_CONFIG.md ./prompts/studio-os/PROMPT_STUDIO_FINANCE_CONFIG.md
+# Server modules read the game registry; this is runtime data, not game implementation source.
 COPY src/data ./src/data
 COPY --from=build /app/dist ./dist
 
-# Единственный каталог, куда сервис пишет (курсоры и снимки отчётов).
+# The only writable location is persistent runtime state.
 RUN mkdir -p /app/data && chown -R node:node /app
 VOLUME ["/app/data"]
 USER node
@@ -49,6 +58,5 @@ EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.API_PORT||8787)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# Node как PID 1 сам обрабатывает SIGTERM: см. graceful shutdown в server/index.js.
 STOPSIGNAL SIGTERM
 CMD ["node", "server/index.js"]

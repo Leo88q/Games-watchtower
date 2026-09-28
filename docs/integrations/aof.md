@@ -30,7 +30,7 @@ export const aofGame = {
     quests: '4fNKhVw2nErWZBBw9hgWD3Metu1UKbDLdhFGWbCewdLU',
     rebirth: '4rMWC1h9mt6JTfBsUPYLMCydPED4e31cffmix5nZyuRb',
     liquidity: 'Gvbo9wDEW6kCzzhjk3stEcZoVtcScbN8mGv9SNwTUJLv',
-    sessionKeys: '6ZnnyKkv1kUE4AJqi5uwdh5ZX6VFGfbQiwhGSkfqZ9K5',
+    sessionKeys: '6ZnnyKkv1kUE4AJqi5uwdh5ZX6VFGfbQiwhGSkfqZ9K5', //gitleaks:allow — публичный program ID, не credential
   },
 } as const
 ```

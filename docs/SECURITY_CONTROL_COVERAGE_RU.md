@@ -24,8 +24,13 @@ Watchtower — аналитический хаб/read-model. Он не явля�
 - Инвентарь хранилищ и измеренная ёмкость зафиксированы исполняемыми проверками: `npm run test:load` (нагрузка), `npm run test:state` (атомарность файлов состояния), `npm run test:unit` (инвалидация кэша аналитики). Данные — только в памяти процесса плюс два JSON-файла состояния; БД нет (`docs/STORAGE_AND_CAPACITY_RU.md`).
 - Аудиторские промпты явно требуют считать репозиторные/внешние тексты недоверенными данными и отчитываться по применимым пунктам чек-листа.
 - Anchor-спецификации усиливаются локальными ограничениями полей/векторов и версией профиля; вывод из program-owned treasury-PDA сохраняет rent reserve и не пытается использовать System Program как владельца PDA. Эти изменения **не проверены Rust toolchain**.
+- Production config теперь отказывает при `WATCHTOWER_ALLOW_UNKNOWN_GAMES=true`; неизвестные gameId остаются deny-by-default. Это не allowlist mint/program IDs и не проверка токенов.
+- IP-псевдонимный salt по умолчанию и ID snapshot используют Node CSPRNG (`randomBytes`/`randomUUID`), а не `Math.random`; эти значения не являются wallet keys.
+- CI устанавливает lockfile без lifecycle scripts (`npm ci --ignore-scripts`), запускает `npm audit --audit-level=high`; Dependabot еженедельно проверяет npm и GitHub Actions. `.gitleaks.toml` содержит только три узких AND-allowlist для исторических synthetic test sentinels, одного публичного program ID и старого локального smoke-token; тестовые sentinels теперь создаются в runtime. Это не исключает сканирование файлов/истории в целом и не заменяет review обновлений или проверку внешнего SDK.
+- Godot/Unreal SDK-примеры помечены devnet-only; рекомендовано внешнее подписание с явным просмотром и подтверждением, но интеграция wallet UI в самом Watchtower отсутствует.
+- Добавлен `docs/INCIDENT_RESPONSE_SECURITY_RU.md` как операционная памятка; она не является автоматическим containment, не ротирует внешние ключи и не принимает юридических решений.
 
-## Карта 82 пунктов
+## Карта пунктов 1–82
 
 | Пункты | Статус в Watchtower | Что реально означает |
 |---|---|---|
@@ -63,6 +68,50 @@ Watchtower — аналитический хаб/read-model. Он не явля�
 | 80 | **Hub (partial)** | Аудит как процесс, а не разовая проверка: CI на push/PR прогоняет тесты, мутационную проверку, сканер невидимых Unicode, агентные границы и нагрузочную проверку. Публичных dev/admin-поверхностей у хаба нет (единственная точка входа — API/статика), но размещение внешних админ-панелей за VPN/allowlist — задача оператора. Измеренная причина относиться к этому серьёзно: при большом inbox аналитика блокирует приём и health — `docs/STORAGE_AND_CAPACITY_RU.md` §3. |
 | 81 | **External** | Защита игроков от дрейнеров под брендом «ИИ-бот» кодом не решается: это контент-политика (предупреждение, что официальные адреса контрактов публикуются только на сайте, и что студия никогда не просит игроков деплоить контракты «ради заработка»). В репозитории такой контент есть только в виде лендингов (`WEBSITES.md`, `token-landing/`), текстов предупреждений о мошенниках там пока нет. |
 | 82 | **Hub boundary / External** | Хаб не создаёт, не хранит и не подписывает durable-nonce-транзакции, не собирает подписи мультисига и не управляет Security Council — проверяется read-only инвариантом. Практическое правило для оператора (в промптах аудита): durable-nonce-транзакция проверяется так же строго, как обычная; таймлок на смену состава мультисига/Security Council не обнуляется «срочно»; заранее созданные nonce-аккаунты — отдельный объект мониторинга. |
+
+## Карта контрольных сценариев 94–130
+
+Номера соответствуют продолжению угроз из [чек-листа](SOLANA_CRYPTO_GAME_SECURITY_CHECKLIST_RU.md); названия нормализованы, а конкретные incident details не верифицировались отдельно. **Hub (partial)** означает только описанный контроль Watchtower, не защиту игровой транзакции. **N/A/External** не закрывает риск внешнего продукта.
+
+| Пункт | Статус | Доказательство / граница |
+|---:|---|---|
+| 94 | **External / N/A** | Нет DAO/governance voting или управления authority в хабе. |
+| 95 | **External / N/A** | Ценовой расчёт здесь не является settlement oracle; DEX/TWAP/ликвидность не контролируются. |
+| 96 | **Hub (partial) / External** | Dashboard строит метрики из событий, но не доказывает wash-trade/Sybil filtering и не превращает volume в цену. |
+| 97 | **Hub partial / External** | `gameId` — закрытый список и production запрещает `WATCHTOWER_ALLOW_UNKNOWN_GAMES`; mint/program IDs и extensions здесь не allowlist-ятся. |
+| 98 | **External / Spec** | Upgrade/authority и ротация игровых ключей вне Watchtower; Anchor-файлы не deployed. |
+| 99 | **Hub partial** | `server/config.js` использует `randomBytes(32)` для эфемерной IP соли, snapshots — `randomUUID`; сессии используют `randomBytes`; wallet key generation отсутствует в хабе. |
+| 100 | **Hub partial / External** | Secret scanner охватывает рабочее дерево/Git в CI; ротация любых найденных секретов и workstation/secret-manager остаются оператору. Не печатать значения. |
+| 101 | **N/A / External** | Signing service, HSM/KMS и payout signer отсутствуют; API credentials не являются signer key. |
+| 102 | **External / N/A** | Нет multisig/quorum engine в хабе; одна Rust treasury spec не подтверждает фактический multisig. |
+| 103 | **Hub partial / External** | Есть frontend build/CSP и CI secret scan; deployed-origin, DNS, wallet preview и release provenance требуют проверки оператора. |
+| 104 | **N/A / External** | Watchtower не просит подпись и не содержит wallet-connect UI; пользователю нужна защита в игре/wallet. |
+| 105 | **External** | Управляемые workstation, MFA, кадровый доступ и контрагенты репозиторием не проверяются. |
+| 106 | **Hub (partial)** | Lockfile, pinned Action SHAs, `npm ci --ignore-scripts`, npm audit и Dependabot config; внешние SDK/пакеты игр отдельно не проверены. |
+| 107 | **Hub (partial) / External** | CI/review/Dependabot дают техническую основу; staged rollout, release approval и rollback — политика оператора. |
+| 108 | **N/A / Hub boundary** | Нет реальных delegated on-chain permissions; session-key модуль только симулирует scope и не подписывает. |
+| 109 | **Hub boundary / External** | Read-only инвариант проверяется `test:readonly`; on-chain guard и альтернативные instruction paths принадлежат целевой игре. |
+| 110 | **Hub partial / External** | Ingest отвергает отрицательные/небезопасные числовые значения, но `0` допускается как значение события; нулевая семантика в payout-контрактах здесь отсутствует. |
+| 111 | **Operational partial** | `docs/INCIDENT_RESPONSE_SECURITY_RU.md` содержит триаж/сохранение/ротацию/восстановление; нет автоматического incident response и внешнего on-chain freeze. |
+| 112 | **Spec / External** | Anchor specs содержат некоторые PDA/target checks; Rust не собирается/не тестируется, CPI substitution tests отсутствуют. |
+| 113 | **Hub simulation / Spec / External** | Mock ограничивает размер/срок/scope для policy-demo, но не обеспечивает on-chain authorization; spec не является deployed enforcement. |
+| 114 | **Hub partial / Spec** | Ingest ограничивает значения до safe integer; Rust specs используют checked arithmetic в treasury; real program boundary tests отсутствуют. |
+| 115 | **Hub partial / Spec** | Production deny unknown games и profile version в spec; версионирование live IDL/config/deployed program не доказано. |
+| 116 | **External / N/A** | Нет oracle с независимыми источниками/freshness/deviation checks для расчетов средств. |
+| 117 | **External** | DNS/registrar/domain MFA и сертификаты не контролируются кодом хаба. |
+| 118 | **Spec / External** | Treasury spec перепроверяет accounting при execute/timelock, но не собрана и не доказывает реальные token liabilities/recipient policy. |
+| 119 | **External / Spec** | Реальные quorum, multisig membership rotation и timelock — ответственность владельцев программы; нельзя принимать spec за работающий контроль. |
+| 120 | **External** | Callback, dual control, контрагенты и социальная инженерия требуют операционного процесса. |
+| 121 | **Hub partial / External** | CI/Docker security checks есть; cloud identity, runtime isolation, egress/attestation — операторские. Локальный CI/Docker audit в этой работе не выполнен. |
+| 122 | **N/A / External** | В хабе нет финансового approval engine; любые API заявки/метрики не исполняют транзакции. |
+| 123 | **Hub partial** | Weekly Dependabot + `npm audit` CI; проверка upstream signature/patch provenance и сроков исключений — release owner. |
+| 124 | **External / N/A** | Сестринские сервисы/игры не изолируются этим репозиторием; требуется отдельная инвентаризация credentials и pipeline. |
+| 125 | **Hub boundary / CI** | `test:agent-safety` блокирует agent SDK/config и auto-approve patterns; внешние плагины, права IDE и agent-runtime требуют проверки оператора. |
+| 126 | **Hub partial / External** | Ingest проверяет безопасный slot и запрещает `observedAt` из будущего; не подтверждает slot finality, часы upstream или settlement. |
+| 127 | **Hub partial / External** | Один настроенный Helius gRPC/WebSocket config (`confirmed`); независимый RPC quorum/fork reconciliation не реализован. |
+| 128 | **Spec / External** | Контроль upgrade authority/verified binary не подтверждён; Anchor-код — непроверенная спецификация. |
+| 129 | **External** | Официальный proposal hash/channel of record/контрагентская аутентификация не являются возможностями хаба. |
+| 130 | **Hub process partial / External** | CI и regression suite; назначение владельца/периода повторного аудита и закрытие внешних действий требуют человека. |
 
 ## Проверяемые в CI границы агентной безопасности
 

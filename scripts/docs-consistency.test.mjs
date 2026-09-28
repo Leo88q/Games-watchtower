@@ -131,6 +131,34 @@ test('Dockerfile и .dockerignore согласованы с требования
   for (const entry of ['node_modules', '.git', '.env']) {
     assert.ok(ignore.split('\n').includes(entry) || ignore.includes(`${entry}*`) || ignore.includes(`${entry}/`), `.dockerignore обязан исключать ${entry}`)
   }
+  for (const pattern of ['**/*.pem', '**/*.key', '**/*.p12', '**/*.keystore', '**/*.sqlite', '**/*.sql', '**/*.bak', '**/*.dump', '**/*.log']) {
+    assert.ok(ignore.includes(pattern), `.dockerignore не исключает чувствительные файлы по ${pattern}`)
+  }
+})
+
+test('security gates: секреты сканируются в CI и pre-commit, Actions закреплены по SHA', () => {
+  const workflow = read('.github/workflows/ci.yml')
+  assert.match(workflow, /permissions:\s+contents:\s+read/, 'CI должен использовать минимальные permissions')
+  assert.match(workflow, /gitleaks" dir/, 'CI должен проверять рабочее дерево')
+  assert.ok(workflow.includes('gitleaks" git') && workflow.includes('--log-opts="--all"'), 'CI должен проверять всю доступную историю refs')
+  assert.ok(workflow.includes('trufflehog:3.97.9 filesystem') && workflow.includes('trufflehog:3.97.9 git file:///repo'), 'CI должен проверять файлы и Git-историю TruffleHog')
+  assert.ok(workflow.includes('--no-verification --fail'), 'secret scan не должен отправлять ключи на проверочные внешние API и обязан проваливать CI')
+  assert.ok(workflow.includes('fetch-depth: 0'), 'для истории checkout должен быть полным')
+  assert.match(read('vite.config.js'), /sourcemap:\s*false/, 'production source maps должны быть отключены')
+  assert.ok(!workflow.includes('pull_request_target'), 'не выполнять непроверенный код через pull_request_target')
+  for (const line of workflow.split('\n').filter((item) => item.trim().startsWith('uses:'))) {
+    assert.match(line, /uses:\s+[^@]+@[0-9a-f]{40}/i, `Action должна быть закреплена по полному SHA: ${line.trim()}`)
+  }
+  assert.match(read('.pre-commit-config.yaml'), /id: gitleaks/, 'локальный pre-commit hook отсутствует')
+  const gitignore = read('.gitignore')
+  for (const pattern of ['.env*', '*.pem', '*.key', '*.p12', '*.keystore', 'keypair*.json', 'wallet*.json', '*.sqlite', '*.sql', '*.bak', '*.dump', '*.log', '.DS_Store']) {
+    assert.ok(gitignore.includes(pattern), `.gitignore не защищает ${pattern}`)
+  }
+  assert.ok(gitignore.includes('!.env.example'), '.env.example должен оставаться отслеживаемым')
+  const websiteGuide = read('WEBSITES.md')
+  assert.ok(websiteGuide.includes('npm run build:public-site') && websiteGuide.includes('dist-public/'), 'публичный сайт должен деплоиться из allowlist-сборки')
+  // CODEOWNERS ownership and repository licensing require explicit human confirmation;
+  // this technical test must neither require those files nor treat them as approved.
 })
 
 test('CI запускает те же проверки, что и локальный скрипт', () => {
@@ -215,9 +243,19 @@ test('Dockerfile копирует всё, что нужно сборке и се
   assert.ok(inputs.length >= 2, 'vite собирает два интерфейса: index.html и ios.html')
   for (const input of inputs) assert.ok(dockerfile.includes(input), `сборка требует ${input}, но Dockerfile его не копирует`)
 
-  // 3. Промпты — часть продукта (раздел «Промпты» в интерфейсе), их нельзя выбрасывать из образа.
-  assert.ok(dockerfile.includes('COPY prompts ./prompts'), 'промпты должны попадать в образ')
-  assert.ok(!read('.dockerignore').split('\n').includes('prompts'), '.dockerignore не должен исключать prompts')
+  // 3. API serves only catalogued prompt files; the image must not contain the full prompt repository.
+  const promptFiles = [...read('server/ecosystem/prompts.js').matchAll(/file: '([^']+)'/g)].map((match) => match[1])
+  assert.ok(promptFiles.length > 0, 'prompt API catalog must not be empty')
+  for (const file of promptFiles) assert.ok(dockerfile.includes(`COPY ${file} ./${file}`), `Dockerfile does not include API prompt ${file}`)
+  assert.ok(!dockerfile.includes('COPY prompts ./prompts'), 'do not copy the full prompt repository into the image')
+  assert.ok(dockerfile.includes('COPY docs/ecosystem-target.spec.json'), 'runtime needs the single public ecosystem spec')
+  assert.ok(dockerfile.includes('COPY reports/*-audit.json'), 'runtime needs audit summaries')
+  assert.ok(!dockerfile.includes('COPY scripts ./scripts'), 'test and maintenance scripts do not belong in runtime image')
+  const dockerignore = read('.dockerignore')
+  assert.ok(dockerignore.includes('prompts/**'), '.dockerignore must exclude non-runtime prompts')
+  for (const excluded of ['.github', 'patches', 'sdk', 'token-landing', 'watchtower-site', 'web-shared', 'scripts']) {
+    assert.ok(dockerignore.split('\n').includes(excluded), `.dockerignore must keep ${excluded} out of the build context`)
+  }
 })
 
 test('Anchor security specs retain critical guard markers and stay explicitly unverified', () => {

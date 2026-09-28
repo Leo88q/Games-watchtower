@@ -17,7 +17,7 @@ export const GODOT_SOLANA_SDK_DETAILED = {
     SolanaClient: 'RPC client — getBalance, getAccountInfo, sendTransaction, confirm',
     WalletAdapter: 'Phantom, Solflare, Backpack adapter via WalletAdapter standard',
     AnchorProgram: 'IDL-based program caller — call methods, fetch accounts, events',
-    Keypair: 'Generate random, from seed, from private key, pubkey derivation',
+    Keypair: 'Devnet/test keys only; never import a mainnet secret into game code or Watchtower. Mainnet requires an independently audited external wallet adapter.',
     SPLToken: 'SPL Token builder — create mint, transfer, approve, burn',
     CandyMachine: 'Candy Machine v2/v3 builder — mint NFT, fetch config',
     SystemProgram: 'System instructions — createAccount, transfer',
@@ -55,6 +55,8 @@ export function godotSolanaSdkSetup({ gameId, cluster = 'devnet' } = {}) {
     builders: GODOT_SOLANA_SDK_DETAILED.builders,
     codeExamples: {
       client: `
+# DEVNET-ONLY: disposable test key. Never generate/import a mainnet wallet secret in the game process.
+# Mainnet requires an independently audited external wallet adapter, transaction preview and explicit approval.
 var client = SolanaClient.new("https://api.devnet.solana.com")
 var keypair = Keypair.new_random()
 var pubkey = keypair.get_pubkey()
@@ -62,6 +64,7 @@ var balance = await client.get_balance(pubkey)
 print("Balance: ", balance)
 `,
       walletAdapter: `
+# External wallet owns private keys. Inspect program, accounts, recipient and amount before every signature.
 var wallet_adapter = WalletAdapter.new()
 wallet_adapter.set_adapter("phantom") # phantom, solflare, backpack
 var connected = await wallet_adapter.connect()
@@ -101,7 +104,8 @@ print("Token balance: ", bal)
 var transfer_result = await token.transfer(wallet_pubkey, dest_pubkey, 100, keypair)
 `,
       sessionKeysGodot: `
-# Session Keys аналог — временный keypair 0.01 SOL для частых действий
+# DEVNET-ONLY illustration, not a production session-key control. Use only disposable client-side test keys.
+# Never send a private key/seed to Watchtower; production limits must be enforced by the target program.
 var session_keypair = Keypair.new_random()
 await client.request_airdrop(session_keypair.get_pubkey(), 10000000) # 0.01 SOL
 # Scope: только game actions, no treasury
@@ -135,7 +139,7 @@ http.request("https://watchtower.studio/api/ingest/solana", ["Content-Type: appl
     },
     security: {
       audit: 'отсутствует — mainnet с осторожностью',
-      recommendation: 'devnet/beta only, mainnet needs extra audit + multisig + session keys 0.01 SOL + timelock Squads',
+      recommendation: 'Devnet-only until the exact external SDK release is independently reviewed. Mainnet requires an audited external wallet with transaction preview/explicit approval and on-chain enforced capabilities; multisig/timelock do not replace those checks and are not provided here.',
       noPrivateKeysInWatchtower: true,
     },
     writes: false,
