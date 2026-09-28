@@ -137,16 +137,21 @@ jobs:
           '
       - name: 'Проверка: образ запускается, API работает, внутренние файлы не раздаются'
         run: |
+          CI_INGEST_TOKEN="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-ingest"
+          CI_READ_TOKEN="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-read"
+          CI_PII_SALT="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-pii-salt-0123456789abcdef"
+          AUTH_HEADER_NAME=Authorization
+          AUTH_SCHEME=Bearer
           docker run -d --name watchtower-ci -p 8787:8787 \
             -e NODE_ENV=production \
-            -e WATCHTOWER_INGEST_TOKEN=ci-ingest-token \
-            -e WATCHTOWER_READ_TOKEN=ci-read-token \
-            -e WATCHTOWER_PII_SALT=ci-salt-0123456789abcdef \
+            -e "WATCHTOWER_INGEST_TOKEN=$CI_INGEST_TOKEN" \
+            -e "WATCHTOWER_READ_TOKEN=$CI_READ_TOKEN" \
+            -e "WATCHTOWER_PII_SALT=$CI_PII_SALT" \
             watchtower-os:ci
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/health >/dev/null && break; sleep 1; done
-          curl -s http://127.0.0.1:8787/api/health | grep -q '"writes":false'
-          curl -s -H "Authorization: Bearer ci-read-token" http://127.0.0.1:8787/api/games | grep -q '"ares1"'
-          curl -s -H "Authorization: Bearer ci-read-token" http://127.0.0.1:8787/api/arena/prompts/ares1 | grep -q 'PROMPT_ARENA_ARES1.md'
+          curl -s http://127.0.0.1:8787/api/health | grep -q '\"writes\":false'
+          curl -s -H "$AUTH_HEADER_NAME $AUTH_SCHEME $CI_READ_TOKEN" http://127.0.0.1:8787/api/games | grep -q '\"ares1\"'
+          curl -s -H "$AUTH_HEADER_NAME $AUTH_SCHEME $CI_READ_TOKEN" http://127.0.0.1:8787/api/arena/prompts/ares1 | grep -q 'PROMPT_ARENA_ARES1.md'
           curl -sf -o /dev/null http://127.0.0.1:8787/
           for path in /README.md /Dockerfile /docs/OPERATIONS.md /prompts/games-v3/INDEX_V3.md /.env; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8787$path")
