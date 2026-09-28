@@ -50,10 +50,24 @@ jobs:
           tar --exclude=.git --exclude=node_modules -cf - . | tar -xf - -C "$RUNNER_TEMP/gitleaks-worktree"
       - name: Gitleaks — рабочее дерево и production-бандлы (redacted)
         run: |
-          "$HOME/go/bin/gitleaks" dir --redact --exit-code 1 "$RUNNER_TEMP/gitleaks-worktree"
+          report="$RUNNER_TEMP/gitleaks-dir.json"
+          if "$HOME/go/bin/gitleaks" dir --redact --report-format json --report-path "$report" --exit-code 1 "$RUNNER_TEMP/gitleaks-worktree"; then
+            exit 0
+          fi
+          jq -r '.[] | [.RuleID, .File, (.StartLine | tostring)] | @tsv' "$report" | while IFS=$'	' read -r rule file line; do
+            echo "::error file=$file,line=$line,title=Gitleaks candidate::$rule matched; value redacted. Treat as compromised pending review."
+          done
+          exit 1
       - name: Gitleaks — полная Git-история (redacted)
         run: |
-          "$HOME/go/bin/gitleaks" git --redact --exit-code 1 --log-opts="--all" .
+          report="$RUNNER_TEMP/gitleaks-git.json"
+          if "$HOME/go/bin/gitleaks" git --redact --report-format json --report-path "$report" --exit-code 1 --log-opts="--all" .; then
+            exit 0
+          fi
+          jq -r '.[] | [.RuleID, .File, (.StartLine | tostring)] | @tsv' "$report" | while IFS=$'	' read -r rule file line; do
+            echo "::error file=$file,line=$line,title=Gitleaks history candidate::$rule matched; value redacted. Treat as compromised pending review."
+          done
+          exit 1
       - name: Загрузка TruffleHog
         run: docker pull ghcr.io/trufflesecurity/trufflehog:3.97.9
       - name: TruffleHog — рабочее дерево (детали кандидатов скрыты)
