@@ -41,20 +41,27 @@ jobs:
         with:
           go-version: '1.24.11'
           cache: false
-      - name: Scan рабочего дерева, production-бандлов и полной Git-истории
+      - name: Подготовка Gitleaks и изолированной копии рабочего дерева
         env:
           GOTOOLCHAIN: local
         run: |
           go install github.com/zricethezav/gitleaks/v8@v8.30.1
           mkdir -p "$RUNNER_TEMP/gitleaks-worktree"
           tar --exclude=.git --exclude=node_modules -cf - . | tar -xf - -C "$RUNNER_TEMP/gitleaks-worktree"
-          "$HOME/go/bin/gitleaks" dir --redact --exit-code 1 "$RUNNER_TEMP/gitleaks-worktree"
-          "$HOME/go/bin/gitleaks" git --redact --exit-code 1 --log-opts="--all" .
-          docker pull ghcr.io/trufflesecurity/trufflehog:3.97.9
+      - name: Gitleaks — рабочее дерево и production-бандлы (redacted)
+        run: "$HOME/go/bin/gitleaks" dir --redact --exit-code 1 "$RUNNER_TEMP/gitleaks-worktree"
+      - name: Gitleaks — полная Git-история (redacted)
+        run: "$HOME/go/bin/gitleaks" git --redact --exit-code 1 --log-opts="--all" .
+      - name: Загрузка TruffleHog
+        run: docker pull ghcr.io/trufflesecurity/trufflehog:3.97.9
+      - name: TruffleHog — рабочее дерево (детали кандидатов скрыты)
+        run: |
           if ! docker run --rm -v "$RUNNER_TEMP/gitleaks-worktree:/scan:ro" ghcr.io/trufflesecurity/trufflehog:3.97.9 filesystem /scan --no-update --no-verification --fail >"$RUNNER_TEMP/trufflehog-filesystem.log" 2>&1; then
             echo '::error::TruffleHog found a filesystem candidate; result details are suppressed to avoid leaking values into logs.'
             exit 1
           fi
+      - name: TruffleHog — полная Git-история (детали кандидатов скрыты)
+        run: |
           if ! docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" ghcr.io/trufflesecurity/trufflehog:3.97.9 git file:///repo --no-update --no-verification --fail >"$RUNNER_TEMP/trufflehog-git.log" 2>&1; then
             echo '::error::TruffleHog found a Git-history candidate; result details are suppressed to avoid leaking values into logs.'
             exit 1
