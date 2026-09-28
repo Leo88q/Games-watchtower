@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { existsSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
 
 /**
  * Конфигурация Watchtower API.
@@ -113,6 +114,10 @@ export function loadConfig(env = process.env, options = {}) {
     throw new ConfigError(error.message)
   }
 
+  if (isProduction && allowUnknownGames) {
+    throw new ConfigError('В production нельзя отключать allowlist игр (WATCHTOWER_ALLOW_UNKNOWN_GAMES=true): добавьте игру в реестр и выпустите reviewed change')
+  }
+
   // Каталог собранного бандла. По умолчанию — ./dist относительно рабочего каталога,
   // но в контейнере/на хосте его можно смонтировать в другое место (WATCHTOWER_STATIC_DIR).
   const staticDir = env.WATCHTOWER_STATIC_DIR
@@ -170,7 +175,9 @@ export function loadConfig(env = process.env, options = {}) {
     allowedOrigins: parseList(env.WATCHTOWER_ALLOWED_ORIGINS),
     piiSalt,
     logLevel: (env.WATCHTOWER_LOG_LEVEL || (isProduction ? 'info' : 'debug')).toLowerCase(),
-    ipHashSalt: env.WATCHTOWER_IP_HASH_SALT || `ephemeral:${Math.random().toString(36).slice(2)}`,
+    // Случайная соль используется только для эфемерного IP-псевдонима; не является wallet/key material.
+    // CSPRNG исключает предсказуемые значения даже в этой security/privacy-смежной роли.
+    ipHashSalt: env.WATCHTOWER_IP_HASH_SALT || `ephemeral:${randomBytes(32).toString('hex')}`,
     economy: {
       circulating: numOrUndefined(env.WATCHTOWER_ECONOMY_CIRCULATING),
       maxSupply: numOrUndefined(env.WATCHTOWER_ECONOMY_MAX_SUPPLY),

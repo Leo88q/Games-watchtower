@@ -8,6 +8,7 @@
  */
 
 import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { investorReport } from './investor-report.js'
 import { readJsonFile, updateJsonFile } from '../state/json-store.js'
 
@@ -25,7 +26,7 @@ async function load() {
 export async function createInvestorSnapshot({ period = '7d UTC', createdBy = 'system' } = {}) {
   const report = investorReport()
   const snapshot = {
-    snapshotId: `snapshot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    snapshotId: `snapshot-${Date.now()}-${randomUUID()}`,
     version: 'investor-v1',
     period,
     createdBy,

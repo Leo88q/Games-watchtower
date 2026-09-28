@@ -38,6 +38,7 @@ docker run -d --name watchtower -p 8787:8787 --env-file .env \
 | нет `WATCHTOWER_READ_TOKEN` в development/test | `/api/*` доступны локально без токена; не выставлять такой режим в интернет |
 | `WATCHTOWER_TRUST_PROXY=0` (по умолчанию) | `X-Forwarded-For` игнорируется, IP берётся из сокета |
 | `WATCHTOWER_ALLOW_DEMO=0` (в production по умолчанию) | `?demo=1` отвечает `403 demo_disabled` |
+| `WATCHTOWER_ALLOW_UNKNOWN_GAMES=true` в production | запуск завершается ошибкой: production принимает только gameId из реестра кода |
 
 Полный список переменных — `.env.example`; какие именно читает сервер — `/api/config` и
 `CONFIG_ENV_KEYS` в `server/config.js` (совпадение проверяет `npm run test:docs`).
@@ -170,6 +171,8 @@ curl -s -X POST localhost:8787/api/pii/erasure \
 
 ## 6. Инциденты
 
+Для security-событий, возможной утечки credentials, supply-chain compromise или сигнала о внешней игре используйте [отдельный incident runbook](INCIDENT_RESPONSE_SECURITY_RU.md). Он не заменяет решения владельцев внешних кошельков/контрактов и не требует добавлять секреты в тикеты.
+
 **События не поступают (`/api/readyz` → 503, `freshness`).**
 1. `curl -s localhost:8787/api/ingestion/status` — посмотрите `lastEventAt`, `lastEventAgeSeconds`.
 2. Проверьте отправителя: `401` в логах = неверный токен; `422` = событие не проходит валидацию
@@ -197,7 +200,7 @@ curl -s -X POST localhost:8787/api/pii/erasure \
 ## 7. Деплой, обновление, откат
 
 ```bash
-npm ci && npm run verify          # тесты, мутации, сборка
+npm ci --ignore-scripts && npm audit --audit-level=high && npm run verify  # тесты, advisories, мутации, сборка
 docker build -t watchtower-os:$GIT_SHA .
 docker tag watchtower-os:$GIT_SHA watchtower-os:current
 docker stop watchtower && docker run -d --name watchtower ... watchtower-os:$GIT_SHA

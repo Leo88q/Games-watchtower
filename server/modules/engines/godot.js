@@ -18,7 +18,7 @@ export const GODOT_SDK_CONFIG = {
     candyMachine: true,
     anchorPrograms: true,
   },
-  warning: 'Требует осторожности при работе с mainnet из-за отсутствия аудита безопасности',
+  warning: 'Неаудированный внешний SDK: примеры ниже — devnet-only; не генерируйте/не импортируйте mainnet-секреты в игре или Watchtower. Для mainnet используйте независимо проверенный wallet adapter с явным просмотром транзакции и подтверждением пользователя.',
   repo: 'https://github.com/Virus-Axel/godot-solana-sdk',
 }
 
@@ -36,7 +36,8 @@ export function godotSdkSetup({ gameId, cluster = 'devnet' } = {}) {
     warning: GODOT_SDK_CONFIG.warning,
     codeExamples: {
       gdscriptClient: `
-# Godot 4.3+ GDScript
+# DEVNET-ONLY example for a disposable test key. Never generate/import a mainnet wallet secret in game code.
+# For mainnet, use an independently audited external WalletAdapter with transaction preview + explicit user approval.
 var client = SolanaClient.new("https://api.devnet.solana.com")
 var keypair = Keypair.new_random()
 var balance = await client.get_balance(keypair.get_pubkey())
@@ -54,7 +55,8 @@ var cm = CandyMachine.new(client, candy_machine_id)
 var nft = await cm.mint(keypair)
 `,
       sessionKeysEquivalent: `
-# Session Keys аналог в Godot — создаем временный keypair с ограниченным балансом
+# DEVNET-ONLY illustration, not a production session-key control. Generate only disposable test keys client-side.
+# Never send a private key/seed to Watchtower; production scopes and limits must be enforced on-chain.
 var session_keypair = Keypair.new_random()
 # Airdrop 0.01 SOL для сессии
 await client.request_airdrop(session_keypair.get_pubkey(), 10000000)
@@ -64,7 +66,7 @@ var tx = await anchor_program.call("move_player", [session_keypair.get_pubkey()]
     },
     security: {
       audit: 'отсутствует аудит безопасности — mainnet с осторожностью',
-      recommendation: 'Использовать только для devnet/beta, для mainnet — дополнительный аудит + multisig + session keys с лимитом 0.01 SOL',
+      recommendation: 'SDK не подтверждён независимым аудитом: devnet-only до проверки конкретного релиза; для mainnet нужны внешний audited wallet, просмотр и явное подтверждение каждой транзакции, on-chain allowlist/лимиты и timelock/multisig там, где применимо. Это не гарантируется данным примером.',
     },
     watchtowerIntegration: {
       endpoint: 'https://watchtower.studio/api/ingest/solana',

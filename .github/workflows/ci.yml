@@ -5,6 +5,9 @@ on:
     branches: ['**']
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -12,21 +15,50 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       NODE_ENV: test
       WATCHTOWER_PII_SALT: ci-salt-0123456789abcdef
       WATCHTOWER_ALLOW_DEMO: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: npm
       - name: Установка зависимостей
-        run: npm ci --no-audit --no-fund
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Проверка advisories заблокированных зависимостей
+        run: npm audit --audit-level=high
       - name: Сборка интерфейса
         run: npm run build
+      - name: Сборка allowlist-сайта
+        run: npm run build:public-site
+      - name: Установка Gitleaks
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: '1.24.11'
+          cache: false
+      - name: Scan рабочего дерева, production-бандлов и полной Git-истории
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          mkdir -p "$RUNNER_TEMP/gitleaks-worktree"
+          tar --exclude=.git --exclude=node_modules -cf - . | tar -xf - -C "$RUNNER_TEMP/gitleaks-worktree"
+          "$HOME/go/bin/gitleaks" dir --redact --exit-code 1 "$RUNNER_TEMP/gitleaks-worktree"
+          "$HOME/go/bin/gitleaks" git --redact --exit-code 1 --log-opts="--all" .
+          docker pull ghcr.io/trufflesecurity/trufflehog:3.97.9
+          if ! docker run --rm -v "$RUNNER_TEMP/gitleaks-worktree:/scan:ro" ghcr.io/trufflesecurity/trufflehog:3.97.9 filesystem /scan --no-update --no-verification --fail >"$RUNNER_TEMP/trufflehog-filesystem.log" 2>&1; then
+            echo '::error::TruffleHog found a filesystem candidate; result details are suppressed to avoid leaking values into logs.'
+            exit 1
+          fi
+          if ! docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" ghcr.io/trufflesecurity/trufflehog:3.97.9 git file:///repo --no-update --no-verification --fail >"$RUNNER_TEMP/trufflehog-git.log" 2>&1; then
+            echo '::error::TruffleHog found a Git-history candidate; result details are suppressed to avoid leaking values into logs.'
+            exit 1
+          fi
       - name: Unit-тесты
         run: npm run test:unit
       - name: Интеграционные проверки API
@@ -39,11 +71,13 @@ jobs:
         run: npm run test:source-safety
       - name: Границы агентной безопасности (пункты 71–82 каталога угроз)
         run: npm run test:agent-safety
+      - name: Защиты и coverage контрольных сценариев 94–130
+        run: npm run test:threat-coverage
       - name: Согласованность документации и ENV
         run: npm run test:docs
       - name: DOM-проверка интерфейса (jsdom)
         run: npm run test:ui
-      - name: Согласованность сайта и лендинга
+      - name: Согласованность сайта и allowlist-сборки
         run: npm run test:site
       - name: Smoke-тест на живом сервере
         env:
@@ -65,12 +99,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - name: Проверка сборки образа
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Проверка сборки минимального образа
         run: docker build -t watchtower-os:ci .
-      - name: 'Проверка: образ запускается и отвечает на /api/health'
+      - name: Проверка состава образа
         run: |
-          # Регрессия F-020: без src/data и ios.html образ собирался, но падал на старте.
+          docker run --rm --entrypoint sh watchtower-os:ci -ec '
+            test ! -e /app/scripts
+            test ! -e /app/docs/OPERATIONS.md
+            test ! -e /app/prompts/games-v3
+            test -f /app/docs/ecosystem-target.spec.json
+            test -f /app/prompts/arena/PROMPT_ARENA_ARES1.md
+            test -f /app/dist/ios.html
+          '
+      - name: 'Проверка: образ запускается, API работает, внутренние файлы не раздаются'
+        run: |
           docker run -d --name watchtower-ci -p 8787:8787 \
             -e NODE_ENV=production \
             -e WATCHTOWER_INGEST_TOKEN=ci-ingest-token \
@@ -80,14 +123,16 @@ jobs:
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/health >/dev/null && break; sleep 1; done
           curl -s http://127.0.0.1:8787/api/health | grep -q '"writes":false'
           curl -s -H "Authorization: Bearer ci-read-token" http://127.0.0.1:8787/api/games | grep -q '"ares1"'
+          curl -s -H "Authorization: Bearer ci-read-token" http://127.0.0.1:8787/api/arena/prompts/ares1 | grep -q 'PROMPT_ARENA_ARES1.md'
           curl -sf -o /dev/null http://127.0.0.1:8787/
+          for path in /README.md /Dockerfile /docs/OPERATIONS.md /prompts/games-v3/INDEX_V3.md /.env; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8787$path")
+            test "$code" = 404
+          done
           curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8787/api/ingest/solana | grep -q 401
-          docker logs watchtower-ci
           docker rm -f watchtower-ci
-
-      - name: 'Проверка: образ отказывается стартовать без секретов приёма'
+      - name: 'Проверка: production отказывается стартовать без секретов'
         run: |
-          # В production образ обязан отказаться стартовать без секретов приёма — с кодом 1 и понятным текстом.
           set +e
           output=$(docker run --rm -e NODE_ENV=production watchtower-os:ci 2>&1)
           code=$?

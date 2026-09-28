@@ -240,9 +240,11 @@ function processRepo(repo) {
   if (pkg) {
     const lock = existsSync(path.join(dir, 'package-lock.json'))
     if (!lock) warn('нет package-lock.json: установка не воспроизводима (зафиксируйте lock в git)')
-    exec(repo, lock ? 'npm ci' : 'npm install', lock
-      ? 'rm -rf node_modules && npm ci --no-audit --no-fund'
-      : 'npm install --no-audit --no-fund')
+    const installLabel = lock ? 'npm ci' : 'npm install'
+    const installCommand = lock
+      ? `rm -rf node_modules && npm ci ${repo === HUB ? '--ignore-scripts ' : ''}--no-audit --no-fund`
+      : 'npm install --no-audit --no-fund'
+    exec(repo, installLabel, installCommand)
   } else {
     warn('нет package.json — npm-шаги пропущены')
     record(repo, 'npm', 'skip', 'нет package.json')

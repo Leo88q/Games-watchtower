@@ -3,6 +3,8 @@ import { resolve } from 'node:path'
 
 export default defineConfig({
   build: {
+    // Production client bundles must not expose original sources through source maps.
+    sourcemap: false,
     rollupOptions: {
       input: {
         // старый тёмный дашборд остаётся доступен как index.html,

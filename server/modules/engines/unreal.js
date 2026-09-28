@@ -63,7 +63,8 @@ var nft = await metaplex.MintNft(wallet.Account, metadata);
 var paymentResult = await BifrostPayment.ProcessPayment(wallet, amount, gameTreasury);
 `,
       sessionKeysUnreal: `
-// Session Keys в Unreal — временный keypair для частых действий
+// DEVNET-only disposable test key illustration; do not use this for mainnet custody.
+// Never put mainnet seed/private keys in the game or Watchtower. Production requires transaction preview + explicit wallet approval; never auto-sign/send. Session caps must be enforced on-chain.
 FKeypair SessionKey = FKeypair::GenerateRandom();
 FTransaction Tx = BuildGameActionTx(SessionKey.PublicKey, "move");
 Tx.Sign(SessionKey);
