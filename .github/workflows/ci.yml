@@ -49,9 +49,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/gitleaks-worktree"
           tar --exclude=.git --exclude=node_modules -cf - . | tar -xf - -C "$RUNNER_TEMP/gitleaks-worktree"
       - name: Gitleaks — рабочее дерево и production-бандлы (redacted)
-        run: "$HOME/go/bin/gitleaks" dir --redact --exit-code 1 "$RUNNER_TEMP/gitleaks-worktree"
+        run: |
+          "$HOME/go/bin/gitleaks" dir --redact --exit-code 1 "$RUNNER_TEMP/gitleaks-worktree"
       - name: Gitleaks — полная Git-история (redacted)
-        run: "$HOME/go/bin/gitleaks" git --redact --exit-code 1 --log-opts="--all" .
+        run: |
+          "$HOME/go/bin/gitleaks" git --redact --exit-code 1 --log-opts="--all" .
       - name: Загрузка TruffleHog
         run: docker pull ghcr.io/trufflesecurity/trufflehog:3.97.9
       - name: TruffleHog — рабочее дерево (детали кандидатов скрыты)
