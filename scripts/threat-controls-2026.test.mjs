@@ -88,6 +88,12 @@ test('CI uses script-disabled install, audits locked dependencies and configures
   const dependabot = read('../.github/dependabot.yml')
   assert.match(dependabot, /package-ecosystem: npm/)
   assert.match(dependabot, /package-ecosystem: github-actions/)
+  const gitleaks = read('../.gitleaks.toml')
+  assert.equal(gitleaks.split('[[allowlists]]').length - 1, 3, 'only the three documented historic false positives may be allowlisted')
+  assert.equal(gitleaks.match(/condition = "AND"/g)?.length, 3, 'all allowlists must match both path and pattern')
+  assert.ok(gitleaks.includes(String.raw`^scripts/api-hardening\.test\.mjs$`))
+  assert.ok(gitleaks.includes(String.raw`^docs/integrations/aof\.md$`))
+  assert.ok(gitleaks.includes(String.raw`^\.github/workflows/ci\.yml$`))
 })
 
 test('incident response runbook avoids claims of automatic external containment', () => {

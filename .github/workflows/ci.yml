@@ -140,7 +140,7 @@ jobs:
           CI_INGEST_TOKEN="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-ingest"
           CI_READ_TOKEN="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-read"
           CI_PII_SALT="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-pii-salt-0123456789abcdef"
-          AUTH_HEADER_NAME=Authorization
+          AUTH_HEADER_NAME=Authorization:
           AUTH_SCHEME=Bearer
           docker run -d --name watchtower-ci -p 8787:8787 \
             -e NODE_ENV=production \

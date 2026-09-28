@@ -26,7 +26,7 @@ Watchtower — аналитический хаб/read-model. Он не явля�
 - Anchor-спецификации усиливаются локальными ограничениями полей/векторов и версией профиля; вывод из program-owned treasury-PDA сохраняет rent reserve и не пытается использовать System Program как владельца PDA. Эти изменения **не проверены Rust toolchain**.
 - Production config теперь отказывает при `WATCHTOWER_ALLOW_UNKNOWN_GAMES=true`; неизвестные gameId остаются deny-by-default. Это не allowlist mint/program IDs и не проверка токенов.
 - IP-псевдонимный salt по умолчанию и ID snapshot используют Node CSPRNG (`randomBytes`/`randomUUID`), а не `Math.random`; эти значения не являются wallet keys.
-- CI устанавливает lockfile без lifecycle scripts (`npm ci --ignore-scripts`), запускает `npm audit --audit-level=high`; Dependabot еженедельно проверяет npm и GitHub Actions. Это не заменяет review обновлений и проверку внешнего SDK.
+- CI устанавливает lockfile без lifecycle scripts (`npm ci --ignore-scripts`), запускает `npm audit --audit-level=high`; Dependabot еженедельно проверяет npm и GitHub Actions. `.gitleaks.toml` содержит только три узких AND-allowlist для исторических synthetic test sentinels, одного публичного program ID и старого локального smoke-token; тестовые sentinels теперь создаются в runtime. Это не исключает сканирование файлов/истории в целом и не заменяет review обновлений или проверку внешнего SDK.
 - Godot/Unreal SDK-примеры помечены devnet-only; рекомендовано внешнее подписание с явным просмотром и подтверждением, но интеграция wallet UI в самом Watchtower отсутствует.
 - Добавлен `docs/INCIDENT_RESPONSE_SECURITY_RU.md` как операционная памятка; она не является автоматическим containment, не ротирует внешние ключи и не принимает юридических решений.
 
