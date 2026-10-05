@@ -634,3 +634,5 @@ h3 small { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transf
 .cz-callout .cz-btn { justify-self: start; }
 .cz-login select { font-family: var(--body); letter-spacing: 0; text-transform: none; background: rgba(4, 8, 24, 0.7); color: var(--text); border: 0; padding: 10px 12px; font-size: 14px; box-shadow: inset 0 0 0 1px var(--line-strong); }
 .cz-row .cz-btn.small + .cz-btn.small { margin-left: 4px; }
+.cz-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.cz-login small.cz-note { display: block; margin: 2px 0 4px; text-transform: none; letter-spacing: 0; font-family: var(--body); font-weight: 400; }

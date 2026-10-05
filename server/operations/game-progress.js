@@ -6,8 +6,10 @@
 //       x-watchtower-game: ares1 | aof | neonrelay | guttercaps
 //       x-watchtower-timestamp: unix-время в миллисекундах
 //       x-watchtower-signature: sha256=<hex HMAC-SHA256(секрет игры, "<timestamp>.<тело>")>
-//     Тело: { "reports": [{ "wallet": "<адрес>", "hours": 12.5, "rank": 2, "updatedAt": 1760000000000, "ref"?: "<код партнёра>" }] }
+//     Тело: { "reports": [{ "wallet": "<адрес>", "hours": 12.5, "rank": 2, "updatedAt": 1760000000000, "ref"?: "<код партнёра>", "country"?: "PH" }] }
 //     ref — код приглашения, по которому новичок пришёл в игру (партнёрская программа, partners.js).
+//     country — страна игрока (ISO 3166-1 alpha-2), если игра её знает: от неё зависит, можно ли
+//     награждать партнёра токенами (в части стран — только предметами и косметикой).
 //     Секрет игры: GAME_PROGRESS_SECRET_<ИГРА>. Отчёт старше 5 минут или из будущего — отклоняется.
 //  2. Вахта спрашивает игру при входе игрока: GET <GAME_PROGRESS_URL_<ИГРА>>?wallet=<адрес>
 //     (необязательный токен GAME_PROGRESS_TOKEN_<ИГРА> уходит в заголовке Authorization).
@@ -25,7 +27,7 @@ const MAX_REPORTS_PER_REQUEST = 500
 let cfg = { secrets: {}, pullUrls: {}, pullTokens: {}, allowDemoWallets: false, fetchImpl: globalThis.fetch, logger: null }
 let store = {} // walletKey -> { [game]: { hours, rank, updatedAt, receivedAt, via } }
 let persist = () => {}
-let onChange = null // (wallet, { game, ts, hoursUp, ref, prevHours }) — партнёрская программа
+let onChange = null // (wallet, { game, ts, hoursUp, ref, country, prevHours }) — партнёрская программа
 
 /** Подписка на изменения прогресса; вызывается под той же блокировкой записи. */
 export function onProgressChange(fn) { onChange = fn }
@@ -97,7 +99,9 @@ function normalize(report) {
   if (!Number.isFinite(updatedAt) || updatedAt <= 0) return { error: 'bad_updated_at' }
   const ref = report?.ref == null || report.ref === '' ? null : String(report.ref).toUpperCase()
   if (ref !== null && !/^[A-Z0-9]{4,16}$/.test(ref)) return { error: 'bad_ref' }
-  return { wallet: report.wallet, hours: Math.round(hours * 10) / 10, rank, updatedAt, ref }
+  const country = report?.country == null || report.country === '' ? null : String(report.country).toUpperCase()
+  if (country !== null && !/^[A-Z]{2}$/.test(country)) return { error: 'bad_country' }
+  return { wallet: report.wallet, hours: Math.round(hours * 10) / 10, rank, updatedAt, ref, country }
 }
 
 function apply(game, r, via, now) {
@@ -108,7 +112,7 @@ function apply(game, r, via, now) {
   if (r.updatedAt > now + REPORT_MAX_SKEW_MS) return false
   const prevHours = totalHours(key)
   store[key] = { ...(store[key] || {}), [game]: { hours: r.hours, rank: r.rank, updatedAt: r.updatedAt, receivedAt: now, via } }
-  onChange?.(key, { game, ts: r.updatedAt, hoursUp: r.hours > (prev?.hours ?? 0), ref: r.ref || null, prevHours })
+  onChange?.(key, { game, ts: r.updatedAt, hoursUp: r.hours > (prev?.hours ?? 0), ref: r.ref || null, country: r.country || null, prevHours })
   return true
 }
 

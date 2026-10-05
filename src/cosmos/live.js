@@ -26,6 +26,7 @@ async function getJson(path, options = {}) {
   if (!res.ok) {
     const err = new Error(data.error || data.message || `HTTP ${res.status}`)
     err.status = res.status
+    if (typeof data.code === 'string') err.code = data.code
     throw err
   }
   return data
@@ -153,7 +154,8 @@ export const partnerApi = {
   rules: () => getJson('/api/partners/rules'),
   me: () => getJson('/api/partners/me', { headers: sessionHeaders() }),
   review: () => getJson('/api/partners/review', { headers: sessionHeaders() }),
-  join: (kind, channel) => getJson('/api/partners/join', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ kind, channel }) }),
+  join: (kind, channel, { country, rewardGame } = {}) => getJson('/api/partners/join', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ kind, channel, country, rewardGame }) }),
+  settings: (rewardGame) => getJson('/api/partners/settings', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ rewardGame }) }),
   claim: (code) => getJson('/api/partners/claim', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ code }) }),
   decide: (body) => getJson('/api/partners/decide', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify(body) }),
 }

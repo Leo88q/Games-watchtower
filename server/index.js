@@ -53,7 +53,7 @@ import { createChallenge, verifySolanaSignature, isSolanaAddress, isDemoWallet, 
 import { createMemoryCache, createSharedCache } from './operations/shared-cache.js'
 import { verifyGameReport, acceptGameReports, refreshProgress, progressSources } from './operations/game-progress.js'
 import { verifyExecutorCallback } from './operations/action-dispatch.js'
-import { partnerRules, partnerCabinet, partnerReview, joinPartners, claimReferral, decidePartner, partnerByCode, CODE_RE } from './operations/partners.js'
+import { partnerRules, partnerCabinet, partnerReview, joinPartners, updatePartner, claimReferral, decidePartner, partnerByCode, CODE_RE } from './operations/partners.js'
 
 let config
 try {
@@ -157,16 +157,34 @@ async function readRawBody(req, maxBytes = config.maxBodyBytes) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-const OPERATOR_POST_ROUTES = new Set(['/api/operator/nonce', '/api/operator/auth', '/api/operator/vote', '/api/operator/approve', '/api/operator/exam', '/api/operator/cancel', '/api/operator/resolve', '/api/partners/join', '/api/partners/claim', '/api/partners/decide'])
+const OPERATOR_POST_ROUTES = new Set(['/api/operator/nonce', '/api/operator/auth', '/api/operator/vote', '/api/operator/approve', '/api/operator/exam', '/api/operator/cancel', '/api/operator/resolve', '/api/partners/join', '/api/partners/claim', '/api/partners/decide', '/api/partners/settings'])
 
 // Коды входа и лимиты входа: память процесса или Redis (REDIS_URL) — см. bootOperatorServices()
 let sharedCache = createMemoryCache()
 
 /** Уникальные переходы по партнёрской ссылке за последние 30 дней (из общего кэша). */
-async function partnerClicks(code, now = Date.now()) {
+async function partnerClicks(code, countries, now = Date.now()) {
   const days = Array.from({ length: 30 }, (_, i) => new Date(now - i * 24 * 3600 * 1000).toISOString().slice(0, 10))
   const counts = await Promise.all(days.map((d) => sharedCache.count(`ref-clicks:${code}:${d}`).catch(() => 0)))
-  return { last30: counts.reduce((a, b) => a + b, 0), today: counts[0], byDay: days.map((d, i) => ({ day: d, clicks: counts[i] })).filter((x) => x.clicks) }
+  // Страны — за 7 дней: страны пилота и «прочие»; страна известна только за CDN
+  const buckets = [...countries, 'other']
+  const week = days.slice(0, 7)
+  const byCountry = await Promise.all(buckets.map(async (cc) => {
+    const n = await Promise.all(week.map((d) => sharedCache.count(`ref-clicks-cc:${code}:${d}:${cc}`).catch(() => 0)))
+    return { country: cc, clicks: n.reduce((a, b) => a + b, 0) }
+  }))
+  return { last30: counts.reduce((a, b) => a + b, 0), today: counts[0], byDay: days.map((d, i) => ({ day: d, clicks: counts[i] })).filter((x) => x.clicks), byCountry7d: byCountry.filter((x) => x.clicks) }
+}
+
+/**
+ * Страна посетителя по заголовку CDN (Cloudflare, Vercel, CloudFront). Верим ему только за
+ * доверенным прокси (WATCHTOWER_TRUST_PROXY): напрямую заголовок может подставить кто угодно.
+ */
+function visitorCountry(req) {
+  if (!config.trustProxy) return null
+  const raw = req.headers['cf-ipcountry'] || req.headers['x-vercel-ip-country'] || req.headers['cloudfront-viewer-country']
+  const cc = String(raw || '').trim().toUpperCase()
+  return /^[A-Z]{2}$/.test(cc) && !['XX', 'T1'].includes(cc) ? cc : null
 }
 let sessionsEphemeral = true
 const demoLoginAllowed = () => !(config.nodeEnv === 'production') && config.allowDemo
@@ -805,12 +823,12 @@ async function route(req, res) {
       return respond(200, partnerReview())
     }
     const cabinet = partnerCabinet(session.wallet)
-    if (cabinet.partner) cabinet.clicks = await partnerClicks(cabinet.partner.code, now)
+    if (cabinet.partner) cabinet.clicks = await partnerClicks(cabinet.partner.code, cabinet.rules.countries, now)
     return respond(200, cabinet)
   }
 
   // Всё, что меняет состояние вахты, требует сессии; кошелёк берётся из сессии, а не из тела
-  const OPERATOR_ACTIONS = ['/api/operator/exam', '/api/operator/vote', '/api/operator/approve', '/api/operator/cancel', '/api/operator/resolve', '/api/partners/join', '/api/partners/claim', '/api/partners/decide']
+  const OPERATOR_ACTIONS = ['/api/operator/exam', '/api/operator/vote', '/api/operator/approve', '/api/operator/cancel', '/api/operator/resolve', '/api/partners/join', '/api/partners/claim', '/api/partners/decide', '/api/partners/settings']
   if (method === 'POST' && OPERATOR_ACTIONS.includes(pathname)) {
     const session = verifySession(sessionToken(req))
     if (!session) return respond(401, { error: 'session_required' })
@@ -822,12 +840,15 @@ async function route(req, res) {
     const write = async (fn, ruleStatus) => {
       try { return respond(200, await operatorWrite(fn)) } catch (error) {
         if (error.status === 503) return respond(503, { error: 'storage_unavailable' })
-        return respond(error.httpStatus || ruleStatus, { error: error.message })
+        return respond(error.httpStatus || ruleStatus, { error: error.message, ...(error.code && typeof error.code === 'string' ? { code: error.code } : {}) })
       }
     }
     if (pathname === '/api/operator/exam') return write(() => submitExam(wallet, input.answers), 429)
-    if (pathname === '/api/partners/join') return write(() => ({ ok: true, partner: joinPartners(wallet, { kind: input.kind, channel: input.channel }) }), 409)
-    if (pathname === '/api/partners/claim') return write(() => ({ ok: true, referral: { status: claimReferral(wallet, input.code).status } }), 409)
+    if (pathname === '/api/partners/join') {
+      return write(() => ({ ok: true, partner: joinPartners(wallet, { kind: input.kind, channel: input.channel, country: input.country, rewardGame: input.rewardGame, seenCountry: visitorCountry(req) }) }), 409)
+    }
+    if (pathname === '/api/partners/settings') return write(() => ({ ok: true, partner: { rewardGame: updatePartner(wallet, { rewardGame: input.rewardGame }).rewardGame } }), 409)
+    if (pathname === '/api/partners/claim') return write(() => ({ ok: true, referral: { status: claimReferral(wallet, input.code, { country: visitorCountry(req) }).status } }), 409)
     if (pathname === '/api/partners/decide') {
       if (!isStaffWallet(wallet)) return respond(403, { error: 'staff_only' })
       return write(() => ({ ok: true, ...decidePartner(wallet, input) }), 409)
@@ -858,12 +879,19 @@ async function route(req, res) {
     if (partner?.status === 'active') {
       const today = new Date(now).toISOString().slice(0, 10)
       const visitor = hashIp(clientIp(req, config), config.ipHashSalt || 'salt')
+      const cc = visitorCountry(req)
+      const bucket = cc && partnerRules().countries.includes(cc) ? cc : 'other'
       try {
         const first = await sharedCache.hit(`ref-uniq:${code}:${today}:${visitor}`, 1, 36 * 3600 * 1000)
-        if (first.allowed) await sharedCache.hit(`ref-clicks:${code}:${today}`, Number.MAX_SAFE_INTEGER, 40 * 24 * 3600 * 1000)
+        if (first.allowed) {
+          await sharedCache.hit(`ref-clicks:${code}:${today}`, Number.MAX_SAFE_INTEGER, 40 * 24 * 3600 * 1000)
+          await sharedCache.hit(`ref-clicks-cc:${code}:${today}:${bucket}`, Number.MAX_SAFE_INTEGER, 10 * 24 * 3600 * 1000)
+        }
       } catch (error) { logger.warn('partner_click_count_failed', { message: error.message }) }
     }
-    res.writeHead(302, { location: partner?.status === 'active' ? `/?ref=${code}` : '/', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' })
+    // Приглашённые — игроки из стран пилота, не операторы вахты: ведём на портал на их языке
+    const lang = /^[a-z]{2,3}$/.test(url.searchParams.get('lang') || '') ? `&lang=${url.searchParams.get('lang')}` : ''
+    res.writeHead(302, { location: partner?.status === 'active' ? `/partners.html?ref=${code}${lang}` : '/partners.html', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' })
     return res.end()
   }
 
@@ -894,7 +922,7 @@ function serveStatic(req, res, url) {
   if (!isFile) {
     const fallback = url.pathname === '/' || url.pathname === '/index.html'
       ? (fs.existsSync(path.join(distDir, 'ios.html')) ? 'ios.html' : 'index.html')
-      : null
+      : url.pathname === '/partners' || url.pathname === '/partners/' ? 'partners.html' : null
     if (!fallback) return false
     filePath = path.join(distDir, fallback)
     if (!fs.existsSync(filePath)) return false

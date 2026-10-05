@@ -22,7 +22,8 @@ import { logger } from '../obs/logger.js'
 import { createFileBackend, createStorage } from './storage.js'
 import { walletKey, isDemoWallet, isSolanaAddress } from './wallet-auth.js'
 import { configureGameProgress, storedProgress, replaceProgressStore, progressSources, PROGRESS_GAMES, onProgressChange } from './game-progress.js'
-import { configurePartners, replacePartnerSection, onProgress as partnerOnProgress, partnerTick, partnerTickDue } from './partners.js'
+import { configurePartners, replacePartnerSection, onProgress as partnerOnProgress, partnerTick, partnerTickDue, hasDueGrants, claimDueGrants, recordGrantOutcome } from './partners.js'
+import { configureGrants, deliverGrant } from './partner-rewards.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -227,7 +228,7 @@ export const ALLOWED_ACTIONS = {
 // До initOperatorPersistence() работает файловое хранилище — как и раньше.
 let storage = createFileBackend(DATA_DIR)
 let demoProgressAllowed = !isProduction
-const SECTIONS = ['players', 'incidents', 'ratelimits', 'cooldowns', 'reputation-log', 'executed', 'shift', 'game-progress', 'journal', 'partners', 'referrals']
+const SECTIONS = ['players', 'incidents', 'ratelimits', 'cooldowns', 'reputation-log', 'executed', 'shift', 'game-progress', 'journal', 'partners', 'referrals', 'partner-grants']
 function loadStore(name, defaultValue) {
   return storage.loadSync ? storage.loadSync(name, defaultValue) : defaultValue
 }
@@ -261,6 +262,7 @@ export async function initOperatorPersistence({ databaseUrl, ssl, allowDemo = !i
   for (const name of SECTIONS) applySection(name, data[name])
   storage.onReload = applySection
   configureExecutor({ env, isProduction, logger })
+  configureGrants({ env, isProduction, logger })
   configurePartners({ env, load: (name) => data[name] || {}, ...partnerDeps() })
   const sources = configureGameProgress({ env, allowDemoWallets: demoProgressAllowed, logger, save: (d) => saveStore('game-progress', d), commit: operatorWrite })
   // Несколько экземпляров могут стартовать одновременно: проверка «пусто ли» — под блокировкой
@@ -288,7 +290,7 @@ function applySection(name, value) {
     case 'shift': shiftStatus = value || { seniorOperators: [], lastRotation: Date.now() }; break
     case 'game-progress': replaceProgressStore(value || {}); break
     case 'journal': journalLog = value || []; break
-    case 'partners': case 'referrals': replacePartnerSection(name, value); break
+    case 'partners': case 'referrals': case 'partner-grants': replacePartnerSection(name, value); break
     default: break
   }
 }
@@ -815,7 +817,32 @@ function dueDispatches(now) {
 }
 
 let workerBusy = false
-function kickWorker() { runDispatchWorker().catch((error) => logger.warn('dispatch_worker_failed', { message: error.message })) }
+function kickWorker() {
+  runDispatchWorker().catch((error) => logger.warn('dispatch_worker_failed', { message: error.message }))
+  runGrantWorker().catch((error) => logger.warn('grant_worker_failed', { message: error.message }))
+}
+
+let grantBusy = false
+/**
+ * Выдача партнёрских наград играми. Как и доставка решений: выдача «забирается» под общей
+ * блокировкой, запрос к игре идёт вне её, итог записывается снова под блокировкой.
+ * grantId — ключ идемпотентности: повтор игра обязана считать уже выполненным.
+ */
+export async function runGrantWorker() {
+  if (grantBusy || !hasDueGrants(Date.now())) return 0
+  grantBusy = true
+  try {
+    const claimed = await operatorWrite(() => claimDueGrants(INSTANCE_ID, Date.now()))
+    for (const payload of claimed) {
+      const outcome = await deliverGrant(payload)
+      const retryIn = await operatorWrite(() => recordGrantOutcome(payload.grantId, outcome, Date.now()))
+      if (retryIn != null) setTimeout(kickWorker, retryIn + 10).unref?.()
+    }
+    return claimed.length
+  } finally {
+    grantBusy = false
+  }
+}
 /**
  * Доставляет решения, у которых подошло время попытки. Решение сначала «забирается» под
  * общей блокировкой (claimUntil), поэтому при нескольких экземплярах API его отправит один.
@@ -933,7 +960,7 @@ export function periodicTick() {
   })
   if (changed) saveStore('incidents', incidents)
   // Партнёры: истечение окна квалификации и разморозка наград
-  partnerTick(now)
+  if (partnerTick(now)) setImmediate(kickWorker)
 }
 const background = (name, fn) => operatorWrite(fn).catch((error) => logger.warn('operator_background_failed', { task: name, message: error.message }))
 setInterval(() => { if (tickDue(Date.now())) background('tick', periodicTick) }, 10 * 1000).unref?.()

@@ -83,6 +83,11 @@ export function buildLoginMessage({ wallet, nonce, issuedAt, domain }) {
     '',
     'Эта подпись только подтверждает, что кошелёк ваш.',
     'Она не создаёт транзакций и не даёт доступа к средствам.',
+    '',
+    // Партнёры студии — из Филиппин, Великобритании, Испании, Португалии и Малайзии
+    `${domain || 'watchtower'}: sign in to Leo Games Watchtower.`,
+    'This signature only proves the wallet is yours.',
+    'It creates no transaction and gives no access to funds.',
   ].join('\n')
 }
 

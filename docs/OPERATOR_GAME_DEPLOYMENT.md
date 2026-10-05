@@ -91,7 +91,7 @@ x-watchtower-signature: sha256=<hex HMAC-SHA256(secret, "<timestamp>.<сырое
 
 { "reports": [ { "wallet": "<адрес>", "hours": 37.5, "rank": 3, "updatedAt": 1791216000000 } ] }
 ```
-Необязательное поле `ref` — код партнёрского приглашения (`[A-Z0-9]{4,16}`, иначе отчёт отклоняется с `bad_ref`). Игра передаёт его, если игрок пришёл по ссылке `?ref=<код>`; засчитывается только для новичка, подробности в [PARTNER_PROGRAM_PILOT.md](PARTNER_PROGRAM_PILOT.md). До 500 отчётов за запрос, 600 запросов в минуту на игру. Отчёт со старым `updatedAt` не перетирает более свежий: ответ считает его в `stale`. Ответ: `{ accepted, stale, rejected: [{ index, reason }] }`.
+Необязательное поле `ref` — код партнёрского приглашения (`[A-Z0-9]{4,16}`, иначе отчёт отклоняется с `bad_ref`). Необязательное поле `country` — страна игрока (ISO 3166-1 alpha-2, иначе `bad_country`), от неё зависит, можно ли наградить партнёра токенами. Игра передаёт код, если игрок пришёл по ссылке `?ref=<код>`; засчитывается только для новичка, подробности в [PARTNER_PROGRAM_PILOT.md](PARTNER_PROGRAM_PILOT.md). До 500 отчётов за запрос, 600 запросов в минуту на игру. Отчёт со старым `updatedAt` не перетирает более свежий: ответ считает его в `stale`. Ответ: `{ accepted, stale, rejected: [{ index, reason }] }`.
 
 **Опрос игры (pull).** Если задан `GAME_PROGRESS_URL_<ИГРА>`, при входе сервер делает `GET <url>?wallet=<адрес>` (таймаут 3 с, без редиректов) и ждёт `{ "hours", "rank", "updatedAt"? }`. Ответ 404 значит «игрок неизвестен». Ошибка игры не мешает входу: остаются последние сохранённые данные.
 
@@ -141,7 +141,7 @@ x-watchtower-delivery:  <deliveryId>
 - `POST /api/operator/executor/result`: итог от исполнителя студии (подпись HMAC).
 - `GET /api/operator/journal?limit=100`: журнал вахты — голоса, консенсус, подтверждения, отмены, доставка и итог; кошельки укорочены.
 - `POST /api/games/progress`: отчёты игр.
-- `GET /r/<код>`, `GET /api/partners/rules|me|review`, `POST /api/partners/join|claim|decide`: партнёрская программа, см. [PARTNER_PROGRAM_PILOT.md](PARTNER_PROGRAM_PILOT.md).
+- `GET /r/<код>`, `GET /partners.html` (портал на 7 языках), `GET /api/partners/rules|me|review`, `POST /api/partners/join|settings|claim|decide`: партнёрская программа; выдача наград игрой — `PARTNER_GRANT_URL_<ИГРА>`/`PARTNER_GRANT_SECRET_<ИГРА>`, см. [PARTNER_PROGRAM_PILOT.md](PARTNER_PROGRAM_PILOT.md).
 
 ## Хранение данных
 Разделы состояния: `players`, `incidents`, `ratelimits`, `cooldowns`, `reputation-log`, `executed`, `shift`, `game-progress`, `journal` (последние 1000 записей журнала вахты).

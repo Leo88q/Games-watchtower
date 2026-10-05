@@ -154,7 +154,7 @@ function withRef(href) {
   if (!code || !href) return href
   try { const u = new URL(href); u.searchParams.set('ref', code); return u.toString() } catch { return href }
 }
-const CLAIM_SILENT = /уже привязаны|только новичку|Свой код|Взаимные/
+const CLAIM_SILENT = ['already_referred', 'self_referral', 'not_new_player', 'cyclic_referral']
 
 async function claimStoredRef() {
   const code = storedRef()
@@ -166,7 +166,7 @@ async function claimStoredRef() {
   } catch (err) {
     if (err?.status === 401 || err?.status === 503 || !err?.status) return // попробуем позже
     localStorage.removeItem(REF_KEY)
-    if (!CLAIM_SILENT.test(String(err.message))) toast(`Приглашение не засчитано: ${friendlyError(err)}`, 'bad')
+    if (!CLAIM_SILENT.includes(err.code)) toast(`Приглашение не засчитано: ${friendlyError(err)}`, 'bad')
   }
 }
 
@@ -880,82 +880,53 @@ function refLandingBlock() {
 
 const PARTNER_KIND_TEXT = { player: 'Игрок', creator: 'Автор видео', traffic: 'Партнёр по трафику' }
 const PARTNER_STATUS_TEXT = { pending: 'заявка на рассмотрении', active: 'работает', rejected: 'заявка отклонена', banned: 'заблокирован' }
-const REFERRAL_STATUS_TEXT = { tracking: 'играет, ещё не выполнил условия', holdback: 'условия выполнены, награда заморожена', payable: 'к выплате', paid: 'выплачено', void: 'не засчитан', expired: 'срок вышел' }
-const money = (v, asset) => `${(v || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ${asset}`
-const dateRu = (ts) => (ts ? new Date(ts).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '')
-
-function partnerRulesText(r) {
-  return `<ul class="cz-steps">
-    <li>Награда за нового игрока, который за ${r.qualify.withinDays} дней наиграл ${r.qualify.hours} ч в играх студии и заходил минимум в ${r.qualify.activeDays} разных дня. За клики и регистрации не платим.</li>
-    <li>Ставки: игрок ${money(r.rewards.player, r.asset)}, автор видео ${money(r.rewards.creator, r.asset)}, партнёр по трафику ${money(r.rewards.traffic, r.asset)} за игрока.</li>
-    <li>Награда замораживается на ${r.holdbackDays} дней: за это время отсеиваются боты и мультиаккаунты.</li>
-    <li>Засчитываются только новички — до ${r.newPlayerMaxHours} ч в играх на момент перехода. Себя пригласить нельзя.</li>
-    <li>Нельзя: платить игрокам за установку, покупать рекламу по названиям игр студии, обещать заработок, выдавать ссылку за раздачу токенов. За это — блокировка и отмена наград.</li>
-    <li>Выплаты переводит студия вручную; вахта только считает и показывает. Доступ к ролям вахты партнёрство не даёт.</li>
-  </ul>`
+const GRANT_STATE_TEXT = { manual: 'выдать вручную', undelivered: 'игра не ответила', rejected: 'игра отказала' }
+const GAME_NAME = { ares1: 'ARES-1', aof: 'NeuroForge', guttercaps: 'GUTTERCAPS', neonrelay: 'Neon Relay' }
+const itemRu = (it) => it?.name?.ru || it?.name?.en || it?.id
+function bundleRu(b) {
+  const parts = []
+  if (b?.tokens) parts.push(`${fmt(b.tokens.amount)} ${b.tokens.symbol}`)
+  for (const it of b?.items || []) parts.push(`${it.amount} × ${itemRu(it)}`)
+  return parts.join(' + ') || 'ничего'
 }
 
+/** Кабинет партнёра живёт на портале (7 языков); здесь — короткая сводка и ссылка. */
 function partnerBlock() {
   const c = S.partners
   if (!c) return ''
-  const r = c.rules
-  const invited = c.invitedBy ? `<p class="cz-note">Вас пригласил партнёр. Статус приглашения: ${esc(REFERRAL_STATUS_TEXT[c.invitedBy.status] || 'учитывается')}.</p>` : ''
-  if (!c.partner) {
-    return `<h3>${icon('operators')}Партнёрам</h3>
-      <p class="cz-text">Приводите новых игроков в игры студии и получайте награду, когда они действительно играют.</p>
-      ${partnerRulesText(r)}
-      ${c.canJoinAsPlayer
-        ? '<button class="cz-btn primary wide" data-act="partner-join" data-kind="player">Получить ссылку для друзей</button>'
-        : `<p class="cz-note">Приглашать друзей как игрок можно после ${r.minReferrerHours} ч в играх студии.</p>`}
-      <form class="cz-login" data-act="partner-apply">
-        <label>Я автор видео или партнёр по трафику
-          <select name="kind"><option value="creator">Автор видео и нарезок</option><option value="traffic">Партнёр по трафику</option></select></label>
-        <label>Канал или источник трафика<input name="channel" autocomplete="off" spellcheck="false" placeholder="ссылка на канал, площадка" required minlength="5" maxlength="200" /></label>
-        <button class="cz-btn wide" type="submit">Подать заявку</button>
-      </form>
-      ${invited}`
-  }
   const p = c.partner
-  const s = c.summary
-  const link = `${location.origin}/r/${p.code}`
-  const head = `<h3>${icon('operators')}Партнёрам</h3>
-    <div class="cz-callout ${p.status === 'active' ? 'info' : 'warn'}"><b>${esc(PARTNER_KIND_TEXT[p.kind])}: ${esc(PARTNER_STATUS_TEXT[p.status])}</b>
-    <span>${p.status === 'active'
-      ? `Ваша ссылка: <code class="cz-code">${esc(link)}</code>`
-      : p.status === 'pending' ? 'Студия проверит канал и включит ссылку. Обычно это занимает пару дней.' : 'Ссылка не работает. Если считаете это ошибкой, напишите студии.'}</span>
-    ${p.status === 'active' ? `<button class="cz-btn small" data-act="partner-copy" data-link="${esc(link)}">Скопировать ссылку</button>` : ''}
-    ${p.underReview ? '<span>Начисления временно на проверке у студии: слишком много новичков за короткое время. Ничего не потеряно.</span>' : ''}</div>`
-  if (p.status !== 'active') return head + invited
-  const list = c.referrals.slice(0, 8).map((x) => {
-    const progress = x.status === 'tracking' ? `${x.hours} из ${x.need.hours} ч · ${x.activeDays} из ${x.need.activeDays} дн. · до ${dateRu(x.need.until)}` : x.status === 'holdback' ? `разморозка ${dateRu(x.releaseAt)}` : ''
-    return `<div class="cz-row static"><span><b>${esc(x.wallet)}</b><small>${esc(REFERRAL_STATUS_TEXT[x.status] || '')}${progress ? ` · ${esc(progress)}` : ''}</small></span>${x.reward ? `<em class="cz-clear ${x.status === 'paid' || x.status === 'payable' ? 'ok' : ''}">${esc(money(x.reward.amount, x.reward.asset))}</em>` : ''}</div>`
-  }).join('')
-  return `${head}
-    <div class="cz-metrics three">
-      <div><span>Переходы, 30 дн.</span><b>${fmt(c.clicks?.last30 ?? 0)}</b></div>
-      <div><span>Приглашено</span><b>${fmt(s.invited)}</b></div>
-      <div><span>Играют</span><b>${fmt(s.tracking)}</b></div>
-      <div><span>Заморожено</span><b>${esc(money(s.holdback.amount, r.asset))}</b></div>
-      <div><span>К выплате</span><b>${esc(money(s.payable.amount, r.asset))}</b></div>
-      <div><span>Выплачено</span><b>${esc(money(s.paid.amount, r.asset))}</b></div>
-    </div>
-    ${list ? `<div class="cz-list">${list}</div>` : '<p class="cz-empty">По ссылке пока никто не пришёл. Переходы считаются, но награда — только за игроков, которые остались.</p>'}
-    <details class="cz-details"><summary>Правила программы</summary>${partnerRulesText(r)}</details>
-    ${invited}`
+  const portal = `/partners.html?lang=ru`
+  const line = p
+    ? `${PARTNER_KIND_TEXT[p.kind]}: ${PARTNER_STATUS_TEXT[p.status]}. Приглашено ${fmt(c.summary.invited)}, награду получили за ${fmt(c.summary.granted)}.`
+    : 'Приводите новичков в игры студии и получайте награды в игре: токены, предметы и косметику. Награда — за игроков, которые остались, а не за клики.'
+  return `<h3>${icon('operators')}Партнёрам</h3>
+    <div class="cz-callout info"><b>Партнёрская программа</b><span>${esc(line)}</span>
+    <a class="cz-btn small" href="${portal}">${p ? 'Открыть кабинет партнёра' : 'Узнать условия и вступить'}</a></div>`
+}
+
+/** Причина недоставки выдачи — словами, без кодов. */
+function grantErrorRu(code) {
+  const http = /^http_(\d{3})$/.exec(code)
+  if (http) return `игра ответила ошибкой (код ответа ${http[1]})`
+  return { timeout: 'игра не ответила за 5 секунд', network: 'нет связи с сервером игры', bad_response: 'игра прислала непонятный ответ', not_connected: 'выдача в этой игре не подключена' }[code] || 'игра не приняла выдачу'
 }
 
 function partnerStaffBlock() {
   const v = S.partnerReview
   if (!v) return ''
-  const row = (p, buttons) => `<div class="cz-row static"><span><b>${esc(PARTNER_KIND_TEXT[p.kind])} · ${esc(p.code)}</b><small>${esc(p.channel || 'без канала')} · ${esc(p.wallet)}${p.review ? ` · на проверке: ${esc(p.review.reason === 'daily_cap' ? 'всплеск квалификаций' : p.review.reason)}` : ''}</small></span>${buttons}</div>`
+  const where = (p) => `${p.country}${p.seenCountry && p.seenCountry !== p.country ? ` (по сети: ${p.seenCountry})` : ''}`
+  const row = (p, buttons) => `<div class="cz-row static"><span><b>${esc(PARTNER_KIND_TEXT[p.kind])} · ${esc(p.code)} · ${esc(where(p))}</b><small>${esc(p.channel || 'без канала')} · награды в ${esc(GAME_NAME[p.rewardGame] || p.rewardGame)} · ${esc(p.wallet)}${p.review ? ` · на проверке: ${esc(p.review.reason === 'daily_cap' ? 'всплеск квалификаций' : p.review.reason)}` : ''}</small></span>${buttons}</div>`
   const btn = (action, code, label, primary) => `<button class="cz-btn small ${primary ? 'primary' : ''}" data-act="partner-decide" data-action="${action}" data-code="${esc(code)}">${label}</button>`
+  const grant = (g) => `<form class="cz-login" data-act="partner-granted" data-grant="${esc(g.id)}">
+      <label>${esc(GRANT_STATE_TEXT[g.state] || g.state)} · ${esc(GAME_NAME[g.game] || g.game)} · ${esc(g.type === 'milestone' ? `веха ${g.milestone}` : 'за игрока')} · ${esc(g.code)}
+        <small class="cz-note">${esc(bundleRu(g))} на кошелёк ${esc(g.wallet)}${g.lastError ? ` · ${esc(grantErrorRu(g.lastError))}` : ''}${g.detail ? ` · ответ игры: ${esc(g.detail)}` : ''}</small>
+        <input name="reference" required minlength="4" maxlength="140" placeholder="где выдано: транзакция или номер операции" /></label>
+      <span class="cz-btn-row"><button class="cz-btn small primary" type="submit">Отметить выдачу</button>${g.autoGrant && g.state !== 'manual' ? `<button class="cz-btn small" type="button" data-act="partner-retry" data-grant="${esc(g.id)}">Отправить игре снова</button>` : ''}</span></form>`
   return `<h3>${icon('operators')}Партнёры: решения студии</h3>
-    <p class="cz-note">Активных партнёров: ${fmt(v.totals.partners)}, приглашений: ${fmt(v.totals.referrals)}. Вахта ничего не переводит: выплату делает студия, здесь её только отмечают.</p>
+    <p class="cz-note">Активных партнёров: ${fmt(v.totals.partners)}, приглашений: ${fmt(v.totals.referrals)}, наград выдано: ${fmt(v.totals.granted)}, в отправке: ${fmt(v.totals.inFlight)}. Вахта ничего не чеканит и не переводит: награды выдают игры.</p>
     ${v.applications.length ? `<div class="cz-list">${v.applications.map((p) => row(p, btn('approve', p.code, 'Одобрить', true) + btn('reject', p.code, 'Отклонить'))).join('')}</div>` : '<p class="cz-empty">Новых заявок нет.</p>'}
     ${v.underReview.length ? `<div class="cz-list">${v.underReview.map((p) => row(p, btn('clear', p.code, 'Снять проверку', true) + btn('ban', p.code, 'Заблокировать'))).join('')}</div>` : ''}
-    ${v.payable.map((p) => `<form class="cz-login" data-act="partner-paid" data-code="${esc(p.code)}">
-      <label>К выплате ${esc(money(p.summary.payable.amount, v.rules.asset))} · ${esc(p.code)} на кошелёк ${esc(p.wallet)}<input name="reference" required minlength="4" maxlength="140" placeholder="ссылка на перевод" /></label>
-      <button class="cz-btn small primary" type="submit">Отметить выплату</button></form>`).join('')}`
+    ${v.grants.length ? `<p class="cz-note">Выдачи, которые ждут человека: ${fmt(v.grants.length)}.</p>${v.grants.slice(0, 20).map(grant).join('')}` : ''}`
 }
 
 function nextStepBlock(p, role) {
@@ -1258,17 +1229,13 @@ root.addEventListener('click', async (e) => {
     return refreshLive()
   }
   if (act === 'exam') return openExam()
-  if (act === 'partner-join') {
-    try { await partnerApi.join(t.dataset.kind); toast('Ссылка готова. Делитесь ей с друзьями', 'good') } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
+  if (act === 'partner-retry') {
+    try { await partnerApi.decide({ action: 'retry', grantId: t.dataset.grant }); toast('Выдача снова отправлена игре', 'good') } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
     return refreshLive()
-  }
-  if (act === 'partner-copy') {
-    try { await navigator.clipboard.writeText(t.dataset.link); toast('Ссылка скопирована', 'good') } catch { toast('Не удалось скопировать: выделите ссылку вручную', 'bad') }
-    return
   }
   if (act === 'partner-decide') {
     const action = t.dataset.action
-    if (action === 'ban' && !confirm('Заблокировать партнёра? Все незаплаченные награды будут отменены.')) return
+    if (action === 'ban' && !confirm('Заблокировать партнёра? Все невыданные награды будут отменены.')) return
     try { await partnerApi.decide({ action, code: t.dataset.code, reason: action === 'ban' ? 'решение студии' : undefined }); toast('Решение записано', 'good') } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
     return refreshLive()
   }
@@ -1317,17 +1284,10 @@ root.addEventListener('submit', async (e) => {
     } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
     return refreshLive()
   }
-  const apply = e.target.closest('[data-act="partner-apply"]')
-  if (apply) {
+  const granted = e.target.closest('[data-act="partner-granted"]')
+  if (granted) {
     e.preventDefault()
-    const f = new FormData(apply)
-    try { await partnerApi.join(f.get('kind'), f.get('channel')); toast('Заявка отправлена студии', 'good') } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
-    return refreshLive()
-  }
-  const paid = e.target.closest('[data-act="partner-paid"]')
-  if (paid) {
-    e.preventDefault()
-    try { const res = await partnerApi.decide({ action: 'paid', code: paid.dataset.code, reference: new FormData(paid).get('reference') }); toast(`Выплата отмечена. Выплачено всего: ${money(res.summary?.paid?.amount, S.partnerReview?.rules?.asset || '')}`, 'good') } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
+    try { await partnerApi.decide({ action: 'granted', grantId: granted.dataset.grant, reference: new FormData(granted).get('reference') }); toast('Выдача отмечена', 'good') } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
     return refreshLive()
   }
   const form = e.target.closest('[data-act="login"]')
