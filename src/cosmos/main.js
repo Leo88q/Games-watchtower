@@ -9,7 +9,7 @@ import '@fontsource/exo-2/cyrillic-800.css'
 import './cosmos.css'
 import { createEngine } from './engine.js'
 import { loadLiveWorld, operatorApi } from './live.js'
-import { createTraining, DIFFICULTIES, loadTrainingSave, levelFor, ACHIEVEMENTS, LEVELS } from './training.js'
+import { createTraining, DIFFICULTIES, loadTrainingSave, levelFor, ACHIEVEMENTS, LEVELS, dailyChallenge, MODIFIERS, DAILY_BONUS_XP, dayKey, prevDayKey } from './training.js'
 import { CLOSEUPS, CODEX_TOTAL, closeupFor, loadCodex, discover } from './closeups.js'
 import { BODIES, ROUTES, STAR, METRIC_LABELS, ACTION_TEXT, RISK_TEXT, ROLE_TEXT, bodyById, regionFor, severityClass } from './world.js'
 
@@ -163,6 +163,7 @@ async function refreshLive() {
 function render() {
   root.dataset.mode = S.mode
   root.querySelectorAll('[data-act="mode"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mode === S.mode)))
+  root.querySelector('[data-act="mode"][data-mode="training"]')?.classList.toggle('has-daily', !dailyDoneToday())
   renderStatus()
   renderBanner()
   renderKpis()
@@ -274,6 +275,47 @@ function levelCard(lv, gain = 0, up = false) {
   </div>`
 }
 
+const dailyDoneToday = () => { const d = loadTrainingSave().daily; return d.key === dayKey() && d.done }
+const modAbout = (id, ch) => (id === 'focus' ? `Все аномалии приходят в мир ${bodyById(ch.focusBody)?.name || ''}.` : MODIFIERS[id].about)
+const DAY_FMT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' })
+
+function dailyStrip(ch) {
+  return `<div class="cz-daily mini"><div class="cz-daily-head"><b>Задание дня</b><span>${esc(DAY_FMT.format(new Date()))}</span></div>
+    <ul class="cz-mods">${ch.modifiers.map((m) => `<li><b>${esc(MODIFIERS[m].name)}</b><small>${esc(modAbout(m, ch))}</small></li>`).join('')}</ul></div>`
+}
+
+function dailyCard(save) {
+  const ch = dailyChallenge()
+  const d = DIFFICULTIES.find((x) => x.id === ch.difficultyId)
+  const today = save.daily.key === ch.key ? save.daily : { done: false, best: 0 }
+  const alive = save.daily.lastWon === ch.key || save.daily.lastWon === prevDayKey(ch.key)
+  const streak = alive ? save.daily.streak : 0
+  const now = new Date()
+  const left = Math.max(0, new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now)
+  const h = Math.floor(left / 3600000); const m = Math.floor((left % 3600000) / 60000)
+  return `<section class="cz-daily ${today.done ? 'done' : ''}">
+    <div class="cz-daily-head"><b>Задание дня</b><span>${esc(DAY_FMT.format(now))}</span><em>${today.done ? 'выполнено' : `+${DAILY_BONUS_XP} опыта`}</em></div>
+    <p>Одинаковые условия для всех операторов сегодня. Сложность: <b>${esc(d.name)}</b>, ${d.minutes} мин.</p>
+    <ul class="cz-mods">${ch.modifiers.map((m) => `<li><b>${esc(MODIFIERS[m].name)}</b><small>${esc(modAbout(m, ch))}</small></li>`).join('')}</ul>
+    <div class="cz-daily-foot">
+      <span>Серия дней: <b>${streak}</b></span>
+      ${today.best ? `<span>Лучший результат сегодня: <b>${today.best}</b></span>` : ''}
+      <span>Новое задание через ${h} ч ${m} мин</span>
+    </div>
+    <button class="cz-btn ${today.done ? '' : 'primary'}" data-act="start-daily">${today.done ? 'Сыграть ещё раз' : 'Начать задание дня'}</button>
+    ${today.done ? '<small class="cz-note">Бонус за сегодня уже получен. Повтор улучшает только лучший результат.</small>' : ''}
+  </section>`
+}
+
+function dailyResultBlock(r) {
+  if (!r) return ''
+  const text = r.stale ? 'Пока шла смена, наступил новый день, поэтому результат не засчитан в задание.'
+    : r.first ? `Задание дня выполнено: +${r.bonus} опыта. Серия дней: ${r.streak}.`
+      : S.sim.state.won ? 'Задание дня уже засчитано сегодня. Бонус выдаётся один раз в сутки.'
+        : 'Задание дня не выполнено. Попробовать ещё раз можно до конца дня.'
+  return `<div class="cz-callout ${r.first ? 'info' : 'warn'}"><b>Задание дня</b><span>${esc(text)}</span></div>`
+}
+
 function levelPath(xp = 0) {
   const cur = levelFor(xp).level
   return `<ol class="cz-path" aria-label="Путь курсанта">${LEVELS.map(([need, name], i) => `<li class="${i + 1 < cur ? 'passed' : ''} ${i + 1 === cur ? 'current' : ''}" title="${esc(name)} · от ${need} опыта"><img src="${import.meta.env.BASE_URL}cosmos/icons/level-${i + 1}.webp" alt="" aria-hidden="true" draggable="false" /><small>${need}</small></li>`).join('')}</ol>`
@@ -290,6 +332,7 @@ function welcomePanel() {
     <p class="cz-text">${training
       ? 'Нажмите на планету с красным или жёлтым значком, выберите аномалию и решите, что делать. Каждое действие тратит энергию. Перед решением можно проверить телеметрию — это стоит 1 энергию, но даёт подсказку и бонус за верный ответ.'
       : 'В центре — звезда Solana, на ней работают все игры. Вокруг вращаются обсерватория Watchtower и четыре планеты-игры. Нажмите на планету, чтобы увидеть её состояние, нажмите ещё раз — чтобы спуститься на поверхность.'}</p>
+    ${training && S.sim?.state.daily ? dailyStrip(S.sim.state.daily) : ''}
     ${training && S.sim ? goalsBlock() : ''}
     <div class="cz-list">
       ${BODIES.map((b) => {
@@ -444,7 +487,7 @@ function trainingDecision(a) {
   const hint = a.investigated ? a.hint : null
   return `
     ${hint ? `<div class="cz-callout info"><b>Телеметрия</b><span>${esc(hint)}</span></div>`
-      : `<button class="cz-btn ghost wide" data-act="investigate" data-id="${a.id}" ${s.energy < 1 ? 'disabled' : ''}>${icon('events')}Проверить телеметрию<span class="cz-cost">${icon('energy')}1</span></button>`}
+      : `<button class="cz-btn ghost wide" data-act="investigate" data-id="${a.id}" ${s.energy < S.sim.scanCost ? 'disabled' : ''}>${icon('events')}Проверить телеметрию<span class="cz-cost">${icon('energy')}${S.sim.scanCost}</span></button>`}
     <div class="cz-advisor"><span class="cz-advisor-mark" aria-hidden="true"></span><div><b>Бортовой ИИ советует</b><span>${esc(ACTION_TEXT[adv.actionId].title)} · уверенность ${Math.round(adv.confidence * 100)}%</span></div></div>
     <h3>Что делаем?</h3>
     <div class="cz-options">${a.options.map((act) => {
@@ -772,6 +815,8 @@ function openTrainingMenu() {
       <div class="cz-dialog-hero">${icon('time', 'hero')}<h2 id="tr-title">Тренажёр оператора</h2></div>
       ${levelCard(levelFor(save.xp))}
       ${levelPath(save.xp)}
+      ${dailyCard(save)}
+      <h3>${icon('time')}Свободная смена</h3>
       <p class="cz-text">Смена на учебной копии системы. Аномалии взяты из механик самих игр, а ответы — ровно те действия, что есть у вахты в бою. После каждого решения разбор: почему верно или нет.</p>
       <ul class="cz-rules">
         <li>Действия тратят энергию обсерватории, она восстанавливается со временем.</li>
@@ -789,9 +834,14 @@ function openTrainingMenu() {
     </div>`)
 }
 
-function startTraining() {
-  localStorage.setItem('wt-cosmos-diff', S.difficulty)
-  S.sim = createTraining(S.difficulty)
+function startDaily() {
+  const ch = dailyChallenge()
+  return startTraining({ daily: ch, difficultyId: ch.difficultyId })
+}
+
+function startTraining(opts = {}) {
+  if (!opts.daily) localStorage.setItem('wt-cosmos-diff', S.difficulty)
+  S.sim = createTraining(opts.difficultyId || S.difficulty, opts.daily ? { daily: opts.daily } : {})
   S.selected = null; S.anomalyId = null; S.surface = null; S.region = null; S.lastResult = null
   slot('modal').hidden = true
   setHTML(slot('modal'), '')
@@ -814,11 +864,12 @@ function trainingOver() {
         <div><span>Верных решений</span><b>${s.correct} из ${s.resolved}</b></div>
         <div><span>Неверных советов ИИ принято</span><b>${s.followedBadAdvice}</b></div>
       </div>
+      ${dailyResultBlock(s.summary?.daily)}
       ${s.summary ? `<h3>${icon('score')}Цели смены</h3>${goalsList(s.summary.goals)}${!s.won ? '<p class="cz-note">Звёзды начисляются только за пережитую смену.</p>' : ''}
       <h3>${icon('time')}Опыт курсанта</h3>${levelCard(s.summary.after, s.summary.xpGain, s.summary.after.level > s.summary.before.level)}
       ${s.summary.newAchievements.length ? `<h3>${icon('trust')}Новые достижения</h3>${achGrid(s.summary.newAchievements.map((a) => a.id), s.summary.newAchievements.map((a) => a.id), true)}` : ''}` : ''}
       ${history.length ? `<h3>Последние решения</h3><div class="cz-list">${history.map((h) => `<div class="cz-row static"><span><b>${esc(h.title)}</b><small>${esc(q[h.quality])} — ${esc(h.explain)}</small></span></div>`).join('')}</div>` : ''}
-      <div class="cz-actions"><button class="cz-btn primary" data-act="start-training">Ещё раз</button><button class="cz-btn" data-act="training-menu">Сменить сложность</button><button class="cz-btn" data-act="mode" data-mode="map">На карту</button></div>
+      <div class="cz-actions"><button class="cz-btn primary" data-act="${s.daily ? 'start-daily' : 'start-training'}">Ещё раз</button><button class="cz-btn" data-act="training-menu">${s.daily ? 'В меню тренажёра' : 'Сменить сложность'}</button><button class="cz-btn" data-act="mode" data-mode="map">На карту</button></div>
     </div>`)
 }
 
@@ -951,6 +1002,7 @@ root.addEventListener('click', async (e) => {
   if (act === 'close-banner') { S.bannerClosed = true; return render() }
   if (act === 'diff') { S.difficulty = id; return openTrainingMenu() }
   if (act === 'start-training') return startTraining()
+  if (act === 'start-daily') return startDaily()
   if (act === 'training-menu') return openTrainingMenu()
   if (act === 'investigate' && S.sim) {
     const r = S.sim.investigate(id)

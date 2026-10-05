@@ -162,28 +162,86 @@ export const ACHIEVEMENTS = [
   { id: 'veteran', name: 'Ветеран', about: 'Отстоять 10 смен до конца', icon: 'operators' },
 ]
 
+// ---------------- задание дня ----------------
+// Одинаковое для всех в один календарный день: сложность, условия, цели и поток
+// аномалий выводятся из даты. Награда за первую победу дня — один раз в сутки.
+export const DAILY_BONUS_XP = 100
+export const MODIFIERS = {
+  lowEnergy: { name: 'Энергосбережение', about: 'Смена начинается с 6 энергии вместо 12.' },
+  liar: { name: 'Сбоящий ИИ', about: 'Бортовой советник ошибается чаще и с самого начала смены.' },
+  rush: { name: 'Час пик', about: 'Аномалии появляются на четверть чаще.' },
+  fragileTrust: { name: 'Хрупкое доверие', about: 'Доверие игроков в начале смены — 50% вместо 70%.' },
+  costlyScan: { name: 'Помехи в телеметрии', about: 'Проверка телеметрии стоит 2 энергии вместо 1.' },
+  focus: { name: 'Один фронт', about: 'Все аномалии приходят в один мир.' },
+}
+function mulberry32(seed) {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+export function dayKey(date = new Date()) {
+  const p = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`
+}
+function hashString(str) {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) }
+  return h >>> 0
+}
+export function dailyChallenge(date = new Date()) {
+  const key = dayKey(date)
+  const seed = hashString(`watchtower-daily-${key}`)
+  const rnd = mulberry32(seed)
+  const difficultyId = rnd() < 0.6 ? 'normal' : 'hard'
+  const ids = Object.keys(MODIFIERS)
+  const modifiers = []
+  while (modifiers.length < 2) {
+    const m = ids[Math.floor(rnd() * ids.length)]
+    if (!modifiers.includes(m)) modifiers.push(m)
+  }
+  const worlds = [...new Set(CATALOG.map((c) => c.body))]
+  const focusBody = worlds[Math.floor(rnd() * worlds.length)]
+  return { key, seed, difficultyId, modifiers, focusBody }
+}
+export function prevDayKey(key) {
+  const [y, m, d] = key.split('-').map(Number)
+  return dayKey(new Date(y, m - 1, d - 1))
+}
+
 const SAVE_KEY = 'wt-cosmos-training'
-const EMPTY_SAVE = () => ({ runs: 0, wins: 0, finished: 0, best: {}, stars: {}, xp: 0, achievements: [], totals: { investigations: 0, beatLies: 0 } })
+const EMPTY_SAVE = () => ({ runs: 0, wins: 0, finished: 0, best: {}, stars: {}, xp: 0, achievements: [], totals: { investigations: 0, beatLies: 0 }, daily: { key: null, best: 0, done: false, lastWon: null, streak: 0 } })
 export function loadTrainingSave() {
   try {
     const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')
     const base = EMPTY_SAVE()
-    return { ...base, ...raw, totals: { ...base.totals, ...(raw.totals || {}) }, stars: raw.stars || {}, achievements: raw.achievements || [] }
+    return { ...base, ...raw, totals: { ...base.totals, ...(raw.totals || {}) }, stars: raw.stars || {}, achievements: raw.achievements || [], daily: { ...base.daily, ...(raw.daily || {}) } }
   } catch { return EMPTY_SAVE() }
 }
 function storeSave(save) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)) } catch { /* приватный режим */ } }
 
 let uid = 0
 
-export function createTraining(difficultyId) {
-  const diff = DIFFICULTIES.find((d) => d.id === difficultyId) || DIFFICULTIES[1]
+export function createTraining(difficultyId, opts = {}) {
+  const daily = opts.daily || null
+  const mods = new Set(daily?.modifiers || [])
+  const rand = daily ? mulberry32(daily.seed) : Math.random
+  const baseDiff = DIFFICULTIES.find((d) => d.id === difficultyId) || DIFFICULTIES[1]
+  const diff = { ...baseDiff }
+  if (mods.has('rush')) diff.spawn = diff.spawn.map((x) => Math.round(x * 0.75))
+  if (mods.has('liar')) diff.lie = Math.min(0.6, diff.lie + 0.25)
+  const scanCost = mods.has('costlyScan') ? 2 : 1
   const save = loadTrainingSave()
   save.runs += 1
   storeSave(save)
 
   const bodies = {}
   for (const b of BODIES) {
-    bodies[b.id] = { signal: 'ok', stability: 80, lost: false, anomalies: [], basePlayers: 400 + Math.round(Math.random() * 2600) }
+    bodies[b.id] = { signal: 'ok', stability: 80, lost: false, anomalies: [], basePlayers: 400 + Math.round(rand() * 2600) }
   }
 
   const s = {
@@ -191,10 +249,10 @@ export function createTraining(difficultyId) {
     difficulty: diff,
     elapsed: 0,
     duration: diff.minutes * 60,
-    energy: 12,
+    energy: mods.has('lowEnergy') ? 6 : 12,
     maxEnergy: 20,
     regenAcc: 0,
-    trust: 70,
+    trust: mods.has('fragileTrust') ? 50 : 70,
     score: 0,
     nextSpawn: 5,
     log: [],
@@ -210,6 +268,7 @@ export function createTraining(difficultyId) {
     investigations: 0,
     beatLies: 0,
     summary: null,
+    daily,
   }
 
   // Три цели смены: «решить верно N» всегда, ещё две случайные
@@ -223,7 +282,7 @@ export function createTraining(difficultyId) {
     { id: 'streak', text: 'Серия из 4 верных решений', state: () => ({ done: s.bestStreak >= 4, note: `лучшая серия ${s.bestStreak}` }) },
     ...(diff.lie > 0 ? [{ id: 'beatlie', text: 'Распознать ошибку бортового ИИ', state: () => ({ done: s.beatLies >= 1, note: s.beatLies ? 'есть' : 'пока нет' }) }] : []),
   ]
-  const extra = GOALS.slice(1).sort(() => Math.random() - 0.5).slice(0, 2)
+  const extra = GOALS.slice(1).sort(() => rand() - 0.5).slice(0, 2)
   const goals = [GOALS[0], ...extra]
   const goalStates = () => goals.map((g) => ({ id: g.id, text: g.text, ...g.state() }))
   const multiplier = () => (s.streak >= 6 ? 2 : s.streak >= 3 ? 1.5 : 1)
@@ -235,17 +294,17 @@ export function createTraining(difficultyId) {
 
   function spawn() {
     const busy = new Set(activeAll().map((a) => a.templateId))
-    const pool = CATALOG.filter((c) => !busy.has(c.id) && !bodies[c.body].lost)
+    const pool = CATALOG.filter((c) => !busy.has(c.id) && !bodies[c.body].lost && (!mods.has('focus') || c.body === daily.focusBody))
     if (!pool.length) return
-    const tpl = pool[Math.floor(Math.random() * pool.length)]
+    const tpl = pool[Math.floor(rand() * pool.length)]
     const progress = s.elapsed / s.duration
-    const lieChance = diff.lie * Math.max(0, Math.min(1, (progress - 0.3) / 0.7))
+    const lieChance = mods.has('liar') ? diff.lie : diff.lie * Math.max(0, Math.min(1, (progress - 0.3) / 0.7))
     const entries = Object.entries(tpl.outcomes)
     const best = entries.find(([, o]) => o[0] === 'best')[0]
     let advice = best; let lying = false
-    if (Math.random() < lieChance) {
+    if (rand() < lieChance) {
       const wrong = entries.filter(([, o]) => o[0] === 'bad' || o[0] === 'weak')
-      advice = wrong[Math.floor(Math.random() * wrong.length)][0]
+      advice = wrong[Math.floor(rand() * wrong.length)][0]
       lying = true
     }
     const time = Math.round(TIMER[tpl.severity] * diff.time)
@@ -258,12 +317,12 @@ export function createTraining(difficultyId) {
       description: tpl.description,
       hint: tpl.hint,
       severity: tpl.severity,
-      options: entries.map(([id]) => id).sort(() => Math.random() - 0.5),
+      options: entries.map(([id]) => id).sort(() => rand() - 0.5),
       timer: time,
       timeLeft: time,
       detectedAt: s.elapsed,
       investigated: false,
-      advice: { actionId: advice, confidence: lying ? 0.95 + Math.random() * 0.04 : 0.68 + Math.random() * 0.22, lying },
+      advice: { actionId: advice, confidence: lying ? 0.95 + rand() * 0.04 : 0.68 + rand() * 0.22, lying },
       status: 'open',
     }
     bodies[tpl.body].anomalies.push(a)
@@ -292,7 +351,24 @@ export function createTraining(difficultyId) {
     sv.totals.investigations += s.investigations
     sv.totals.beatLies += s.beatLies
     const before = levelFor(sv.xp)
-    const xpGain = Math.round(Math.max(0, s.score) / 10) + stars * 25 + (won ? 30 : 5)
+    let xpGain = Math.round(Math.max(0, s.score) / 10) + stars * 25 + (won ? 30 : 5)
+    let dailyResult = null
+    if (daily) {
+      // Результат засчитывается только в тот день, на который выпало задание
+      const today = dayKey()
+      if (daily.key === today) {
+        if (sv.daily.key !== today) sv.daily = { ...sv.daily, key: today, best: 0, done: false }
+        sv.daily.best = Math.max(sv.daily.best, Math.round(s.score))
+        const first = won && !sv.daily.done
+        if (first) {
+          sv.daily.done = true
+          sv.daily.streak = sv.daily.lastWon === prevDayKey(today) ? sv.daily.streak + 1 : 1
+          sv.daily.lastWon = today
+          xpGain += DAILY_BONUS_XP
+        }
+        dailyResult = { first, bonus: first ? DAILY_BONUS_XP : 0, streak: sv.daily.streak, best: sv.daily.best, stale: false }
+      } else dailyResult = { first: false, bonus: 0, streak: sv.daily.streak, best: 0, stale: true }
+    }
     sv.xp += xpGain
     const lostN = Object.values(bodies).filter((b) => b.lost).length
     const unlocked = {
@@ -308,7 +384,7 @@ export function createTraining(difficultyId) {
     const newAchievements = ACHIEVEMENTS.filter((a) => unlocked[a.id] && !sv.achievements.includes(a.id))
     sv.achievements.push(...newAchievements.map((a) => a.id))
     storeSave(sv)
-    s.summary = { stars, goals: gs, xpGain, before, after: levelFor(sv.xp), newAchievements }
+    s.summary = { stars, goals: gs, xpGain, before, after: levelFor(sv.xp), newAchievements, daily: dailyResult }
     log(won ? 'Смена завершена успешно.' : 'Смена провалена.', won ? 'good' : 'bad')
   }
 
@@ -320,7 +396,7 @@ export function createTraining(difficultyId) {
     s.nextSpawn -= dt
     if (s.nextSpawn <= 0) {
       if (activeAll().length < diff.maxActive) spawn()
-      s.nextSpawn = diff.spawn[0] + Math.random() * (diff.spawn[1] - diff.spawn[0])
+      s.nextSpawn = diff.spawn[0] + rand() * (diff.spawn[1] - diff.spawn[0])
     }
     for (const [id, b] of Object.entries(bodies)) {
       if (b.lost) continue
@@ -356,8 +432,8 @@ export function createTraining(difficultyId) {
   function investigate(anomalyId) {
     const f = find(anomalyId)
     if (!f || f.a.investigated) return { ok: false }
-    if (s.energy < 1) return { ok: false, reason: 'Не хватает энергии обсерватории' }
-    s.energy -= 1
+    if (s.energy < scanCost) return { ok: false, reason: 'Не хватает энергии обсерватории' }
+    s.energy -= scanCost
     s.investigations += 1
     f.a.investigated = true
     return { ok: true, hint: f.a.hint }
@@ -421,6 +497,7 @@ export function createTraining(difficultyId) {
     world,
     find: (id) => find(id)?.a || null,
     costOf: (actionId) => COST[RISK[actionId]] || 1,
+    scanCost,
     goals: goalStates,
     multiplier,
     riskOf: (actionId) => RISK[actionId],

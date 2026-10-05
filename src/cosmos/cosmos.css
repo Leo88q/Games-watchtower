@@ -586,3 +586,24 @@ h3 small { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transf
   .fx-weather, .fx-sprite, .fx-sprite img, .cz-scene.alarm .cz-scene-inner::after { animation: none !important; }
   .fx-sprite { display: none; }
 }
+
+/* ---------------- задание дня ---------------- */
+.cz-daily { position: relative; display: grid; gap: 8px; margin: 12px 0 16px; padding: 14px 15px; background: linear-gradient(135deg, rgba(255, 181, 71, 0.14), rgba(168, 121, 255, 0.08) 60%, rgba(67, 227, 255, 0.05)); box-shadow: inset 0 0 0 1px rgba(255, 181, 71, 0.45), inset 3px 0 0 var(--warn); }
+.cz-daily.done { background: linear-gradient(135deg, rgba(62, 224, 143, 0.12), rgba(67, 227, 255, 0.04)); box-shadow: inset 0 0 0 1px rgba(62, 224, 143, 0.45), inset 3px 0 0 var(--good); }
+.cz-daily.mini { margin: 10px 0; padding: 10px 12px; }
+.cz-daily-head { display: flex; align-items: baseline; gap: 10px; }
+.cz-daily-head b { font-family: var(--display); font-size: 15px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #ffe2ad; }
+.cz-daily.done .cz-daily-head b { color: #c9ffe3; }
+.cz-daily-head span { color: var(--muted); font-size: 12px; }
+.cz-daily-head em { margin-left: auto; font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #07101f; background: var(--warn); padding: 3px 8px; }
+.cz-daily.done .cz-daily-head em { background: var(--good); }
+.cz-daily p { margin: 0; font-size: 13px; color: #d3dbef; }
+.cz-mods { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; }
+.cz-mods li { display: grid; gap: 2px; padding: 7px 10px; background: rgba(5, 8, 20, 0.45); box-shadow: inset 0 0 0 1px rgba(255, 181, 71, 0.25); }
+.cz-mods li b { font-size: 12px; color: #ffd28a; letter-spacing: 0.04em; text-transform: uppercase; }
+.cz-mods li small { font-size: 12px; color: #c7d0e6; line-height: 1.4; }
+.cz-daily-foot { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
+.cz-daily-foot b { color: var(--text); font-variant-numeric: tabular-nums; }
+.cz-daily .cz-btn { justify-self: start; }
+[data-act="mode"].has-daily { position: relative; }
+[data-act="mode"].has-daily::after { content: ''; position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; background: var(--warn); transform: rotate(45deg); box-shadow: 0 0 8px var(--warn); animation: cz-blink 1.4s steps(2) infinite; }
