@@ -549,15 +549,48 @@ function liveDecision(a) {
       <span><b>${esc(ACTION_TEXT[act]?.title || def.title || 'Действие')}</b><small class="risk ${risk.cls}">${risk.label}${mine ? ' · ваш голос' : ''}${a.winningAction === act ? ' · выбрано вахтой' : ''}</small></span>
       <em>${share}%</em><i class="cz-share" style="width:${share}%"></i></button>`
   }).join('')
-  const staffBlock = role?.canApprove && a.status === 'consensus_pending' ? `
-    <div class="cz-callout"><b>Нужно подтверждение студии</b><span>Вахта выбрала: ${esc(ACTION_TEXT[a.winningAction]?.title || a.winningAction)}.</span></div>
-    <div class="cz-actions"><button class="cz-btn primary" data-act="approve" data-id="${a.id}" data-ok="1">Подтвердить</button><button class="cz-btn" data-act="approve" data-id="${a.id}" data-ok="0">Отклонить</button></div>` : ''
+  const staffBlock = executionBlock(a, role)
   return `
-    ${gate ? `<div class="cz-callout warn"><b>Голосование недоступно</b><span>${esc(gate)}</span>${!S.wallet ? '<button class="cz-btn small" data-act="mode" data-mode="watch">Открыть вахту</button>' : ''}</div>` : ''}
+    ${gate && ['open', 'voting'].includes(a.status) ? `<div class="cz-callout warn"><b>Голосование недоступно</b><span>${esc(gate)}</span>${!S.wallet ? '<button class="cz-btn small" data-act="mode" data-mode="watch">Открыть вахту</button>' : ''}</div>` : ''}
     <h3>${icon('operators')}Голосование вахты ${total ? `<small>общий вес ${total}</small>` : ''}</h3>
     <div class="cz-options">${options || '<p class="cz-empty">Для этой аномалии нет доступных действий.</p>'}</div>
     ${staffBlock}
-    <p class="cz-note">Голос — не команда. Решение исполняется только после порога вахты и подтверждения студии. Напрямую в игры отсюда ничего не пишется.</p>`
+    <p class="cz-note">Голос — не команда. Безопасные действия выполняются после порога вахты, остальные — ещё и после подтверждения студии. Сама обсерватория в играх ничего не меняет: решение передаётся исполнителю студии.</p>`
+}
+
+const DISPATCH_TEXT = {
+  manual: 'Исполнитель студии не подключён, поэтому действие выполняет сотрудник вручную.',
+  pending: 'Решение отправляется исполнителю студии.',
+  delivered: 'Исполнитель студии получил решение и выполняет его.',
+  undelivered: 'Исполнитель студии не ответил после всех попыток. Нужен сотрудник: выполнить вручную или отправить снова.',
+}
+
+/** Что происходит с решением после голосования — простыми словами, и кнопки для сотрудника. */
+function executionBlock(a, role) {
+  const staff = role?.canApprove
+  const title = esc(ACTION_TEXT[a.winningAction]?.title || 'выбранное действие')
+  const box = (head, text, cls = '') => `<div class="cz-callout ${cls}"><b>${head}</b><span>${text}</span></div>`
+  const buttons = (list) => `<div class="cz-actions">${list.join('')}</div>`
+  if (a.status === 'consensus_pending') {
+    if (!staff) return box('Ждёт подтверждения студии', `Вахта выбрала: ${title}. Пока сотрудник студии не подтвердит, ничего не происходит.`)
+    return box('Нужно подтверждение студии', `Вахта выбрала: ${title}.`) +
+      buttons([`<button class="cz-btn primary" data-act="approve" data-id="${a.id}" data-ok="1">Подтвердить</button>`, `<button class="cz-btn" data-act="approve" data-id="${a.id}" data-ok="0">Отклонить</button>`])
+  }
+  if (a.status === 'approved') {
+    const left = Math.max(0, ((a.scheduledFor || 0) - Date.now()) / 1000)
+    return box('Подтверждено, идёт время на отмену', `${title}: передача на исполнение через <b data-until="${a.scheduledFor || 0}">${mmss(left)}</b>. До этого сотрудник студии может отменить решение.`) +
+      (staff ? buttons([`<button class="cz-btn" data-act="cancel-action" data-id="${a.id}">Отменить решение</button>`]) : '')
+  }
+  if (a.status !== 'handed_off') return ''
+  const d = a.dispatch || {}
+  let text = DISPATCH_TEXT[d.state] || ''
+  if (d.state === 'delivered' && d.mode === 'propose') text = 'Исполнитель студии получил решение.'
+  if (d.state === 'pending' && d.attempts > 0) text = `Исполнитель студии пока не ответил (попыток: ${d.attempts}). Скоро будет ещё одна.`
+  if (d.mode === 'propose') text += ' Это действие через мультисиг: исполнитель только готовит предложение, подписывают люди, а итог отмечает сотрудник.'
+  if (d.result === 'proposed') text += ' Предложение подготовлено и ждёт подписей.'
+  const list = [`<button class="cz-btn primary" data-act="resolve" data-id="${a.id}" data-result="executed">Выполнено</button>`, `<button class="cz-btn" data-act="resolve" data-id="${a.id}" data-result="failed">Не удалось</button>`]
+  if (d.state === 'undelivered' && S.live?.operator?.executor?.connected) list.push(`<button class="cz-btn" data-act="resolve" data-id="${a.id}" data-result="retry">Отправить снова</button>`)
+  return box(`Передано на исполнение: ${title}`, esc(text), d.state === 'undelivered' ? 'warn' : '') + (staff ? buttons(list) : '')
 }
 
 // ---------------- нижняя полоса ----------------
@@ -568,8 +601,9 @@ function renderBottom() {
     const stages = S.mode === 'training'
       ? [['Обнаружена', true], ['Телеметрия', a.investigated], ['Решение', false], ['Итог', false]]
       : (() => {
-        const idx = { open: 0, voting: 1, consensus_pending: 2, approved: 3, executed: 4 }[a.status] ?? 0
-        return [['Обнаружена', true], ['Голосование', idx >= 1], ['Выбор вахты', idx >= 2], ['Подтверждение студии', idx >= 3], ['Выполнено', idx >= 4]]
+        const idx = { open: 0, voting: 1, consensus_pending: 2, approved: 3, handed_off: 4, executed: 5 }[a.status] ?? 0
+        const needsStaff = S.live?.operator?.allowedActions?.[a.winningAction]?.requiresApproval !== false
+        return [['Обнаружена', true], ['Голосование', idx >= 1], ['Выбор вахты', idx >= 2], [needsStaff ? 'Подтверждение студии' : 'Подтверждение не нужно', idx >= 3], ['Передано исполнителю', idx >= 4], ['Выполнено', idx >= 5]]
       })()
     const current = stages.findIndex(([, done]) => !done)
     const b = bodyById(a.bodyId)
@@ -1070,6 +1104,21 @@ root.addEventListener('click', async (e) => {
     } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
     return refreshLive()
   }
+  if (act === 'cancel-action') {
+    try {
+      await operatorApi.cancel(id)
+      toast('Решение отменено, ничего не исполнено', 'good')
+    } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
+    return refreshLive()
+  }
+  if (act === 'resolve') {
+    const result = t.dataset.result
+    try {
+      await operatorApi.resolve(id, result)
+      toast({ executed: 'Отмечено: выполнено', failed: 'Отмечено: не удалось', retry: 'Решение отправлено исполнителю снова' }[result] || 'Готово', 'good')
+    } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
+    return refreshLive()
+  }
   if (act === 'exam') return openExam()
   if (act === 'close-modal') return closeModal()
   if (act === 'logout') {
@@ -1157,6 +1206,10 @@ document.addEventListener('keydown', (e) => {
 render()
 refreshLive()
 setInterval(() => { if (S.mode !== 'training' && !document.hidden) refreshLive() }, LIVE_REFRESH_MS)
+// Отсчёт времени на отмену подтверждённого решения
+setInterval(() => {
+  document.querySelectorAll('[data-until]').forEach((n) => { n.textContent = mmss(Math.max(0, (Number(n.dataset.until) - Date.now()) / 1000)) })
+}, 1000)
 
 let lastTick = performance.now()
 let structureKey = ''

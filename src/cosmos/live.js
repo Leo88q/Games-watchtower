@@ -32,7 +32,8 @@ async function getJson(path, options = {}) {
 }
 
 const settledValue = (r) => (r.status === 'fulfilled' ? r.value : null)
-const ACTIVE = ['open', 'voting', 'consensus_pending', 'approved']
+// handed_off — решение передано исполнителю студии и ждёт итога: его по-прежнему видно
+const ACTIVE = ['open', 'voting', 'consensus_pending', 'approved', 'handed_off']
 
 export async function loadLiveWorld(wallet) {
   const [health, eco, readModel, alerts, operator] = (await Promise.allSettled([
@@ -116,6 +117,7 @@ export async function loadLiveWorld(wallet) {
       auth: operator.auth || null,
       progressSources: operator.progressSources || [],
       shift: operator.shift || null,
+      executor: operator.executor || { connected: false },
       clearanceRule: operator.clearanceRule || { minHours: 10, minRank: 1 },
     } : null,
     kpis: {
@@ -142,6 +144,8 @@ export const operatorApi = {
   exam: () => getJson('/api/operator/exam'),
   submitExam: (answers) => getJson('/api/operator/exam', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ answers }) }),
   approve: (incidentId, approved) => getJson('/api/operator/approve', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ incidentId, approved }) }),
+  cancel: (incidentId) => getJson('/api/operator/cancel', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ incidentId }) }),
+  resolve: (incidentId, result) => getJson('/api/operator/resolve', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ incidentId, result }) }),
 }
 
 function numberOrNull(v) {

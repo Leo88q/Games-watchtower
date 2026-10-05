@@ -48,10 +48,11 @@ import { monetizationLayerConfig, monetizationHealth } from './modules/monetizat
 import { testingLayerConfig, testingHealth } from './modules/testing/index.js'
 import { privacyLayerConfig, privacyHealth } from './modules/privacy/index.js'
 // Watchtower Operator Game — распределённый центр операторов
-import { operatorGameState, playerProfile, castVote, registerIncident, approveAction, connectWallet, examQuestions, submitExam, initOperatorPersistence, closeOperatorStorage, storageStatus, operatorWrite, hasIncident } from './operations/operator-game.js'
+import { operatorGameState, playerProfile, castVote, registerIncident, approveAction, cancelAction, resolveAction, handleExecutorResult, operatorJournal, connectWallet, examQuestions, submitExam, initOperatorPersistence, closeOperatorStorage, storageStatus, operatorWrite, hasIncident } from './operations/operator-game.js'
 import { createChallenge, verifySolanaSignature, isSolanaAddress, isDemoWallet, issueSession, verifySession, sessionToken, configureSessions, NONCE_TTL_MS } from './operations/wallet-auth.js'
 import { createMemoryCache, createSharedCache } from './operations/shared-cache.js'
 import { verifyGameReport, acceptGameReports, refreshProgress, progressSources } from './operations/game-progress.js'
+import { verifyExecutorCallback } from './operations/action-dispatch.js'
 
 let config
 try {
@@ -155,7 +156,7 @@ async function readRawBody(req, maxBytes = config.maxBodyBytes) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-const OPERATOR_POST_ROUTES = new Set(['/api/operator/nonce', '/api/operator/auth', '/api/operator/vote', '/api/operator/approve', '/api/operator/exam'])
+const OPERATOR_POST_ROUTES = new Set(['/api/operator/nonce', '/api/operator/auth', '/api/operator/vote', '/api/operator/approve', '/api/operator/exam', '/api/operator/cancel', '/api/operator/resolve'])
 
 // Коды входа и лимиты входа: память процесса или Redis (REDIS_URL) — см. bootOperatorServices()
 let sharedCache = createMemoryCache()
@@ -195,6 +196,8 @@ export function classifyRoute(method, pathname) {
   if (method === 'POST' && OPERATOR_POST_ROUTES.has(pathname)) return 'operator'
   // Отчёты игр о прогрессе игроков: подпись секретом игры проверяет сам маршрут
   if (method === 'POST' && pathname === '/api/games/progress') return 'game'
+  // Итог от исполнителя студии: подпись секретом исполнителя проверяет сам маршрут
+  if (method === 'POST' && pathname === '/api/operator/executor/result') return 'game'
   if (method === 'POST') return 'write'
   return 'read'
 }
@@ -760,6 +763,24 @@ async function route(req, res) {
     return respond(result.ok ? 200 : result.status, result.ok ? { writes: false, ...result } : { error: result.reason })
   }
 
+  // Итог исполнения от сервера студии. Хаб сам ничего не исполняет — только записывает итог.
+  if (method === 'POST' && pathname === '/api/operator/executor/result') {
+    const check = verifyExecutorCallback({ rawBody, signature: req.headers['x-watchtower-signature'], timestamp: req.headers['x-watchtower-timestamp'] })
+    if (!check.ok) {
+      recordAudit(req, { status: check.status, reason: check.reason, path: sanitizePath(req.url), route: kind }, { config })
+      return respond(check.status, { error: check.reason })
+    }
+    let parsed
+    try { parsed = JSON.parse(rawBody || '{}') } catch { return respond(400, { error: 'invalid_json' }) }
+    let result
+    try { result = await operatorWrite(() => handleExecutorResult(parsed)) } catch { return respond(503, { error: 'storage_unavailable' }) }
+    return respond(result.ok ? 200 : result.status, result.ok ? result : { error: result.reason })
+  }
+  if (method === 'GET' && pathname === '/api/operator/journal') {
+    const limit = Number(url.searchParams.get('limit')) || 100
+    return respond(200, { entries: operatorJournal(limit), note: 'Голоса, решения и исполнение; кошельки укорочены' })
+  }
+
   if (method === 'GET' && pathname.startsWith('/api/operator/player/')) {
     const wallet = decodeURIComponent(pathname.slice('/api/operator/player/'.length))
     return respond(200, playerProfile(wallet))
@@ -767,7 +788,7 @@ async function route(req, res) {
   if (method === 'GET' && pathname === '/api/operator/exam') return respond(200, examQuestions())
 
   // Всё, что меняет состояние вахты, требует сессии; кошелёк берётся из сессии, а не из тела
-  const OPERATOR_ACTIONS = ['/api/operator/exam', '/api/operator/vote', '/api/operator/approve']
+  const OPERATOR_ACTIONS = ['/api/operator/exam', '/api/operator/vote', '/api/operator/approve', '/api/operator/cancel', '/api/operator/resolve']
   if (method === 'POST' && OPERATOR_ACTIONS.includes(pathname)) {
     const session = verifySession(sessionToken(req))
     if (!session) return respond(401, { error: 'session_required' })
@@ -779,7 +800,7 @@ async function route(req, res) {
     const write = async (fn, ruleStatus) => {
       try { return respond(200, await operatorWrite(fn)) } catch (error) {
         if (error.status === 503) return respond(503, { error: 'storage_unavailable' })
-        return respond(ruleStatus, { error: error.message })
+        return respond(error.httpStatus || ruleStatus, { error: error.message })
       }
     }
     if (pathname === '/api/operator/exam') return write(() => submitExam(wallet, input.answers), 429)
@@ -788,6 +809,8 @@ async function route(req, res) {
       return write(() => ({ ok: true, incident: castVote(wallet, input.incidentId, input.actionId) }), 400)
     }
     if (!input.incidentId) return respond(400, { error: 'missing_fields' })
+    if (pathname === '/api/operator/cancel') return write(() => ({ ok: true, incident: cancelAction(wallet, input.incidentId) }), 409)
+    if (pathname === '/api/operator/resolve') return write(() => ({ ok: true, incident: resolveAction(wallet, input.incidentId, input.result, input.note) }), 409)
     return write(() => ({ ok: true, incident: approveAction(wallet, input.incidentId, input.approved !== false) }), 403)
   }
 

@@ -108,6 +108,10 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://wt@127.0.0.1:5432/watchtower
           TEST_REDIS_URL: redis://127.0.0.1:6379
+      - name: Исполнение решений вахты — вебхук исполнителю студии, повторы, отмена, несколько экземпляров
+        run: npm run test:operator-execution
+        env:
+          TEST_DATABASE_URL: postgres://wt@127.0.0.1:5432/watchtower
       - name: Приватность игровых идентификаторов
         run: npm run test:privacy
       - name: Read-only инвариант
