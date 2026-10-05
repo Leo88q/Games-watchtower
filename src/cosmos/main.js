@@ -9,7 +9,8 @@ import '@fontsource/exo-2/cyrillic-800.css'
 import './cosmos.css'
 import { createEngine } from './engine.js'
 import { loadLiveWorld, operatorApi } from './live.js'
-import { createTraining, DIFFICULTIES, loadTrainingSave } from './training.js'
+import { createTraining, DIFFICULTIES, loadTrainingSave, levelFor, ACHIEVEMENTS } from './training.js'
+import { CLOSEUPS, CODEX_TOTAL, closeupFor, loadCodex, discover } from './closeups.js'
 import { BODIES, ROUTES, STAR, METRIC_LABELS, ACTION_TEXT, RISK_TEXT, ROLE_TEXT, bodyById, regionFor, severityClass } from './world.js'
 
 const LIVE_REFRESH_MS = 15000
@@ -36,6 +37,8 @@ const S = {
   anomalyId: null,
   surface: null,
   region: null,
+  closeup: null,
+  object: null,
   lastResult: null,
   hint: {},
   wallet: localStorage.getItem('wt-operator-wallet') || null,
@@ -196,7 +199,7 @@ function renderKpis() {
       kpiCard('time', 'Время смены', `<span data-live="clock">${mmss(s.duration - s.elapsed)}</span>`, `осталось из ${s.difficulty.minutes} мин`),
       kpiCard('energy', 'Энергия обсерватории', `<span data-live="energy">${Math.floor(s.energy)}</span> / ${s.maxEnergy}`, 'тратится на действия', '<div class="cz-meter"><i data-live="energy-bar"></i></div>'),
       kpiCard('trust', 'Доверие игроков', `<span data-live="trust">${Math.round(s.trust)}</span>%`, 'упадёт до нуля — смена провалена', '<div class="cz-meter trust"><i data-live="trust-bar"></i></div>'),
-      kpiCard('score', 'Очки', `<span data-live="score">${Math.round(s.score)}</span>`, `верных решений: ${s.correct} из ${s.resolved}`),
+      kpiCard('score', 'Очки', `<span data-live="score">${Math.round(s.score)}</span>`, S.sim.multiplier() > 1 ? `серия ${s.streak} · множитель ×${S.sim.multiplier()}` : `верных решений: ${s.correct} из ${s.resolved}`),
     ].join('')
   } else {
     const k = S.live?.kpis || {}
@@ -214,6 +217,7 @@ function renderKpis() {
 function renderPanel() {
   let html
   if (S.anomalyId) html = anomalyPanel(S.anomalyId)
+  else if (S.surface && S.closeup && S.object) html = objectPanel(S.surface, S.closeup, S.object)
   else if (S.surface && S.region) html = regionPanel(S.surface, S.region)
   else if (S.selected === 'solana') html = starPanel()
   else if (S.selected?.startsWith?.('route:')) html = routePanel(S.selected.slice(6))
@@ -228,6 +232,46 @@ function panelHead(title, sub, back = true, art = '') {
   return `<div class="cz-ph">${back ? `<button class="cz-icon-btn" data-act="panel-back" aria-label="Назад">${ICON.back}</button>` : ''}${art}<div><h2>${esc(title)}</h2>${sub ? `<p>${esc(sub)}</p>` : ''}</div></div>`
 }
 
+const codexKey = (bodyId, regionId, objId) => `${bodyId}:${regionId}:${objId}`
+const stars = (n, cls = '') => `<span class="cz-stars ${cls}" aria-label="Звёзд: ${n} из 3">${[0, 1, 2].map((i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`
+
+function codexBlock() {
+  const n = loadCodex().size
+  return `<div class="cz-codex">
+    <div class="cz-codex-head">${icon('events')}<b>Кодекс системы</b><span>${n} из ${CODEX_TOTAL}</span></div>
+    <div class="cz-meter"><i style="width:${(n / CODEX_TOTAL) * 100}%"></i></div>
+    <small>Спускайтесь в районы планет и осматривайте объекты: каждый открывает запись с фактами из самой игры.</small>
+    <button class="cz-btn small" data-act="codex">Открыть кодекс</button>
+  </div>`
+}
+
+function goalsBlock() {
+  const s = S.sim.state
+  const m = S.sim.multiplier()
+  return `<h3>${icon('score')}Цели смены</h3>
+    ${goalsList(S.sim.goals())}
+    <div class="cz-streak ${m > 1 ? 'hot' : ''}">${icon('energy')}<span>Серия верных решений <b>${s.streak}</b></span>${m > 1 ? `<em>×${m}</em>` : '<small>3 подряд дают ×1.5, 6 подряд — ×2</small>'}</div>`
+}
+
+function goalsList(gs) {
+  return `<ol class="cz-goals">${gs.map((g) => `<li class="${g.done ? 'done' : g.failed ? 'failed' : ''}"><i></i><span>${esc(g.text)}</span><small>${esc(g.done ? 'выполнено' : g.note)}</small></li>`).join('')}</ol>`
+}
+
+function levelCard(lv, gain = 0, up = false) {
+  return `<div class="cz-level-card ${up ? 'up' : ''}">
+    <div class="cz-level-badge"><span>${lv.level}</span></div>
+    <div class="cz-level-body">
+      <b>${esc(lv.name)}${up ? '<em>Новый уровень</em>' : ''}</b>
+      <div class="cz-meter xp"><i style="width:${Math.round(lv.progress * 100)}%"></i></div>
+      <small>${gain ? `+${gain} опыта · ` : ''}${lv.next ? `${lv.xp} из ${lv.next} до следующего уровня` : `${lv.xp} опыта · высший уровень`}</small>
+    </div>
+  </div>`
+}
+
+function achGrid(owned, highlight = [], onlyOwned = false) {
+  return `<div class="cz-achs">${ACHIEVEMENTS.filter((a) => !onlyOwned || owned.includes(a.id)).map((a) => `<div class="cz-ach ${owned.includes(a.id) ? 'on' : ''} ${highlight.includes(a.id) ? 'new' : ''}" title="${esc(a.about)}">${icon(a.icon)}<b>${esc(a.name)}</b><small>${esc(a.about)}</small></div>`).join('')}</div>`
+}
+
 function welcomePanel() {
   const training = S.mode === 'training'
   return `
@@ -235,6 +279,7 @@ function welcomePanel() {
     <p class="cz-text">${training
       ? 'Нажмите на планету с красным или жёлтым значком, выберите аномалию и решите, что делать. Каждое действие тратит энергию. Перед решением можно проверить телеметрию — это стоит 1 энергию, но даёт подсказку и бонус за верный ответ.'
       : 'В центре — звезда Solana, на ней работают все игры. Вокруг вращаются обсерватория Watchtower и четыре планеты-игры. Нажмите на планету, чтобы увидеть её состояние, нажмите ещё раз — чтобы спуститься на поверхность.'}</p>
+    ${training && S.sim ? goalsBlock() : ''}
     <div class="cz-list">
       ${BODIES.map((b) => {
         const st = world().bodies?.[b.id] || {}
@@ -242,6 +287,7 @@ function welcomePanel() {
         return `<button class="cz-row" data-act="select" data-id="${b.id}">${thumb(b)}<span><b>${esc(b.name)}</b><small>${esc(b.tagline)}</small></span>${n ? `<em class="cz-count ${worstClass(st.anomalies)}">${n}</em>` : ''}</button>`
       }).join('')}
     </div>
+    ${training && S.sim ? '' : codexBlock()}
     <div class="cz-legend">
       <span><i class="dot ok"></i>на связи</span><span><i class="dot warn"></i>слабый сигнал</span><span><i class="dot idle"></i>нет сигнала</span>
       <span><i class="dot bad"></i>критичная аномалия</span>
@@ -311,6 +357,29 @@ function bodyPanel(id) {
     </div>`
 }
 
+function closeupPreview(b, r) {
+  const cu = closeupFor(b.id, r.id)
+  if (!cu || S.closeup === r.id) return ''
+  const codex = loadCodex()
+  const seen = cu.objects.filter((o) => codex.has(codexKey(b.id, r.id, o.id))).length
+  return `<button class="cz-preview" data-act="closeup" data-id="${r.id}"><img src="${cu.image}" alt="" draggable="false" /><span><b>Войти в район</b><small>Осмотрено ${seen} из ${cu.objects.length}</small></span></button>`
+}
+
+function objectPanel(bodyId, regionId, objId) {
+  const b = bodyById(bodyId)
+  const cu = closeupFor(bodyId, regionId)
+  const o = cu?.objects.find((x) => x.id === objId)
+  if (!o) return regionPanel(bodyId, regionId)
+  const codex = loadCodex()
+  const next = cu.objects.find((x) => !codex.has(codexKey(bodyId, regionId, x.id)))
+  const n = codex.size
+  return `
+    ${panelHead(o.name, `${b.name} · ${cu.title}`)}
+    <div class="cz-entry"><span class="cz-entry-tag">${icon('events')}Запись кодекса</span><p>${esc(o.text)}</p></div>
+    <div class="cz-codex mini"><div class="cz-codex-head"><b>Кодекс системы</b><span>${n} из ${CODEX_TOTAL}</span></div><div class="cz-meter"><i style="width:${(n / CODEX_TOTAL) * 100}%"></i></div></div>
+    <div class="cz-actions">${next ? `<button class="cz-btn primary" data-act="object" data-id="${next.id}">Дальше: ${esc(next.name)}</button>` : '<span class="cz-note">Район осмотрен полностью.</span>'}<button class="cz-btn" data-act="codex">Весь кодекс</button></div>`
+}
+
 function regionPanel(bodyId, regionId) {
   const b = bodyById(bodyId)
   const r = b?.regions.find((x) => x.id === regionId)
@@ -321,6 +390,7 @@ function regionPanel(bodyId, regionId) {
     ${panelHead(r.name, b.name)}
     <p class="cz-text">${esc(r.about)}</p>
     <div class="cz-callout"><b>За чем следит вахта</b><span>${esc(r.watch)}</span></div>
+    ${closeupPreview(b, r)}
     ${metricsGrid(st.metrics, S.mode === 'training' ? ['players'] : r.metrics)}
     <h3>${icon('anomaly')}Аномалии в районе ${anomalies.length ? `<em class="cz-count ${worstClass(anomalies)}">${anomalies.length}</em>` : ''}</h3>
     ${anomalies.length ? `<div class="cz-list">${anomalies.map(anomalyRow).join('')}</div>` : '<p class="cz-empty">Здесь спокойно.</p>'}`
@@ -336,6 +406,12 @@ function worstClass(list = []) {
   return c.includes('critical') ? 'critical' : c.includes('warn') ? 'warn' : 'info'
 }
 
+function placeBlock(b, region) {
+  const cu = region && closeupFor(b.id, region.id)
+  if (!cu || (S.surface === b.id && S.closeup === region.id)) return ''
+  return `<button class="cz-place" data-act="goto-closeup" data-body="${b.id}" data-region="${region.id}" data-keep="1"><img src="${cu.image}" alt="" draggable="false" /><span>Место происшествия · ${esc(region.name)}</span></button>`
+}
+
 function anomalyPanel(id) {
   if (S.lastResult && S.lastResult.id === id) return resultPanel(S.lastResult)
   const a = findAnomaly(id)
@@ -346,7 +422,8 @@ function anomalyPanel(id) {
   const head = `
     ${panelHead(a.title, `${b.name}${region ? ` · ${region.name}` : ''}`)}
     <div class="cz-chips"><span class="cz-chip ${cls}">${SEVERITY_TEXT[cls]}</span>${a.demo ? '<span class="cz-chip">учебная тревога, только в тестовой среде</span>' : ''}${a.timeLeft != null ? `<span class="cz-chip">осталось <b data-countdown="${a.id}">${mmss(a.timeLeft)}</b></span>` : `<span class="cz-chip">обнаружена ${ago(a.detectedAt)}</span>`}</div>
-    <p class="cz-text">${esc(a.description)}</p>`
+    <p class="cz-text">${esc(a.description)}</p>
+    ${placeBlock(b, region)}`
   return head + (S.mode === 'training' ? trainingDecision(a) : liveDecision(a))
 }
 
@@ -372,7 +449,8 @@ function resultPanel(r) {
   return `
     ${panelHead(r.title, 'Разбор решения')}
     <div class="cz-result ${q[1]}"><b>${q[0]}</b><span>${esc(r.explain)}</span></div>
-    ${r.bonus ? '<p class="cz-note">+20 очков за проверку телеметрии перед решением.</p>' : ''}
+    <div class="cz-gain ${r.gained < 0 ? 'neg' : ''}"><b>${r.gained > 0 ? '+' : ''}${r.gained}</b><span>очков${r.mult > 1 ? ` · множитель серии ×${r.mult}` : ''}</span>${r.streak >= 2 ? `<em>серия ${r.streak}</em>` : ''}</div>
+    ${r.bonus ? '<p class="cz-note">Включая +20 за проверку телеметрии перед решением.</p>' : ''}
     ${r.advisorWasWrong ? `<div class="cz-callout warn"><b>Советник ошибся</b><span>${r.followedLie ? 'Вы последовали неверному совету. Советник очень уверен — это ещё не значит, что он прав.' : 'Вы не поддались неверному совету. Так и нужно: ИИ — помощник, а не начальник.'}</span></div>` : ''}
     <div class="cz-actions"><button class="cz-btn primary" data-act="panel-back">Дальше</button></div>`
 }
@@ -442,7 +520,7 @@ function renderBottom() {
 // ---------------- поверхность планеты ----------------
 function openSurface(id) {
   if (id === 'solana') return
-  S.surface = id; S.selected = id; S.region = null; S.anomalyId = null
+  S.surface = id; S.selected = id; S.region = null; S.anomalyId = null; S.closeup = null; S.object = null
   engine.select(id)
   render()
 }
@@ -453,6 +531,8 @@ function renderSurface() {
   el.hidden = false
   const b = bodyById(S.surface)
   const st = world().bodies?.[b.id] || {}
+  const cu = S.closeup ? closeupFor(b.id, S.closeup) : null
+  if (cu) return renderCloseup(el, b, st, cu)
   const byRegion = {}
   for (const a of st.anomalies || []) {
     const r = regionFor(b, a)
@@ -478,6 +558,57 @@ function renderSurface() {
       </div>
     </div>
     <p class="cz-surface-hint">Нажмите на район, чтобы узнать, что там происходит и за чем следит вахта.</p>`)
+}
+
+function renderCloseup(el, b, st, cu) {
+  const r = b.regions.find((x) => x.id === S.closeup)
+  const codex = loadCodex()
+  const anomalies = (st.anomalies || []).filter((a) => regionFor(b, a)?.id === r.id)
+  const objs = cu.objects.map((o) => {
+    const seen = codex.has(codexKey(b.id, r.id, o.id))
+    return `<button class="cz-hot obj ${seen ? 'seen' : ''} ${S.object === o.id ? 'active' : ''}" style="left:${o.x * 100}%;top:${o.y * 100}%" data-act="object" data-id="${o.id}"><i></i><span>${esc(seen ? o.name : 'Осмотреть')}</span></button>`
+  }).join('')
+  const alerts = anomalies.map((a, i) => {
+    const o = cu.objects[i % cu.objects.length]
+    return `<button class="cz-alert ${severityClass(a.severity)}" style="left:${o.x * 100}%;top:${Math.max(6, (o.y - 0.13) * 100)}%" data-act="anomaly" data-id="${a.id}"><i></i><span>${esc(a.title)}</span></button>`
+  }).join('')
+  const seenN = cu.objects.filter((o) => codex.has(codexKey(b.id, r.id, o.id))).length
+  const signal = st.lost ? 'lost' : (st.signal || 'none')
+  setHTML(el, `
+    <div class="cz-surface-head">
+      <button class="cz-btn" data-act="leave-closeup">${ICON.back}${esc(b.short)}</button>
+      <div><h2>${esc(cu.title)}</h2><p>${esc(b.name)} · ${esc(r.name)}</p></div>
+      <div class="cz-signal ${signal}"><i></i><span>${st.lost ? 'Связь потеряна' : SIGNAL_TEXT[signal === 'lost' ? 'none' : signal]}</span></div>
+    </div>
+    <div class="cz-scene closeup ${signal === 'none' || signal === 'lost' ? 'dim' : ''}">
+      <div class="cz-scene-inner"><img src="${cu.image}" alt="${esc(cu.title)}" draggable="false" />${objs}${alerts}</div>
+    </div>
+    <p class="cz-surface-hint">Осмотрено ${seenN} из ${cu.objects.length}. Каждый объект открывает запись в Кодексе системы.</p>`)
+}
+
+function openCodex() {
+  const codex = loadCodex()
+  const n = codex.size
+  const groups = Object.entries(CLOSEUPS).map(([key, cu]) => {
+    const [bodyId, regionId] = key.split(':')
+    const b = bodyById(bodyId)
+    const r = b.regions.find((x) => x.id === regionId)
+    const got = cu.objects.filter((o) => codex.has(`${key}:${o.id}`)).length
+    const items = cu.objects.map((o) => (codex.has(`${key}:${o.id}`)
+      ? `<li class="open"><b>${esc(o.name)}</b><span>${esc(o.text)}</span></li>`
+      : `<li class="locked"><b>Не осмотрено</b><span>Объект ждёт в районе «${esc(r.name)}»</span></li>`)).join('')
+    return `<section class="cz-codex-group ${got === cu.objects.length ? 'full' : ''}">
+      <header>${thumb(b)}<div><b>${esc(b.short)} · ${esc(cu.title)}</b><small>${got} из ${cu.objects.length}</small></div><button class="cz-btn small" data-act="goto-closeup" data-body="${bodyId}" data-region="${regionId}">Отправиться</button></header>
+      <ul>${items}</ul></section>`
+  }).join('')
+  S.examOpen = true
+  const el = slot('modal')
+  el.hidden = false
+  setHTML(el, `<div class="cz-dialog wide" role="dialog" aria-modal="true" aria-label="Кодекс системы">
+    <div class="cz-dialog-hero">${icon('events', 'hero')}<div><h2>Кодекс системы</h2><p class="cz-note">Собрано ${n} из ${CODEX_TOTAL} записей. Прогресс хранится в этом браузере.</p></div><button class="cz-icon-btn" data-act="close-modal" aria-label="Закрыть">${ICON.close}</button></div>
+    <div class="cz-meter xp"><i style="width:${(n / CODEX_TOTAL) * 100}%"></i></div>
+    <div class="cz-codex-grid">${groups}</div>
+  </div>`)
 }
 
 // ---------------- вахта ----------------
@@ -583,6 +714,7 @@ function openTrainingMenu() {
   setHTML(el, `
     <div class="cz-dialog" role="dialog" aria-modal="true" aria-labelledby="tr-title">
       <div class="cz-dialog-hero">${icon('time', 'hero')}<h2 id="tr-title">Тренажёр оператора</h2></div>
+      ${levelCard(levelFor(save.xp))}
       <p class="cz-text">Смена на учебной копии системы. Аномалии взяты из механик самих игр, а ответы — ровно те действия, что есть у вахты в бою. После каждого решения разбор: почему верно или нет.</p>
       <ul class="cz-rules">
         <li>Действия тратят энергию обсерватории, она восстанавливается со временем.</li>
@@ -592,7 +724,9 @@ function openTrainingMenu() {
       </ul>
       <div class="cz-diffs">${DIFFICULTIES.map((d) => `
         <button class="cz-diff ${S.difficulty === d.id ? 'active' : ''}" data-act="diff" data-id="${d.id}">
-          <b>${esc(d.name)}</b><span>${esc(d.about)}</span><small>${d.minutes} мин${save.best[d.id] ? ` · рекорд ${save.best[d.id]}` : ''}</small></button>`).join('')}</div>
+          <b>${esc(d.name)}</b><span>${esc(d.about)}</span><small>${d.minutes} мин${save.best[d.id] ? ` · рекорд ${save.best[d.id]}` : ''}</small>${stars(save.stars?.[d.id] || 0)}</button>`).join('')}</div>
+      <h3>${icon('trust')}Достижения <small>${save.achievements.length} из ${ACHIEVEMENTS.length}</small></h3>
+      ${achGrid(save.achievements)}
       <div class="cz-actions"><button class="cz-btn primary" data-act="start-training">Начать смену</button><button class="cz-btn" data-act="mode" data-mode="map">На карту</button></div>
       <p class="cz-note">Сыграно смен: ${save.runs}, успешных: ${save.wins}. Результаты хранятся только в этом браузере и не влияют на ранг на вахте.</p>
     </div>`)
@@ -616,13 +750,16 @@ function trainingOver() {
   const q = { best: 'верно', ok: 'приемлемо', weak: 'слабо', bad: 'ошибка', expired: 'просрочено' }
   setHTML(el, `
     <div class="cz-dialog" role="dialog" aria-modal="true">
-      <div class="cz-dialog-hero ${s.won ? 'won' : 'lost'}">${icon(s.won ? 'score' : 'anomaly', 'hero')}<h2>${s.won ? 'Смена завершена' : 'Смена провалена'}</h2></div>
+      <div class="cz-dialog-hero ${s.won ? 'won' : 'lost'}">${icon(s.won ? 'score' : 'anomaly', 'hero')}<div><h2>${s.won ? 'Смена завершена' : 'Смена провалена'}</h2>${stars(s.summary?.stars || 0, 'big')}</div></div>
       <p class="cz-text">${s.won ? 'Система пережила смену. Посмотрите разбор последних решений.' : 'Слишком много потерь. Разберите ошибки и попробуйте ещё раз.'}</p>
       <div class="cz-metrics three">
         <div class="cz-metric-ico">${icon('score')}<span>Очки</span><b>${Math.round(s.score)}</b></div>
         <div><span>Верных решений</span><b>${s.correct} из ${s.resolved}</b></div>
         <div><span>Неверных советов ИИ принято</span><b>${s.followedBadAdvice}</b></div>
       </div>
+      ${s.summary ? `<h3>${icon('score')}Цели смены</h3>${goalsList(s.summary.goals)}${!s.won ? '<p class="cz-note">Звёзды начисляются только за пережитую смену.</p>' : ''}
+      <h3>${icon('time')}Опыт курсанта</h3>${levelCard(s.summary.after, s.summary.xpGain, s.summary.after.level > s.summary.before.level)}
+      ${s.summary.newAchievements.length ? `<h3>${icon('trust')}Новые достижения</h3>${achGrid(s.summary.newAchievements.map((a) => a.id), s.summary.newAchievements.map((a) => a.id), true)}` : ''}` : ''}
       ${history.length ? `<h3>Последние решения</h3><div class="cz-list">${history.map((h) => `<div class="cz-row static"><span><b>${esc(h.title)}</b><small>${esc(q[h.quality])} — ${esc(h.explain)}</small></span></div>`).join('')}</div>` : ''}
       <div class="cz-actions"><button class="cz-btn primary" data-act="start-training">Ещё раз</button><button class="cz-btn" data-act="training-menu">Сменить сложность</button><button class="cz-btn" data-act="mode" data-mode="map">На карту</button></div>
     </div>`)
@@ -697,7 +834,8 @@ function setMode(mode) {
   if (mode !== 'training') { S.sim = null; slot('modal').hidden = true; setHTML(slot('modal'), '') }
   S.mode = mode
   S.anomalyId = null; S.lastResult = null
-  if (mode === 'training') { S.surface = null; S.selected = null; openTrainingMenu() }
+  S.closeup = null; S.object = null
+  if (mode === 'training') { S.surface = null; S.region = null; S.selected = null; openTrainingMenu() }
   engine.setWorld(world())
   render()
 }
@@ -710,8 +848,25 @@ root.addEventListener('click', async (e) => {
   if (act === 'mode') return setMode(t.dataset.mode)
   if (act === 'select') { S.selected = id; S.anomalyId = null; engine.select(id); return render() }
   if (act === 'enter') return openSurface(id)
-  if (act === 'leave-surface') { S.surface = null; S.region = null; return render() }
-  if (act === 'region') { S.region = id; S.anomalyId = null; return render() }
+  if (act === 'leave-surface') { S.surface = null; S.region = null; S.closeup = null; S.object = null; return render() }
+  if (act === 'region') { S.region = id; S.anomalyId = null; S.object = null; return render() }
+  if (act === 'closeup') { S.closeup = id; S.region = id; S.object = null; S.anomalyId = null; return render() }
+  if (act === 'leave-closeup') { S.closeup = null; S.object = null; return render() }
+  if (act === 'object' && S.surface && S.closeup) {
+    S.object = id; S.anomalyId = null; S.lastResult = null
+    const res = discover(codexKey(S.surface, S.closeup, id))
+    if (res.isNew) toast(res.count === res.total ? `Кодекс собран полностью: ${res.total} из ${res.total}` : `Новая запись в кодексе · ${res.count} из ${res.total}`, 'good')
+    return render()
+  }
+  if (act === 'codex') return openCodex()
+  if (act === 'goto-closeup') {
+    const keep = t.dataset.keep === '1'
+    if (S.examOpen) closeModal()
+    S.surface = t.dataset.body; S.selected = t.dataset.body; S.region = t.dataset.region; S.closeup = t.dataset.region; S.object = null
+    if (!keep) { S.anomalyId = null; S.lastResult = null }
+    engine.select(S.surface)
+    return render()
+  }
   if (act === 'anomaly') {
     const a = findAnomaly(id)
     S.anomalyId = id; S.lastResult = null
@@ -720,6 +875,8 @@ root.addEventListener('click', async (e) => {
   }
   if (act === 'panel-back') {
     if (S.anomalyId) { S.anomalyId = null; S.lastResult = null }
+    else if (S.object) S.object = null
+    else if (S.closeup) S.closeup = null
     else if (S.region) S.region = null
     else { S.selected = null; engine.select(null) }
     return render()
@@ -737,6 +894,8 @@ root.addEventListener('click', async (e) => {
     const r = S.sim.resolve(id, t.dataset.action)
     if (!r.ok) { toast(r.reason, 'bad'); return render() }
     S.lastResult = { ...r, id }
+    if (r.streak === 3) toast('Серия из трёх верных решений: множитель ×1.5', 'good')
+    else if (r.streak === 6) toast('Серия из шести: множитель ×2', 'good')
     engine.setWorld(S.sim.world())
     return render()
   }
@@ -813,6 +972,8 @@ document.addEventListener('keydown', (e) => {
   if (S.examOpen) return closeModal()
   if (!slot('modal').hidden && S.mode === 'training' && !S.sim) return setMode('map')
   if (S.anomalyId) { S.anomalyId = null; S.lastResult = null }
+  else if (S.object) S.object = null
+  else if (S.closeup) S.closeup = null
   else if (S.region) S.region = null
   else if (S.surface) S.surface = null
   else { S.selected = null; engine.select(null) }

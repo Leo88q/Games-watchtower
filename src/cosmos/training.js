@@ -140,9 +140,36 @@ const CATALOG = [
   } },
 ]
 
+// ---------------- прогресс курсанта: опыт, уровни, достижения ----------------
+// Всё это только учебное: хранится в браузере и не влияет на ранг на вахте.
+export const LEVELS = [[0, 'Курсант'], [120, 'Младший дежурный'], [300, 'Дежурный'], [550, 'Старший дежурный'], [900, 'Аналитик смены'], [1350, 'Мастер вахты'], [1900, 'Легенда обсерватории']]
+export function levelFor(xp = 0) {
+  let i = 0
+  while (i + 1 < LEVELS.length && xp >= LEVELS[i + 1][0]) i++
+  const [from, name] = LEVELS[i]
+  const next = LEVELS[i + 1]?.[0] ?? null
+  return { level: i + 1, name, xp, from, next, progress: next ? (xp - from) / (next - from) : 1 }
+}
+
+export const ACHIEVEMENTS = [
+  { id: 'first_win', name: 'Первая смена', about: 'Успешно завершить любую смену', icon: 'time' },
+  { id: 'flawless', name: 'Без потерь', about: 'Смена без просроченных аномалий и потерянных планет', icon: 'trust' },
+  { id: 'three_stars', name: 'Три звезды', about: 'Выполнить все три цели смены', icon: 'score' },
+  { id: 'streak5', name: 'Пять подряд', about: 'Серия из пяти верных решений', icon: 'energy' },
+  { id: 'skeptic', name: 'Скептик', about: 'Трижды не поддаться ошибке бортового ИИ', icon: 'anomaly' },
+  { id: 'analyst', name: 'Аналитик', about: 'Проверить телеметрию 25 раз', icon: 'events' },
+  { id: 'black_swan', name: 'Чёрный лебедь', about: 'Пережить смену на максимальной сложности', icon: 'planets' },
+  { id: 'veteran', name: 'Ветеран', about: 'Отстоять 10 смен до конца', icon: 'operators' },
+]
+
 const SAVE_KEY = 'wt-cosmos-training'
+const EMPTY_SAVE = () => ({ runs: 0, wins: 0, finished: 0, best: {}, stars: {}, xp: 0, achievements: [], totals: { investigations: 0, beatLies: 0 } })
 export function loadTrainingSave() {
-  try { return { runs: 0, wins: 0, best: {}, ...JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') } } catch { return { runs: 0, wins: 0, best: {} } }
+  try {
+    const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')
+    const base = EMPTY_SAVE()
+    return { ...base, ...raw, totals: { ...base.totals, ...(raw.totals || {}) }, stars: raw.stars || {}, achievements: raw.achievements || [] }
+  } catch { return EMPTY_SAVE() }
 }
 function storeSave(save) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)) } catch { /* приватный режим */ } }
 
@@ -177,7 +204,29 @@ export function createTraining(difficultyId) {
     correct: 0,
     followedBadAdvice: 0,
     history: [],
+    streak: 0,
+    bestStreak: 0,
+    expired: 0,
+    investigations: 0,
+    beatLies: 0,
+    summary: null,
   }
+
+  // Три цели смены: «решить верно N» всегда, ещё две случайные
+  const need = { easy: 3, normal: 4, hard: 5, nightmare: 6 }[diff.id] || 4
+  const GOALS = [
+    { id: 'correct', text: `Решить верно ${need} аномалий`, state: () => ({ done: s.correct >= need, note: `${Math.min(s.correct, need)} из ${need}` }) },
+    { id: 'noexpire', text: 'Ни одной просроченной аномалии', state: () => ({ done: s.expired === 0 && s.over, failed: s.expired > 0, note: s.expired ? 'провалена' : 'держится' }) },
+    { id: 'nolost', text: 'Не потерять ни одной планеты', state: () => { const n = Object.values(bodies).filter((b) => b.lost).length; return { done: !n && s.over, failed: n > 0, note: n ? 'провалена' : 'держится' } } },
+    { id: 'investigate', text: 'Проверить телеметрию 3 раза', state: () => ({ done: s.investigations >= 3, note: `${Math.min(s.investigations, 3)} из 3` }) },
+    { id: 'trust', text: 'Закончить смену с доверием от 60%', state: () => ({ done: s.over && s.trust >= 60, failed: s.over && s.trust < 60, note: `сейчас ${Math.round(s.trust)}%` }) },
+    { id: 'streak', text: 'Серия из 4 верных решений', state: () => ({ done: s.bestStreak >= 4, note: `лучшая серия ${s.bestStreak}` }) },
+    ...(diff.lie > 0 ? [{ id: 'beatlie', text: 'Распознать ошибку бортового ИИ', state: () => ({ done: s.beatLies >= 1, note: s.beatLies ? 'есть' : 'пока нет' }) }] : []),
+  ]
+  const extra = GOALS.slice(1).sort(() => Math.random() - 0.5).slice(0, 2)
+  const goals = [GOALS[0], ...extra]
+  const goalStates = () => goals.map((g) => ({ id: g.id, text: g.text, ...g.state() }))
+  const multiplier = () => (s.streak >= 6 ? 2 : s.streak >= 3 ? 1.5 : 1)
 
   const log = (text, kind = 'info') => { s.log.unshift({ at: s.elapsed, text, kind }); s.log = s.log.slice(0, 60) }
   log(`Смена началась: «${diff.name}». Продержитесь ${diff.minutes} мин и сохраните доверие игроков.`)
@@ -235,8 +284,31 @@ export function createTraining(difficultyId) {
     s.over = true; s.won = won
     const sv = loadTrainingSave()
     if (won) sv.wins += 1
+    sv.finished += 1
     sv.best[diff.id] = Math.max(sv.best[diff.id] || 0, Math.round(s.score))
+    const gs = goalStates()
+    const stars = won ? gs.filter((g) => g.done).length : 0
+    sv.stars[diff.id] = Math.max(sv.stars[diff.id] || 0, stars)
+    sv.totals.investigations += s.investigations
+    sv.totals.beatLies += s.beatLies
+    const before = levelFor(sv.xp)
+    const xpGain = Math.round(Math.max(0, s.score) / 10) + stars * 25 + (won ? 30 : 5)
+    sv.xp += xpGain
+    const lostN = Object.values(bodies).filter((b) => b.lost).length
+    const unlocked = {
+      first_win: won,
+      flawless: won && !s.expired && !lostN,
+      three_stars: stars === 3,
+      streak5: s.bestStreak >= 5,
+      skeptic: sv.totals.beatLies >= 3,
+      analyst: sv.totals.investigations >= 25,
+      black_swan: won && diff.id === 'nightmare',
+      veteran: sv.finished >= 10,
+    }
+    const newAchievements = ACHIEVEMENTS.filter((a) => unlocked[a.id] && !sv.achievements.includes(a.id))
+    sv.achievements.push(...newAchievements.map((a) => a.id))
     storeSave(sv)
+    s.summary = { stars, goals: gs, xpGain, before, after: levelFor(sv.xp), newAchievements }
     log(won ? 'Смена завершена успешно.' : 'Смена провалена.', won ? 'good' : 'bad')
   }
 
@@ -259,6 +331,8 @@ export function createTraining(difficultyId) {
           b.anomalies = b.anomalies.filter((x) => x !== a)
           b.stability -= 16
           s.trust = Math.max(0, s.trust - 6)
+          s.expired += 1
+          s.streak = 0
           s.history.unshift({ title: a.title, quality: 'expired', explain: 'Время вышло: аномалия ударила по игрокам без ответа.' })
           log(`Просрочено: ${a.title}`, 'bad')
         }
@@ -284,6 +358,7 @@ export function createTraining(difficultyId) {
     if (!f || f.a.investigated) return { ok: false }
     if (s.energy < 1) return { ok: false, reason: 'Не хватает энергии обсерватории' }
     s.energy -= 1
+    s.investigations += 1
     f.a.investigated = true
     return { ok: true, hint: f.a.hint }
   }
@@ -301,13 +376,19 @@ export function createTraining(difficultyId) {
     const speedBonus = quality === 'best' ? Math.round(30 * (f.a.timeLeft / f.a.timer)) : 0
     f.b.stability = Math.max(0, Math.min(100, f.b.stability + e.stability))
     s.trust = Math.max(0, Math.min(100, s.trust + e.trust))
-    s.score += e.score + bonus + speedBonus
+    // Серия верных решений даёт множитель только к заработанным очкам, штрафы не умножаются
+    if (quality === 'best') { s.streak += 1; s.bestStreak = Math.max(s.bestStreak, s.streak) } else if (quality !== 'ok') s.streak = 0
+    const mult = e.score > 0 ? multiplier() : 1
+    const gained = Math.round((e.score + bonus + speedBonus) * mult)
+    s.score += gained
     s.resolved += 1
     if (quality === 'best') s.correct += 1
     const followedLie = f.a.advice.lying && f.a.advice.actionId === actionId
     if (followedLie) s.followedBadAdvice += 1
+    const beatLie = f.a.advice.lying && !followedLie && (quality === 'best' || quality === 'ok')
+    if (beatLie) s.beatLies += 1
     f.b.anomalies = f.b.anomalies.filter((x) => x !== f.a)
-    const result = { ok: true, quality, explain, bonus, speedBonus, followedLie, advisorWasWrong: f.a.advice.lying, title: f.a.title }
+    const result = { ok: true, quality, explain, bonus, speedBonus, followedLie, advisorWasWrong: f.a.advice.lying, title: f.a.title, gained, mult, streak: s.streak, region: f.a.region, body: f.a.body }
     s.history.unshift(result)
     log(`${quality === 'best' ? 'Верно' : quality === 'ok' ? 'Приемлемо' : quality === 'weak' ? 'Слабо' : 'Ошибка'}: ${f.a.title}`, quality === 'best' || quality === 'ok' ? 'good' : 'bad')
     if (followedLie) log('Советник ошибся, а вы последовали его совету. ИИ — помощник, а не начальник.', 'warn')
@@ -340,6 +421,8 @@ export function createTraining(difficultyId) {
     world,
     find: (id) => find(id)?.a || null,
     costOf: (actionId) => COST[RISK[actionId]] || 1,
+    goals: goalStates,
+    multiplier,
     riskOf: (actionId) => RISK[actionId],
   }
 }
