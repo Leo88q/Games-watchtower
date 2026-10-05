@@ -638,11 +638,11 @@ function renderSurface() {
 // Погода — часть окружения и идёт всегда. Движение техники (дроны, болиды) —
 // это признак активности, поэтому оно появляется только когда у мира есть сигнал.
 const FX = {
-  hub: { weather: 'data', sprites: [['hub-satellite', 'orbit', 7, 34, 0]] },
-  ares1: { weather: 'dust', sprites: [['ares-drone', 'hover', 8, 20, 0], ['ares-drone', 'hover2', 6, 26, -11]] },
-  aof: { weather: 'motes', sprites: [['aof-orb', 'float', 6.5, 22, 0], ['aof-orb', 'float2', 4.5, 30, -14]] },
-  guttercaps: { weather: 'rain', sprites: [['gutter-moth', 'flutter', 5.5, 18, 0]] },
-  neonrelay: { weather: 'streaks', sprites: [['neon-car', 'dash', 10, 8, 0], ['neon-car', 'dash2', 8, 11, -5]] },
+  hub: { weather: 'data', sprites: [['hub-satellite', 'orbit', 7, 34, 0], ['hub-packet', 'packet', 4.4, 5, 0], ['hub-packet', 'packet2', 3.4, 6.5, -2.4]] },
+  ares1: { weather: 'dust', sprites: [['ares-drone', 'hover', 8, 20, 0], ['ares-drone', 'hover2', 6, 26, -11], ['ares-rover', 'drive', 10.5, 28, -4]] },
+  aof: { weather: 'motes', sprites: [['aof-orb', 'float', 6.5, 22, 0], ['aof-orb', 'float2', 4.5, 30, -14], ['aof-neuron', 'pulse', 11, 14, 0]] },
+  guttercaps: { weather: 'rain', sprites: [['gutter-moth', 'flutter', 5.5, 18, 0], ['gutter-cap', 'toss', 6.5, 6, -1.5]] },
+  neonrelay: { weather: 'streaks', sprites: [['neon-car', 'dash', 10, 8, 0], ['neon-car', 'dash2', 8, 11, -5], ['neon-bike', 'dash3', 9, 6, -2]] },
 }
 function sceneFx(bodyId, signal) {
   const fx = FX[bodyId]

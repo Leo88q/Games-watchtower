@@ -565,6 +565,23 @@ h3 small { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transf
 @keyframes fx-bob { 50% { transform: translateY(-14%); } }
 .p-orbit { --path: fx-orbit; } .p-hover { --path: fx-hover; } .p-hover2 { --path: fx-hover2; } .p-float { --path: fx-float; } .p-float2 { --path: fx-float2; } .p-flutter { --path: fx-flutter; } .p-dash { --path: fx-dash; } .p-dash2 { --path: fx-dash2; }
 .p-flutter img { animation: fx-wings 0.35s ease-in-out infinite alternate; }
+.p-packet { --path: fx-packet; } .p-packet2 { --path: fx-packet2; } .p-drive { --path: fx-drive; } .p-pulse { --path: fx-pulse; } .p-toss { --path: fx-toss; } .p-dash3 { --path: fx-dash3; }
+.p-toss img { animation: fx-spin 0.9s linear infinite; }
+.p-pulse img { animation: fx-glow 2.6s ease-in-out infinite; }
+.p-drive img { animation: fx-rumble 0.5s steps(2) infinite; }
+@keyframes fx-spin { to { transform: rotate(360deg); } }
+@keyframes fx-glow { 50% { transform: scale(1.12); filter: brightness(1.45) drop-shadow(0 0 6px rgba(80, 255, 220, 0.7)); } }
+@keyframes fx-rumble { 50% { transform: translateY(-3%); } }
+/* пакеты данных: из центра станции к антеннам, гаснут у приёмника */
+@keyframes fx-packet { 0% { left: 52%; top: 54%; opacity: 0; transform: scale(0.6); } 12% { opacity: 1; } 80% { opacity: 1; } 100% { left: 26%; top: 12%; opacity: 0; transform: scale(1); } }
+@keyframes fx-packet2 { 0% { left: 56%; top: 58%; opacity: 0; transform: scale(0.6); } 12% { opacity: 1; } 80% { opacity: 1; } 100% { left: 66%; top: 18%; opacity: 0; transform: scale(1); } }
+/* марсоход: по диагонали платформы туда и обратно с разворотом */
+@keyframes fx-drive { 0% { left: 30%; top: 50%; transform: scaleX(1); } 45% { left: 54%; top: 64%; transform: scaleX(1); } 50% { left: 54%; top: 64%; transform: scaleX(-1); } 95% { left: 30%; top: 50%; transform: scaleX(-1); } 100% { left: 30%; top: 50%; transform: scaleX(1); } }
+/* нейрон: медленно дрейфует над лабораторией */
+@keyframes fx-pulse { 0% { left: 40%; top: 26%; } 50% { left: 47%; top: 20%; } 100% { left: 40%; top: 26%; } }
+/* крышка Cap Slam: бросок по дуге через арену и пауза до следующего */
+@keyframes fx-toss { 0% { left: 18%; top: 62%; opacity: 0; } 6% { opacity: 1; } 30% { left: 40%; top: 22%; } 60% { left: 64%; top: 56%; opacity: 1; } 64% { left: 66%; top: 58%; opacity: 0; } 100% { left: 66%; top: 58%; opacity: 0; } }
+@keyframes fx-dash3 { 0% { left: -12%; top: 70%; } 35% { left: 108%; top: 48%; } 100% { left: 108%; top: 48%; } }
 @keyframes fx-wings { to { transform: scaleY(0.72) rotate(-4deg); } }
 .p-dash img, .p-dash2 img { animation: none; filter: drop-shadow(0 0 10px rgba(255, 80, 220, 0.6)); }
 
