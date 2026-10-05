@@ -86,6 +86,8 @@ jobs:
         run: npm run test:unit
       - name: Интеграционные проверки API
         run: npm run test:hardening
+      - name: Вход подписью кошелька, сессии и отчёты игр
+        run: npm run test:operator-auth
       - name: Приватность игровых идентификаторов
         run: npm run test:privacy
       - name: Read-only инвариант

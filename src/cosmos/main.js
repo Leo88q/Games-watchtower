@@ -8,7 +8,8 @@ import '@fontsource/exo-2/latin-800.css'
 import '@fontsource/exo-2/cyrillic-800.css'
 import './cosmos.css'
 import { createEngine } from './engine.js'
-import { loadLiveWorld, operatorApi } from './live.js'
+import { loadLiveWorld, operatorApi, operatorSession } from './live.js'
+import { detectWallets, signInWithWallet } from './wallet.js'
 import { createTraining, DIFFICULTIES, loadTrainingSave, levelFor, ACHIEVEMENTS, LEVELS, dailyChallenge, MODIFIERS, DAILY_BONUS_XP, dayKey, prevDayKey } from './training.js'
 import { CLOSEUPS, CODEX_TOTAL, closeupFor, loadCodex, discover } from './closeups.js'
 import { BODIES, ROUTES, STAR, METRIC_LABELS, ACTION_TEXT, RISK_TEXT, ROLE_TEXT, bodyById, regionFor, severityClass } from './world.js'
@@ -47,7 +48,7 @@ const S = {
   object: null,
   lastResult: null,
   hint: {},
-  wallet: localStorage.getItem('wt-operator-wallet') || null,
+  wallet: operatorSession.get()?.wallet || null,
   player: null,
   busy: false,
   query: '',
@@ -114,6 +115,20 @@ const ERROR_TEXT = {
   rate_limited: 'Слишком много запросов, подождите немного',
   read_token_required: 'Обсерватория закрыта для просмотра без ключа доступа',
   invalid_json: 'Запрос повреждён, обновите страницу',
+  invalid_wallet_address: 'Это не похоже на адрес кошелька Solana',
+  signature_required: 'Нужна подпись кошелька',
+  bad_signature: 'Подпись не совпала с адресом кошелька. Попробуйте ещё раз',
+  login_code_expired: 'Код входа истёк. Нажмите «Войти» ещё раз',
+  too_many_login_attempts: 'Слишком много попыток входа. Подождите несколько минут',
+  session_required: 'Сессия вахты закончилась. Войдите заново',
+  wallet_mismatch: 'Сессия открыта для другого кошелька. Войдите заново',
+  demo_login_disabled: 'Демо-вход отключён на этом сервере',
+}
+function sessionLost(err) {
+  if (err?.status !== 401) return false
+  operatorSession.clear()
+  S.wallet = null; S.player = null
+  return true
 }
 function friendlyError(err) {
   const m = String(err?.message || '')
@@ -704,6 +719,29 @@ function openCodex() {
 }
 
 // ---------------- вахта ----------------
+function walletLoginBlock() {
+  const wallets = detectWallets()
+  const demo = S.live?.operator?.auth?.demoLogin
+  return `<div class="cz-login-box">
+    ${wallets.length
+      ? `<div class="cz-wallets">${wallets.map((w) => `<button class="cz-btn primary wide" data-act="wallet-login" data-id="${w.id}" ${S.busy ? 'disabled' : ''}>Войти через ${esc(w.name)}</button>`).join('')}</div>`
+      : '<div class="cz-callout info"><b>Нужен кошелёк Solana</b><span>Установите расширение Phantom, Solflare или Backpack и обновите страницу. На телефоне откройте эту страницу во встроенном браузере кошелька.</span></div>'}
+    <p class="cz-note">Кошелёк подпишет одно текстовое сообщение с одноразовым кодом. Это не транзакция: она ничего не списывает и не даёт доступа к средствам.</p>
+  </div>
+  ${demo ? `<details class="cz-details"><summary>Демо-вход для разработки</summary>
+    <form class="cz-login" data-act="login">
+      <label>Демо-кошелёк<input name="wallet" autocomplete="off" spellcheck="false" value="test_wallet" required /></label>
+      <button class="cz-btn wide" type="submit" ${S.busy ? 'disabled' : ''}>Войти без подписи</button>
+    </form>
+    <p class="cz-note">Работает только на сервере разработки. В продакшене вход возможен лишь подписью кошелька.</p></details>` : ''}`
+}
+
+const PROGRESS_SOURCE_TEXT = {
+  game: 'Часы и ранги получены из самих игр.',
+  demo: 'Демо-прогресс: игры ещё не присылают данные на этот сервер.',
+  none: 'Игры пока не прислали ваш прогресс. Ранги откроются, когда придут данные.',
+}
+
 function renderWatch() {
   const el = slot('watch')
   el.hidden = S.mode !== 'watch'
@@ -712,11 +750,7 @@ function renderWatch() {
     setHTML(el, `
       <div class="cz-ph"><div><h2>Вахта операторов</h2><p>Игроки студии помогают следить за системой</p></div></div>
       <p class="cz-text">Операторы разбирают аномалии и голосуют за безопасные действия. Доступ не покупается: он открывается часами и рангом в играх студии. Голосовать по аномалии планеты можно только при прогрессе в этой игре.</p>
-      <form class="cz-login" data-act="login">
-        <label>Адрес кошелька Solana<input name="wallet" autocomplete="off" spellcheck="false" placeholder="Адрес кошелька" required /></label>
-        <button class="cz-btn primary wide" type="submit" ${S.busy ? 'disabled' : ''}>Войти на вахту</button>
-      </form>
-      <p class="cz-note">Проверка подписи кошелька будет подключена до запуска. Для пробы подойдёт адрес test_wallet — у него есть прогресс в играх.</p>
+      ${walletLoginBlock()}
       ${rolesBlock()}`)
     return
   }
@@ -738,8 +772,11 @@ function renderWatch() {
     <div class="cz-list">${planets.map((b) => {
       const g = p.gameProgress?.[b.id] || { hours: 0, rank: 0 }
       const ok = p.clearance?.[b.id] || role.id === 'staff'
-      return `<div class="cz-row static">${thumb(b)}<span><b>${esc(b.name)}</b><small>${g.hours} ч в игре · ${g.rank ? `ранг ${g.rank}` : 'ранга нет'}</small></span><em class="cz-clear ${ok ? 'ok' : ''}">${ok ? 'допуск есть' : 'нет допуска'}</em></div>`
+      const src = (p.progressSources || []).find((x) => x.game === b.id)
+      const linked = src && (src.push || src.pull)
+      return `<div class="cz-row static">${thumb(b)}<span><b>${esc(b.name)}</b><small>${g.hours} ч в игре · ${g.rank ? `ранг ${g.rank}` : 'ранга нет'}${p.progressSource !== 'demo' && src && !linked ? ' · игра ещё не подключена к вахте' : ''}</small></span><em class="cz-clear ${ok ? 'ok' : ''}">${ok ? 'допуск есть' : 'нет допуска'}</em></div>`
     }).join('')}</div>
+    <p class="cz-note">${esc(PROGRESS_SOURCE_TEXT[p.progressSource] || PROGRESS_SOURCE_TEXT.none)}</p>
     <p class="cz-note">Допуск даётся от ${op?.clearanceRule?.minHours ?? 10} часов и ранга в игре. Обсерваторию могут разбирать все, у кого есть право голоса.</p>
     <h3>${icon('anomaly')}Аномалии на вахте</h3>
     ${allAnomalies().length ? `<div class="cz-list">${allAnomalies().map(anomalyRow).join('')}</div>` : '<p class="cz-empty">Открытых аномалий нет.</p>'}
@@ -1020,23 +1057,38 @@ root.addEventListener('click', async (e) => {
   }
   if (act === 'vote') {
     try {
-      await operatorApi.vote(S.wallet, id, t.dataset.action)
+      await operatorApi.vote(id, t.dataset.action)
       toast('Голос учтён', 'good')
-    } catch (err) { toast(friendlyError(err), 'bad') }
+    } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
     return refreshLive()
   }
   if (act === 'approve') {
     try {
-      await operatorApi.approve(S.wallet, id, t.dataset.ok === '1')
+      await operatorApi.approve(id, t.dataset.ok === '1')
       toast(t.dataset.ok === '1' ? 'Решение подтверждено' : 'Решение отклонено', 'good')
-    } catch (err) { toast(friendlyError(err), 'bad') }
+    } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
     return refreshLive()
   }
   if (act === 'exam') return openExam()
   if (act === 'close-modal') return closeModal()
   if (act === 'logout') {
     S.wallet = null; S.player = null
-    localStorage.removeItem('wt-operator-wallet')
+    operatorSession.clear()
+    return refreshLive()
+  }
+  if (act === 'wallet-login') {
+    const w = detectWallets().find((x) => x.id === id)
+    if (!w) return toast('Кошелёк не найден. Обновите страницу', 'bad')
+    S.busy = true; render()
+    try {
+      const res = await signInWithWallet(w.provider, operatorApi)
+      S.wallet = res.player?.wallet; S.player = res.player
+      toast(`Вы на вахте: ${ROLE_TEXT[res.player?.role?.id] || 'Гость'}`, 'good')
+    } catch (err) {
+      const rejected = err?.code === 4001 || /reject|denied|отклон/i.test(String(err?.message))
+      toast(rejected ? 'Подпись отменена в кошельке' : `Не удалось войти: ${friendlyError(err)}`, 'bad')
+    }
+    S.busy = false
     return refreshLive()
   }
   if (act === 'search-pick') {
@@ -1056,11 +1108,11 @@ root.addEventListener('submit', async (e) => {
     e.preventDefault()
     const answers = Object.fromEntries(new FormData(exam).entries())
     try {
-      const res = await operatorApi.submitExam(S.wallet, answers)
+      const res = await operatorApi.submitExam(answers)
       if (res.player) S.player = res.player
       closeModal()
       toast(res.passed ? `Проверка сдана: ${res.correct} из ${res.total}. Ваш ранг: ${ROLE_TEXT[res.player?.role?.id] || 'Гость'}` : `Верно ${res.correct} из ${res.total}. Повторить можно через 10 минут.`, res.passed ? 'good' : 'bad')
-    } catch (err) { toast(friendlyError(err), 'bad') }
+    } catch (err) { sessionLost(err); toast(friendlyError(err), 'bad') }
     return refreshLive()
   }
   const form = e.target.closest('[data-act="login"]')
@@ -1071,9 +1123,8 @@ root.addEventListener('submit', async (e) => {
   S.busy = true; render()
   try {
     const res = await operatorApi.auth(wallet)
-    S.wallet = wallet.toLowerCase()
+    S.wallet = res.player?.wallet || wallet.toLowerCase()
     S.player = res.player
-    localStorage.setItem('wt-operator-wallet', S.wallet)
     toast(`Вы на вахте: ${ROLE_TEXT[res.player?.role?.id] || 'Гость'}`, 'good')
   } catch (err) { toast(`Не удалось войти: ${friendlyError(err)}`, 'bad') }
   S.busy = false

@@ -114,6 +114,8 @@ export function signIngestBody({ rawBody, timestamp = Date.now(), secret, method
  */
 export function authenticate(req, { kind = 'read', config, rawBody = '' } = {}) {
   if (kind === 'public') return { ok: true, scheme: 'public' }
+  // Отчёты игр о прогрессе подписаны секретом конкретной игры и проверяются в самом маршруте.
+  if (kind === 'game') return { ok: true, scheme: 'game_hmac_checked_in_route' }
 
   if (kind === 'write') {
     const token = bearerToken(req)

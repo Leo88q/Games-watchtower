@@ -19,10 +19,13 @@ import { fileURLToPath } from 'node:url'
 import { randomUUID, createHash } from 'node:crypto'
 import { recordAudit } from '../security/access.js'
 import { logger } from '../obs/logger.js'
+import { createFileBackend, createStorage } from './storage.js'
+import { walletKey, isDemoWallet, isSolanaAddress } from './wallet-auth.js'
+import { configureGameProgress, storedProgress, replaceProgressStore, progressSources, PROGRESS_GAMES } from './game-progress.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const DATA_DIR = path.resolve(__dirname, '../../data/operator-game')
+const DATA_DIR = process.env.OPERATOR_DATA_DIR ? path.resolve(process.env.OPERATOR_DATA_DIR) : path.resolve(__dirname, '../../data/operator-game')
 const isProduction = process.env.NODE_ENV === 'production'
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
@@ -220,29 +223,51 @@ export const ALLOWED_ACTIONS = {
 // ---------------------------------------------------------------------------
 // Хранилище
 // ---------------------------------------------------------------------------
+// До initOperatorPersistence() работает файловое хранилище — как и раньше.
+let storage = createFileBackend(DATA_DIR)
+let demoProgressAllowed = !isProduction
+const SECTIONS = ['players', 'incidents', 'ratelimits', 'cooldowns', 'reputation-log', 'executed', 'shift', 'game-progress']
 function loadStore(name, defaultValue) {
-  const file = path.join(DATA_DIR, `${name}.json`)
-  try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'))
-  } catch {
-    return defaultValue
-  }
+  return storage.loadSync ? storage.loadSync(name, defaultValue) : defaultValue
 }
 function saveStore(name, data) {
-  const file = path.join(DATA_DIR, `${name}.json`)
-  const tmp = `${file}.tmp`
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2))
-  fs.renameSync(tmp, file)
+  storage.save(name, data)
 }
 
 let players = loadStore('players', {})
 let incidents = loadStore('incidents', {})
-let nonces = loadStore('nonces', {})
 let rateLimits = loadStore('ratelimits', {})
 let actionCooldowns = loadStore('cooldowns', {})
 let reputationLog = loadStore('reputation-log', [])
 let executedActions = loadStore('executed', [])
 let shiftStatus = loadStore('shift', { seniorOperators: [], lastRotation: Date.now() })
+configureGameProgress({ load: () => loadStore('game-progress', {}), save: (data) => saveStore('game-progress', data), allowDemoWallets: demoProgressAllowed, logger })
+
+/**
+ * Подключает выбранное хранилище (файлы или PostgreSQL по DATABASE_URL) и загружает из него
+ * состояние. Вызывается один раз при старте сервера, до приёма запросов.
+ */
+export async function initOperatorPersistence({ databaseUrl, ssl, allowDemo = !isProduction, env = process.env } = {}) {
+  demoProgressAllowed = !isProduction && allowDemo
+  storage = await createStorage({ databaseUrl, ssl, dataDir: DATA_DIR, names: SECTIONS, logger })
+  const data = await storage.loadAll(SECTIONS)
+  players = data.players || {}
+  incidents = data.incidents || {}
+  rateLimits = data.ratelimits || {}
+  actionCooldowns = data.cooldowns || {}
+  reputationLog = data['reputation-log'] || []
+  executedActions = data.executed || []
+  shiftStatus = data.shift || { seniorOperators: [], lastRotation: Date.now() }
+  const sources = configureGameProgress({ env, allowDemoWallets: demoProgressAllowed, logger, save: (d) => saveStore('game-progress', d) })
+  replaceProgressStore(data['game-progress'] || {})
+  if (!isProduction && demoProgressAllowed && Object.keys(incidents).length === 0) seedDemoIncidents()
+  logger.info('operator_storage_ready', { backend: storage.kind, players: Object.keys(players).length, incidents: Object.keys(incidents).length, gamesConnected: sources.filter((x) => x.push || x.pull).map((x) => x.game) })
+  return storage.status()
+}
+
+export function storageStatus() { return storage.status() }
+export async function flushOperatorStorage() { await storage.flush() }
+export async function closeOperatorStorage() { await storage.close() }
 
 // ---------------------------------------------------------------------------
 // Рейт-лимиты и защита от спама
@@ -264,34 +289,16 @@ function checkRateLimit(key, action) {
   return true
 }
 
-// ---------------------------------------------------------------------------
-// Nonce для авторизации по подписи
-// ---------------------------------------------------------------------------
-export function getAuthNonce(wallet) {
-  const nonce = randomUUID().replace(/-/g, '')
-  nonces[wallet.toLowerCase()] = { nonce, createdAt: Date.now() }
-  saveStore('nonces', nonces)
-  return nonce
-}
 
 // ---------------------------------------------------------------------------
-// Проверка игрового прогресса — ЗАГЛУШКА, на проде подключается реальный API игр
-// Возвращает количество сыгранных часов и ранги в каждой игре для кошелька
+// Игровой прогресс: часы и ранг в каждой игре студии.
+// Источник — отчёты самих игр (game-progress.js). Демо-прогресс есть только вне
+// продакшена, только при включённом демо-режиме и только пока игра ничего не прислала.
 // ---------------------------------------------------------------------------
-function getGameProgress(wallet) {
-  const key = wallet.toLowerCase()
-  // На проде это реальный запрос к API игр, сейчас демо-режим:
-  if (isProduction) {
-    // TODO: подключить реальные чекеры прогресса для каждой игры
-    return {
-      ares1: { hours: 0, rank: 0 },
-      aof: { hours: 0, rank: 0 },
-      neonrelay: { hours: 0, rank: 0 },
-      guttercaps: { hours: 0, rank: 0 },
-    }
-  }
-  // Для демо: если кошелек начинается с 'demo_' или это дев-режим — даём доступ
-  if (key.startsWith('demo') || key === 'test_wallet') {
+const ZERO_PROGRESS = () => Object.fromEntries(PROGRESS_GAMES.map((g) => [g, { hours: 0, rank: 0 }]))
+
+function demoProgress(key) {
+  if (isDemoWallet(key)) {
     return {
       ares1: { hours: 25, rank: 5 },
       aof: { hours: 15, rank: 3 },
@@ -307,6 +314,25 @@ function getGameProgress(wallet) {
     neonrelay: { hours: seed[2] % 15, rank: seed[2] % 15 >= 10 ? 2 : 0 },
     guttercaps: { hours: seed[3] % 5, rank: 0 },
   }
+}
+
+/** Демо-прогресс выдумывается только демо-кошелькам и только в разработке; настоящим адресам — лишь данные игр. */
+const usesDemoProgress = (wallet) => demoProgressAllowed && isDemoWallet(wallet) && !isSolanaAddress(wallet)
+
+export function progressSource(wallet) {
+  if (storedProgress(walletKey(wallet))) return 'game'
+  return usesDemoProgress(wallet) ? 'demo' : 'none'
+}
+
+function getGameProgress(wallet) {
+  const key = walletKey(wallet)
+  const real = storedProgress(key)
+  if (real) {
+    const out = ZERO_PROGRESS()
+    for (const [g, v] of Object.entries(real)) if (out[g]) out[g] = { hours: v.hours, rank: v.rank, updatedAt: v.updatedAt }
+    return out
+  }
+  return usesDemoProgress(key) ? demoProgress(key) : ZERO_PROGRESS()
 }
 
 
@@ -372,7 +398,7 @@ function calculateVoteWeight(player, role) {
 // Игроки
 // ---------------------------------------------------------------------------
 export function getOrCreatePlayer(walletAddress) {
-  const key = walletAddress.toLowerCase()
+  const key = walletKey(walletAddress)
   if (!players[key]) {
     players[key] = {
       wallet: key,
@@ -618,9 +644,7 @@ setInterval(() => {
   const now = Date.now()
   // Ротация старших раз в час
   if (now - shiftStatus.lastRotation > 60 * 60 * 1000) rotateSeniorOperators()
-  // Очистка старых нонсов
-  Object.keys(nonces).forEach(w => { if (now - nonces[w].createdAt > 15 * 60 * 1000) delete nonces[w] })
-  saveStore('nonces', nonces)
+  // Коды входа живут в общем кэше (shared-cache.js) и истекают сами
   // Истечение инцидентов
   Object.values(incidents).forEach(inc => {
     if (['open','voting'].includes(inc.status) && now > inc.expiresAt) inc.status = 'expired'
@@ -639,7 +663,7 @@ setInterval(() => { rateLimits = {}; saveStore('ratelimits', rateLimits) }, 10 *
 // Публичное состояние
 // ---------------------------------------------------------------------------
 export function operatorGameState(forWallet) {
-  const player = forWallet ? players[forWallet.toLowerCase()] : null
+  const player = forWallet ? players[walletKey(forWallet)] : null
   return {
     roles: ROLES,
     allowedActions: ALLOWED_ACTIONS,
@@ -657,7 +681,7 @@ export function operatorGameState(forWallet) {
         votes: Object.fromEntries(Object.entries(inc.votes).map(([aid, v]) => [aid, {
           count: v.length,
           totalWeight: v.reduce((s,x)=>s+x.weight,0),
-          myVote: forWallet ? v.some(x => x.wallet === forWallet.toLowerCase()) : false,
+          myVote: forWallet ? v.some(x => x.wallet === walletKey(forWallet)) : false,
         }])),
       })),
     shift: shiftStatus,
@@ -717,13 +741,14 @@ export function submitExam(wallet, answers = {}) {
 export function playerProfile(wallet) {
   const p = getOrCreatePlayer(wallet)
   const progress = getGameProgress(wallet)
-  return { ...p, role: p.role, gameProgress: progress, clearance: planetClearance(wallet), clearanceRule: PLANET_CLEARANCE }
+  return { ...p, role: p.role, gameProgress: progress, progressSource: progressSource(wallet), progressSources: progressSources(), clearance: planetClearance(wallet), clearanceRule: PLANET_CLEARANCE }
 }
 
 // Инициализация
-if (!isProduction && Object.keys(incidents).length === 0) {
+function seedDemoIncidents() {
   registerIncident({ id: 'demo_bot_farm_001', title: 'Подозрение на ферму ботов', description: 'Всплеск транзакций в Neon Relay', severity: 'warn', game: 'neonrelay', timerSeconds: 600, demo: true })
   registerIncident({ id: 'demo_ddos_001', title: 'DDoS на хаб', description: 'Повышенный трафик на ingestion', severity: 'bad', game: 'hub', timerSeconds: 300, demo: true })
 }
+if (!isProduction && Object.keys(incidents).length === 0) seedDemoIncidents()
 rotateSeniorOperators()
 logger.info('Watchtower Operator SECURE module loaded, all protections active', { production: isProduction })

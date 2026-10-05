@@ -48,7 +48,10 @@ import { monetizationLayerConfig, monetizationHealth } from './modules/monetizat
 import { testingLayerConfig, testingHealth } from './modules/testing/index.js'
 import { privacyLayerConfig, privacyHealth } from './modules/privacy/index.js'
 // Watchtower Operator Game — распределённый центр операторов
-import { operatorGameState, playerProfile, castVote, registerIncident, approveAction, connectWallet, examQuestions, submitExam } from './operations/operator-game.js'
+import { operatorGameState, playerProfile, castVote, registerIncident, approveAction, connectWallet, examQuestions, submitExam, initOperatorPersistence, closeOperatorStorage, storageStatus } from './operations/operator-game.js'
+import { createChallenge, verifySolanaSignature, isSolanaAddress, isDemoWallet, issueSession, verifySession, sessionToken, configureSessions, NONCE_TTL_MS } from './operations/wallet-auth.js'
+import { createMemoryCache, createSharedCache } from './operations/shared-cache.js'
+import { verifyGameReport, acceptGameReports, refreshProgress, progressSources } from './operations/game-progress.js'
 
 let config
 try {
@@ -103,7 +106,7 @@ function corsHeaders(req) {
 export function securityHeadersFor(req, { html = false } = {}) {
   const headers = { ...SECURITY_HEADERS, ...corsHeaders(req) }
   if (html) headers['content-security-policy'] = CSP
-  if (config.isProduction) headers['strict-transport-security'] = 'max-age=31536000; includeSubDomains'
+  if (config.nodeEnv === 'production') headers['strict-transport-security'] = 'max-age=31536000; includeSubDomains'
   return headers
 }
 
@@ -152,7 +155,28 @@ async function readRawBody(req, maxBytes = config.maxBodyBytes) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-const OPERATOR_POST_ROUTES = new Set(['/api/operator/auth', '/api/operator/vote', '/api/operator/approve', '/api/operator/exam'])
+const OPERATOR_POST_ROUTES = new Set(['/api/operator/nonce', '/api/operator/auth', '/api/operator/vote', '/api/operator/approve', '/api/operator/exam'])
+
+// Коды входа и лимиты входа: память процесса или Redis (REDIS_URL) — см. bootOperatorServices()
+let sharedCache = createMemoryCache()
+let sessionsEphemeral = true
+const demoLoginAllowed = () => !(config.nodeEnv === 'production') && config.allowDemo
+const LOGIN_LIMIT = { perIp: 20, perWallet: 8, windowMs: 10 * 60 * 1000 }
+
+/** Подключает хранилище, общий кэш и сессии. Вызывается до приёма запросов. */
+export async function bootOperatorServices(env = process.env) {
+  const sessions = configureSessions({ secret: env.OPERATOR_SESSION_SECRET, isProduction: (config.nodeEnv === 'production') })
+  sessionsEphemeral = sessions.ephemeral
+  if (sessionsEphemeral) logger.warn('config_warning', { warning: 'OPERATOR_SESSION_SECRET не задан: сессии вахты сбросятся при перезапуске (допустимо только для разработки)' })
+  const store = await initOperatorPersistence({ databaseUrl: env.DATABASE_URL, ssl: env.DATABASE_SSL, allowDemo: config.allowDemo, env })
+  sharedCache = await createSharedCache({ redisUrl: env.REDIS_URL, logger })
+  logger.info('operator_services_ready', { storage: store.kind, cache: sharedCache.kind, sessions: sessionsEphemeral ? 'ephemeral' : 'configured' })
+  return { storage: store.kind, cache: sharedCache.kind }
+}
+export async function stopOperatorServices() {
+  await closeOperatorStorage().catch((error) => logger.error('storage_close_failed', { message: error.message }))
+  await sharedCache.close().catch(() => {})
+}
 
 /** Тип маршрута определяет требования аутентификации. Неизвестный POST — всегда write. */
 export function classifyRoute(method, pathname) {
@@ -162,6 +186,8 @@ export function classifyRoute(method, pathname) {
   // Голоса вахты пишут только в журнал голосования операторов (data/operator-game), не в игры и не в блокчейн.
   // Поэтому они не требуют ingest-секрета, а проходят как чтение (read-токен, если задан) + собственные лимиты.
   if (method === 'POST' && OPERATOR_POST_ROUTES.has(pathname)) return 'operator'
+  // Отчёты игр о прогрессе игроков: подпись секретом игры проверяет сам маршрут
+  if (method === 'POST' && pathname === '/api/games/progress') return 'game'
   if (method === 'POST') return 'write'
   return 'read'
 }
@@ -248,7 +274,7 @@ async function route(req, res) {
   }
 
   let rawBody = ''
-  if (kind === 'write' || kind === 'operator') rawBody = await readRawBody(req)
+  if (kind === 'write' || kind === 'operator' || kind === 'game') rawBody = await readRawBody(req)
   const auth = authenticate(req, { kind, config, rawBody })
   if (!auth.ok) {
     recordAudit(req, { status: auth.status, reason: auth.reason, path: sanitizePath(req.url), route: kind, ip: limit.ip }, { config, ip: limit.ip })
@@ -657,39 +683,100 @@ async function route(req, res) {
   // ====== Watchtower Operator Game: распределённый центр операторов ======
   // Важно: все эндпоинты НЕ дают доступа к записи в блокчейн, только голосование.
   if (method === 'GET' && pathname === '/api/operator/state') {
-    return respond(200, { writes: false, ...operatorGameState(url.searchParams.get('wallet') || undefined) })
+    return respond(200, {
+      writes: false,
+      ...operatorGameState(url.searchParams.get('wallet') || undefined),
+      auth: { signatureRequired: true, demoLogin: demoLoginAllowed(), sessionHeader: 'x-operator-session' },
+      progressSources: progressSources(),
+    })
   }
-  if (method === 'POST' && pathname === '/api/operator/auth') {
-    // Упрощённая авторизация по подписи кошелька (на проде — полная валидация сигнатуры Solana)
+
+  // Вход по подписи кошелька: шаг 1 — одноразовое сообщение для подписи
+  if (method === 'POST' && pathname === '/api/operator/nonce') {
     const input = await body()
-    if (!input.wallet) return respond(400, { error: 'wallet_required' })
-    return respond(200, { player: connectWallet(input.wallet), token: `op_${input.wallet.toLowerCase()}_${Date.now()}` })
+    const wallet = String(input.wallet || '').trim()
+    if (!isSolanaAddress(wallet)) return respond(400, { error: 'invalid_wallet_address' })
+    const ip = clientIp(req, config)
+    const byIp = await sharedCache.hit(`nonce-ip:${ip}`, LOGIN_LIMIT.perIp, LOGIN_LIMIT.windowMs)
+    const byWallet = await sharedCache.hit(`nonce-w:${wallet}`, LOGIN_LIMIT.perWallet, LOGIN_LIMIT.windowMs)
+    if (!byIp.allowed || !byWallet.allowed) {
+      const retry = Math.ceil(Math.max(byIp.retryAfterMs, byWallet.retryAfterMs) / 1000)
+      return respond(429, { error: 'too_many_login_attempts', retryAfterSeconds: retry }, { 'retry-after': String(retry) })
+    }
+    const challenge = createChallenge(wallet, { domain: req.headers.host || 'watchtower' })
+    await sharedCache.putOnce(`nonce:${wallet}`, { nonce: challenge.nonce, message: challenge.message }, NONCE_TTL_MS)
+    return respond(200, { message: challenge.message, expiresAt: challenge.expiresAt })
   }
+
+  // Шаг 2 — проверка подписи и выдача сессии. Демо-кошельки — только в разработке.
+  if (method === 'POST' && pathname === '/api/operator/auth') {
+    const input = await body()
+    const wallet = String(input.wallet || '').trim()
+    if (!wallet) return respond(400, { error: 'wallet_required' })
+    if (isDemoWallet(wallet) && !isSolanaAddress(wallet)) {
+      if (!demoLoginAllowed()) return respond(403, { error: 'demo_login_disabled' })
+      const session = issueSession(wallet.toLowerCase(), { mode: 'demo' })
+      return respond(200, { player: connectWallet(wallet), ...session })
+    }
+    if (!isSolanaAddress(wallet)) return respond(400, { error: 'invalid_wallet_address' })
+    if (!input.signature) return respond(400, { error: 'signature_required' })
+    const pending = await sharedCache.take(`nonce:${wallet}`)
+    if (!pending) return respond(401, { error: 'login_code_expired' })
+    if (!verifySolanaSignature(wallet, pending.message, String(input.signature))) {
+      recordAudit(req, { status: 401, reason: 'bad_wallet_signature', path: sanitizePath(req.url), route: kind }, { config })
+      return respond(401, { error: 'bad_signature' })
+    }
+    await refreshProgress(wallet).catch((error) => logger.warn('game_progress_refresh_failed', { message: error.message }))
+    const session = issueSession(wallet, { mode: 'signature' })
+    return respond(200, { player: connectWallet(wallet), ...session })
+  }
+
+  // Отчёты игр о часах и рангах игроков (только чтение прогресса, в игры ничего не пишется)
+  if (method === 'POST' && pathname === '/api/games/progress') {
+    const game = String(req.headers['x-watchtower-game'] || '')
+    const check = verifyGameReport({ game, rawBody, signature: req.headers['x-watchtower-signature'], timestamp: req.headers['x-watchtower-timestamp'] })
+    if (!check.ok) {
+      recordAudit(req, { status: check.status, reason: check.reason, path: sanitizePath(req.url), route: kind }, { config })
+      return respond(check.status, { error: check.reason })
+    }
+    const limit = await sharedCache.hit(`game-progress:${game}`, 600, 60 * 1000)
+    if (!limit.allowed) return respond(429, { error: 'too_many_reports' })
+    let parsed
+    try { parsed = JSON.parse(rawBody || '{}') } catch { return respond(400, { error: 'invalid_json' }) }
+    const result = acceptGameReports(game, parsed)
+    return respond(result.ok ? 200 : result.status, result.ok ? { writes: false, ...result } : { error: result.reason })
+  }
+
   if (method === 'GET' && pathname.startsWith('/api/operator/player/')) {
     const wallet = decodeURIComponent(pathname.slice('/api/operator/player/'.length))
     return respond(200, playerProfile(wallet))
   }
   if (method === 'GET' && pathname === '/api/operator/exam') return respond(200, examQuestions())
-  if (method === 'POST' && pathname === '/api/operator/exam') {
+
+  // Всё, что меняет состояние вахты, требует сессии; кошелёк берётся из сессии, а не из тела
+  const OPERATOR_ACTIONS = ['/api/operator/exam', '/api/operator/vote', '/api/operator/approve']
+  if (method === 'POST' && OPERATOR_ACTIONS.includes(pathname)) {
+    const session = verifySession(sessionToken(req))
+    if (!session) return respond(401, { error: 'session_required' })
+    if (session.mode === 'demo' && !demoLoginAllowed()) return respond(401, { error: 'session_required' })
     const input = await body()
-    if (!input.wallet) return respond(400, { error: 'wallet_required' })
-    try { return respond(200, submitExam(input.wallet, input.answers)) } catch (error) { return respond(429, { error: error.message }) }
-  }
-  if (method === 'POST' && pathname === '/api/operator/vote') {
-    const input = await body()
-    if (!input.wallet || !input.incidentId || !input.actionId) return respond(400, { error: 'missing_fields' })
-    try {
-      const inc = castVote(input.wallet, input.incidentId, input.actionId)
-      return respond(200, { ok: true, incident: inc })
-    } catch (error) {
-      return respond(400, { error: error.message })
+    if (input.wallet && String(input.wallet).toLowerCase() !== session.wallet.toLowerCase()) return respond(403, { error: 'wallet_mismatch' })
+    const wallet = session.wallet
+    if (pathname === '/api/operator/exam') {
+      try { return respond(200, submitExam(wallet, input.answers)) } catch (error) { return respond(429, { error: error.message }) }
     }
-  }
-  if (method === 'POST' && pathname === '/api/operator/approve') {
-    const input = await body()
-    if (!input.wallet || !input.incidentId) return respond(400, { error: 'missing_fields' })
+    if (pathname === '/api/operator/vote') {
+      if (!input.incidentId || !input.actionId) return respond(400, { error: 'missing_fields' })
+      try {
+        const inc = castVote(wallet, input.incidentId, input.actionId)
+        return respond(200, { ok: true, incident: inc })
+      } catch (error) {
+        return respond(400, { error: error.message })
+      }
+    }
+    if (!input.incidentId) return respond(400, { error: 'missing_fields' })
     try {
-      const inc = approveAction(input.wallet, input.incidentId, input.approved !== false)
+      const inc = approveAction(wallet, input.incidentId, input.approved !== false)
       return respond(200, { ok: true, incident: inc })
     } catch (error) {
       return respond(403, { error: error.message })
@@ -809,8 +896,10 @@ export function shutdown(signal = 'SIGTERM') {
   }, config.shutdownTimeoutMs)
   forced.unref()
   app.close(() => {
-    logger.info('shutdown_complete', { signal })
-    process.exit(0)
+    stopOperatorServices().finally(() => {
+      logger.info('shutdown_complete', { signal })
+      process.exit(0)
+    })
   })
   app.closeIdleConnections?.()
 }
@@ -827,6 +916,12 @@ process.on('unhandledRejection', (reason) => {
 })
 
 if (process.env.WATCHTOWER_NO_LISTEN !== '1') {
+  try {
+    await bootOperatorServices()
+  } catch (error) {
+    logger.error('operator_services_failed', { message: error.message })
+    process.exit(1)
+  }
   app.listen(config.port, '0.0.0.0', () => {
     logger.info('server_listening', {
       url: `http://0.0.0.0:${config.port}`,

@@ -5,8 +5,23 @@
 // ---------------------------------------------------------------------------
 import { BODIES, bodyForGame } from './world.js'
 
-async function getJson(path, options) {
-  const res = await fetch(path, { headers: { accept: 'application/json', 'content-type': 'application/json' }, ...options })
+// ---------------- сессия вахты ----------------
+// Выдаётся сервером после проверки подписи кошелька. Хранится только в этом браузере.
+const SESSION_KEY = 'wt-operator-session'
+export const operatorSession = {
+  get() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null')
+      return s && s.token && s.expiresAt > Date.now() ? s : null
+    } catch { return null }
+  },
+  set(s) { try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)) } catch { /* приватный режим */ } },
+  clear() { try { localStorage.removeItem(SESSION_KEY); localStorage.removeItem('wt-operator-wallet') } catch { /* приватный режим */ } },
+}
+const sessionHeaders = () => { const s = operatorSession.get(); return s ? { 'x-operator-session': s.token } : {} }
+
+async function getJson(path, options = {}) {
+  const res = await fetch(path, { ...options, headers: { accept: 'application/json', 'content-type': 'application/json', ...(options.headers || {}) } })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     const err = new Error(data.error || data.message || `HTTP ${res.status}`)
@@ -98,6 +113,8 @@ export async function loadLiveWorld(wallet) {
       roles: operator.roles || {},
       leaderboard: operator.leaderboard || [],
       totalOperators: operator.totalOperators ?? 0,
+      auth: operator.auth || null,
+      progressSources: operator.progressSources || [],
       shift: operator.shift || null,
       clearanceRule: operator.clearanceRule || { minHours: 10, minRank: 1 },
     } : null,
@@ -111,13 +128,20 @@ export async function loadLiveWorld(wallet) {
   }
 }
 
+async function login(wallet, signature) {
+  const res = await getJson('/api/operator/auth', { method: 'POST', body: JSON.stringify(signature ? { wallet, signature } : { wallet }) })
+  operatorSession.set({ token: res.token, expiresAt: res.expiresAt, mode: res.mode, wallet: res.player?.wallet || wallet })
+  return res
+}
+
 export const operatorApi = {
-  auth: (wallet) => getJson('/api/operator/auth', { method: 'POST', body: JSON.stringify({ wallet }) }),
+  nonce: (wallet) => getJson('/api/operator/nonce', { method: 'POST', body: JSON.stringify({ wallet }) }),
+  auth: login,
   player: (wallet) => getJson(`/api/operator/player/${encodeURIComponent(wallet)}`),
-  vote: (wallet, incidentId, actionId) => getJson('/api/operator/vote', { method: 'POST', body: JSON.stringify({ wallet, incidentId, actionId }) }),
+  vote: (incidentId, actionId) => getJson('/api/operator/vote', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ incidentId, actionId }) }),
   exam: () => getJson('/api/operator/exam'),
-  submitExam: (wallet, answers) => getJson('/api/operator/exam', { method: 'POST', body: JSON.stringify({ wallet, answers }) }),
-  approve: (wallet, incidentId, approved) => getJson('/api/operator/approve', { method: 'POST', body: JSON.stringify({ wallet, incidentId, approved }) }),
+  submitExam: (answers) => getJson('/api/operator/exam', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ answers }) }),
+  approve: (incidentId, approved) => getJson('/api/operator/approve', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ incidentId, approved }) }),
 }
 
 function numberOrNull(v) {

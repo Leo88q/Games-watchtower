@@ -38,6 +38,7 @@ export async function startTestServer({ env = {}, ingestToken = 'test-ingest-tok
       WATCHTOWER_ALLOW_DEMO: '1',
       WATCHTOWER_CURSOR_FILE: path.join(stateDir, 'cursors.json'),
       WATCHTOWER_SNAPSHOT_FILE: path.join(stateDir, 'snapshots.json'),
+      OPERATOR_DATA_DIR: path.join(stateDir, 'operator-game'),
       ...extra,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
