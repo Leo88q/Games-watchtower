@@ -405,6 +405,7 @@ test('сервер: ссылка ведёт на портал, отчёты иг
       assert.equal(res.headers.get('location'), `/partners.html?ref=${code}&lang=fil`)
     }
     assert.equal((await fetch(`${server.base}/r/NOPE2345`, { redirect: 'manual' })).headers.get('location'), '/partners.html')
+    assert.equal((await fetch(`${server.base}/r/NOPE2345?lang=vi`, { redirect: 'manual' })).headers.get('location'), '/partners.html?lang=vi', 'язык сохраняется и для неизвестного кода')
 
     // Новичок из Португалии приходит в ARES-1 по коду; игра присылает его прогресс три разных дня
     const newbie = address()

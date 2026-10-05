@@ -891,7 +891,7 @@ async function route(req, res) {
     }
     // Приглашённые — игроки из стран пилота, не операторы вахты: ведём на портал на их языке
     const lang = /^[a-z]{2,3}$/.test(url.searchParams.get('lang') || '') ? `&lang=${url.searchParams.get('lang')}` : ''
-    res.writeHead(302, { location: partner?.status === 'active' ? `/partners.html?ref=${code}${lang}` : '/partners.html', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' })
+    res.writeHead(302, { location: partner?.status === 'active' ? `/partners.html?ref=${code}${lang}` : `/partners.html${lang.replace('&', '?')}`, 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' })
     return res.end()
   }
 
