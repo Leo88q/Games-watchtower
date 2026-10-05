@@ -261,7 +261,15 @@ test('несколько экземпляров на одной базе: каж
     inc_bridge: { status: 'approved', winningAction: 'pause_bridge', votes: { pause_bridge: [{ wallet: STAFF, weight: 50, at: Date.now() }] }, approvedBy: STAFF, approvedAt: Date.now() - 600e3, scheduledFor: Date.now() - 1000 },
   })
   const env = { DATABASE_URL: PG, OPERATOR_DATA_DIR: dataDir, OPERATOR_SESSION_SECRET: randomBytes(24).toString('hex'), OPERATOR_EXECUTOR_URL: executor.url, OPERATOR_EXECUTOR_SECRET: SECRET }
-  const [a, b] = await Promise.all([startTestServer({ env }), startTestServer({ env })])
+  // Одновременный старт на пустой базе — как при выкатке; упавший старт не должен оставить живой сервер
+  const started = await Promise.allSettled([startTestServer({ env }), startTestServer({ env })])
+  const failed = started.find((r) => r.status === 'rejected')
+  if (failed) {
+    await Promise.all(started.filter((r) => r.status === 'fulfilled').map((r) => r.value.stop()))
+    await executor.stop()
+    throw failed.reason
+  }
+  const [a, b] = started.map((r) => r.value)
   try {
     const staff = await login(a, STAFF)
     const vote = await api(a, '/api/operator/vote', { session: staff, body: { incidentId: 'inc_safe', actionId: 'increase_priority' } })

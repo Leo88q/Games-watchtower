@@ -332,3 +332,32 @@ test('несколько экземпляров на одной базе: одн
     await db.end()
   }
 })
+
+test('одновременный старт экземпляров на пустой базе: таблица создаётся без гонки, файлы переносятся один раз', { skip: !PG && 'задайте TEST_DATABASE_URL' }, async () => {
+  const pg = (await import('pg')).default
+  const { createStorage } = await import('../server/operations/storage.js')
+  const { mkdtempSync, writeFileSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const path = (await import('node:path')).default
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'watchtower-race-'))
+  writeFileSync(path.join(dataDir, 'players.json'), JSON.stringify({ demo_race: { wallet: 'demo_race', reputation: 7 } }))
+  const db = new pg.Client({ connectionString: PG })
+  await db.connect()
+  try {
+    // Раньше параллельный CREATE TABLE падал примерно в половине стартов: pg_type_typname_nsp_index
+    for (let round = 0; round < 3; round++) {
+      await db.query('DROP TABLE IF EXISTS watchtower_state')
+      const results = await Promise.allSettled(Array.from({ length: 6 }, () => createStorage({ databaseUrl: PG, dataDir, names: ['players'] })))
+      const errors = results.filter((r) => r.status === 'rejected').map((r) => r.reason.message)
+      for (const r of results) if (r.status === 'fulfilled') await r.value.close()
+      assert.deepEqual(errors, [], 'все экземпляры стартовали')
+      const { rows } = await db.query("SELECT data, version FROM watchtower_state WHERE name = 'players'")
+      assert.equal(rows.length, 1)
+      assert.equal(Number(rows[0].version), 1, 'данные из файлов перенесены ровно один раз')
+      assert.equal(rows[0].data.demo_race.reputation, 7)
+    }
+  } finally {
+    await db.query('DROP TABLE IF EXISTS watchtower_state')
+    await db.end()
+  }
+})

@@ -86,22 +86,46 @@ class PostgresBackend {
     this.pollTimer = null
     this.closed = false
   }
-  async migrate() {
-    await this.pool.query(`CREATE TABLE IF NOT EXISTS watchtower_state (
-      name text PRIMARY KEY,
-      data jsonb NOT NULL,
-      updated_at timestamptz NOT NULL DEFAULT now()
-    )`)
-    await this.pool.query('ALTER TABLE watchtower_state ADD COLUMN IF NOT EXISTS version bigint NOT NULL DEFAULT 0')
+  /**
+   * Создание таблицы и перенос из файлов — под той же общей блокировкой, что и записи.
+   * Экземпляры часто стартуют одновременно: параллельный CREATE TABLE IF NOT EXISTS в
+   * PostgreSQL может упасть на уникальном индексе каталога, а проверка «таблица пуста»
+   * вне блокировки дала бы двойной перенос.
+   * seed() возвращает разделы из файлов; вызывается, только если таблица пуста.
+   */
+  async migrate(seed = async () => ({})) {
+    const client = await this.pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query('SELECT pg_advisory_xact_lock($1)', [WRITE_LOCK_KEY])
+      await client.query(`CREATE TABLE IF NOT EXISTS watchtower_state (
+        name text PRIMARY KEY,
+        data jsonb NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )`)
+      await client.query('ALTER TABLE watchtower_state ADD COLUMN IF NOT EXISTS version bigint NOT NULL DEFAULT 0')
+      const { rows } = await client.query('SELECT count(*)::int AS n FROM watchtower_state')
+      let moved = []
+      if (rows[0].n === 0) {
+        const existing = await seed()
+        moved = Object.keys(existing)
+        for (const name of moved) {
+          await client.query('INSERT INTO watchtower_state (name, data, version, updated_at) VALUES ($1, $2::jsonb, 1, now())', [name, JSON.stringify(existing[name])])
+        }
+      }
+      await client.query('COMMIT')
+      return moved
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {})
+      throw error
+    } finally {
+      client.release()
+    }
   }
   async loadAll(names) {
     const { rows } = await this.pool.query('SELECT name, data, version FROM watchtower_state WHERE name = ANY($1)', [names])
     for (const r of rows) this.versions.set(r.name, Number(r.version))
     return Object.fromEntries(rows.map((r) => [r.name, r.data]))
-  }
-  async isEmpty() {
-    const { rows } = await this.pool.query('SELECT count(*)::int AS n FROM watchtower_state')
-    return rows[0].n === 0
   }
   save(name, data) {
     // Снимок сейчас: дальнейшие мутации объекта в памяти не должны «доехать» в базу частично
@@ -250,13 +274,7 @@ export async function createStorage({ databaseUrl, dataDir, names, logger, ssl, 
     return client
   }
   const backend = new PostgresBackend(pool, { logger, instanceId, connectListener })
-  await backend.migrate()
-  if (await backend.isEmpty()) {
-    const existing = await files.loadAll(names)
-    const moved = Object.keys(existing)
-    for (const n of moved) backend.save(n, existing[n])
-    await backend.flush()
-    if (moved.length) logger?.info('storage_migrated_from_files', { sections: moved })
-  }
+  const moved = await backend.migrate(() => files.loadAll(names))
+  if (moved.length) logger?.info('storage_migrated_from_files', { sections: moved })
   return backend
 }
