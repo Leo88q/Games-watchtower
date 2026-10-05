@@ -148,6 +148,16 @@ export const operatorApi = {
   resolve: (incidentId, result) => getJson('/api/operator/resolve', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ incidentId, result }) }),
 }
 
+/** Партнёрская программа: платим за игроков, которые остались в играх, а не за клики. */
+export const partnerApi = {
+  rules: () => getJson('/api/partners/rules'),
+  me: () => getJson('/api/partners/me', { headers: sessionHeaders() }),
+  review: () => getJson('/api/partners/review', { headers: sessionHeaders() }),
+  join: (kind, channel) => getJson('/api/partners/join', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ kind, channel }) }),
+  claim: (code) => getJson('/api/partners/claim', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify({ code }) }),
+  decide: (body) => getJson('/api/partners/decide', { method: 'POST', headers: sessionHeaders(), body: JSON.stringify(body) }),
+}
+
 function numberOrNull(v) {
   return typeof v === 'number' && Number.isFinite(v) ? v : null
 }

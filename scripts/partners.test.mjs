@@ -17,6 +17,7 @@ import {
   configurePartners, joinPartners, bindReferral, claimReferral, onProgress, partnerTick,
   partnerCabinet, partnerReview, decidePartner, partnerByCode,
 } from '../server/operations/partners.js'
+import { createMemoryCache, createSharedCache } from '../server/operations/shared-cache.js'
 
 const DAY = 24 * 3600 * 1000
 const address = () => {
@@ -235,5 +236,21 @@ test('сервер: ссылка, отчёты игры с кодом, заяв�
     assert.equal((await call('/api/partners/decide', { session: staff, body: { action: 'approve', code: appCode } })).status, 409)
   } finally {
     await server.stop()
+  }
+})
+
+test('счётчик переходов: count() одинаково работает в памяти и в Redis', async (t) => {
+  const caches = [['память', createMemoryCache()]]
+  if (process.env.TEST_REDIS_URL) caches.push(['Redis', await createSharedCache({ redisUrl: process.env.TEST_REDIS_URL, prefix: `wt-test-${randomBytes(4).toString('hex')}:` })])
+  else t.diagnostic('TEST_REDIS_URL не задан — Redis пропущен')
+  for (const [name, cache] of caches) {
+    const key = `ref-clicks:TESTCODE:${Date.now()}`
+    assert.equal(await cache.count(key), 0, name)
+    for (let i = 0; i < 3; i++) assert.equal((await cache.hit(key, Number.MAX_SAFE_INTEGER, 60_000)).allowed, true)
+    assert.equal(await cache.count(key), 3, name)
+    const uniq = `ref-uniq:TESTCODE:${Date.now()}:visitor`
+    assert.equal((await cache.hit(uniq, 1, 60_000)).allowed, true)
+    assert.equal((await cache.hit(uniq, 1, 60_000)).allowed, false, `${name}: повторный переход не считается`)
+    await cache.close?.()
   }
 })

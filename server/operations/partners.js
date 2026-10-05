@@ -302,7 +302,7 @@ export function partnerCabinet(wallet) {
 /** Для сотрудника: заявки, партнёры на проверке и суммы к выплате. */
 export function partnerReview() {
   const all = Object.values(partners)
-  const view = (p) => ({ code: p.code, kind: p.kind, wallet: short(p.wallet), channel: p.channel, status: p.status, review: p.review, createdAt: p.createdAt, summary: summary(p.code) })
+  const view = (p) => ({ code: p.code, kind: p.kind, wallet: p.wallet, channel: p.channel, status: p.status, review: p.review, createdAt: p.createdAt, summary: summary(p.code) })
   return {
     rules: partnerRules(),
     applications: all.filter((p) => p.status === 'pending').map(view),
