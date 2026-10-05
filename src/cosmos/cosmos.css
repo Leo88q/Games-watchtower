@@ -502,3 +502,7 @@ h3 small { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transf
 .cz-world small { margin-left: auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .cz-world.full { box-shadow: inset 0 0 0 1px rgba(62, 224, 143, 0.5), inset 3px 0 0 var(--good); }
 .cz-world.full small { color: #9df2c5; }
+.cz-act-ico { width: 34px; height: 34px; flex: none; margin: -6px 0; object-fit: contain; filter: drop-shadow(0 0 6px rgba(67, 227, 255, 0.25)); }
+.cz-medal { width: 56px; height: 56px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+.cz-ach.on .cz-medal { filter: drop-shadow(0 0 10px rgba(255, 200, 110, 0.35)); }
+.cz-ach.new .cz-medal { width: 72px; height: 72px; }

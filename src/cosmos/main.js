@@ -17,6 +17,10 @@ const LIVE_REFRESH_MS = 15000
 // Сгенерированные иконки (public/cosmos/icons): вырезаны из чёрного фона с сохранением свечения
 const ICON_IMG = ['planets', 'events', 'anomaly', 'operators', 'time', 'energy', 'trust', 'score', 'codex']
 const icon = (name, cls = '') => (ICON_IMG.includes(name) ? `<img class="cz-ico ${cls}" src="${import.meta.env.BASE_URL}cosmos/icons/${name}.webp" alt="" aria-hidden="true" draggable="false" />` : '')
+// Сгенерированные иконки действий вахты (остальные действия получат свои иконки следующим набором)
+const ACT_IMG = ['mark_false_positive', 'increase_priority']
+const actIcon = (act) => (ACT_IMG.includes(act) ? `<img class="cz-act-ico" src="${import.meta.env.BASE_URL}cosmos/icons/act-${act}.webp" alt="" aria-hidden="true" draggable="false" />` : '<span class="cz-act-ico" aria-hidden="true"></span>')
+const medal = (id) => `<img class="cz-medal" src="${import.meta.env.BASE_URL}cosmos/icons/medal-${id}.webp" alt="" aria-hidden="true" draggable="false" />`
 const SEVERITY_TEXT = { critical: 'критично', warn: 'внимание', info: 'наблюдение' }
 const LEVEL_TEXT = {
   L0: ['Не подключена', 'Обсерватория пока ничего не знает об этой игре.'],
@@ -269,7 +273,7 @@ function levelCard(lv, gain = 0, up = false) {
 }
 
 function achGrid(owned, highlight = [], onlyOwned = false) {
-  return `<div class="cz-achs">${ACHIEVEMENTS.filter((a) => !onlyOwned || owned.includes(a.id)).map((a) => `<div class="cz-ach ${owned.includes(a.id) ? 'on' : ''} ${highlight.includes(a.id) ? 'new' : ''}" title="${esc(a.about)}">${icon(a.icon)}<b>${esc(a.name)}</b><small>${esc(a.about)}</small></div>`).join('')}</div>`
+  return `<div class="cz-achs">${ACHIEVEMENTS.filter((a) => !onlyOwned || owned.includes(a.id)).map((a) => `<div class="cz-ach ${owned.includes(a.id) ? 'on' : ''} ${highlight.includes(a.id) ? 'new' : ''}" title="${esc(a.about)}">${medal(a.id)}<b>${esc(a.name)}</b><small>${esc(a.about)}</small></div>`).join('')}</div>`
 }
 
 function welcomePanel() {
@@ -439,7 +443,7 @@ function trainingDecision(a) {
     <div class="cz-options">${a.options.map((act) => {
       const cost = S.sim.costOf(act)
       const risk = RISK_TEXT[S.sim.riskOf(act)]
-      return `<button class="cz-option" data-act="resolve" data-id="${a.id}" data-action="${act}" ${s.energy < cost ? 'disabled' : ''}>
+      return `<button class="cz-option" data-act="resolve" data-id="${a.id}" data-action="${act}" ${s.energy < cost ? 'disabled' : ''}>${actIcon(act)}
         <span><b>${esc(ACTION_TEXT[act].title)}</b><small class="risk ${risk.cls}">${risk.label}</small></span><em class="cz-cost">${icon('energy')}${cost}</em></button>`
     }).join('')}</div>`
 }
@@ -475,7 +479,7 @@ function liveDecision(a) {
     const allowedRisk = role?.canVoteOn?.includes(def.riskLevel)
     const mine = a.votes?.[act]?.myVote
     const disabled = gate || !allowedRisk || !['open', 'voting'].includes(a.status)
-    return `<button class="cz-option ${mine ? 'mine' : ''} ${a.winningAction === act ? 'lead' : ''}" data-act="vote" data-id="${a.id}" data-action="${act}" ${disabled ? 'disabled' : ''} title="${!gate && !allowedRisk ? `Ваш ранг не голосует за действия: ${risk.label}` : ''}">
+    return `<button class="cz-option ${mine ? 'mine' : ''} ${a.winningAction === act ? 'lead' : ''}" data-act="vote" data-id="${a.id}" data-action="${act}" ${disabled ? 'disabled' : ''} title="${!gate && !allowedRisk ? `Ваш ранг не голосует за действия: ${risk.label}` : ''}">${actIcon(act)}
       <span><b>${esc(ACTION_TEXT[act]?.title || def.title || 'Действие')}</b><small class="risk ${risk.cls}">${risk.label}${mine ? ' · ваш голос' : ''}${a.winningAction === act ? ' · выбрано вахтой' : ''}</small></span>
       <em>${share}%</em><i class="cz-share" style="width:${share}%"></i></button>`
   }).join('')
