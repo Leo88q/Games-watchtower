@@ -565,14 +565,35 @@ function renderSurface() {
       <div><h2>${esc(b.name)}</h2><p>${esc(b.tagline)}</p></div>
       <div class="cz-signal ${signal}"><i></i><span>${st.lost ? 'Связь потеряна' : SIGNAL_TEXT[signal === 'lost' ? 'none' : signal]}</span></div>
     </div>
-    <div class="cz-scene ${b.scene ? '' : 'deck'} ${signal === 'none' || signal === 'lost' ? 'dim' : ''}">
+    <div class="cz-scene ${b.scene ? '' : 'deck'} ${signal === 'none' || signal === 'lost' ? 'dim' : ''} ${(st.anomalies || []).length ? `alarm ${worstClass(st.anomalies)}` : ''}">
       <div class="cz-scene-inner">
         ${b.scene ? `<img src="${b.scene}" alt="Поверхность: ${esc(b.name)}" draggable="false" />` : `<img class="station" src="${b.sprite}" alt="${esc(b.name)}" draggable="false" />`}
+        ${sceneFx(b.id, signal)}
         ${hotspots}
       </div>
     </div>
-    <p class="cz-surface-hint">Нажмите на район, чтобы узнать, что там происходит и за чем следит вахта.</p>`)
+    <p class="cz-surface-hint">Нажмите на район, чтобы узнать, что там происходит и за чем следит вахта.${(st.anomalies || []).length ? ` ${ALARM_HINT}` : ''}${quietHint(signal)}</p>`)
 }
+
+// ---------------- живые сцены ----------------
+// Погода — часть окружения и идёт всегда. Движение техники (дроны, болиды) —
+// это признак активности, поэтому оно появляется только когда у мира есть сигнал.
+const FX = {
+  hub: { weather: 'data', sprites: [['hub-satellite', 'orbit', 7, 34, 0]] },
+  ares1: { weather: 'dust', sprites: [['ares-drone', 'hover', 8, 20, 0], ['ares-drone', 'hover2', 6, 26, -11]] },
+  aof: { weather: 'motes', sprites: [['aof-orb', 'float', 6.5, 22, 0], ['aof-orb', 'float2', 4.5, 30, -14]] },
+  guttercaps: { weather: 'rain', sprites: [['gutter-moth', 'flutter', 5.5, 18, 0]] },
+  neonrelay: { weather: 'streaks', sprites: [['neon-car', 'dash', 10, 8, 0], ['neon-car', 'dash2', 8, 11, -5]] },
+}
+function sceneFx(bodyId, signal) {
+  const fx = FX[bodyId]
+  if (!fx) return ''
+  const live = signal === 'ok' || signal === 'weak'
+  const sprites = live ? fx.sprites.map(([img, path, w, dur, delay]) => `<div class="fx-sprite p-${path}" style="--w:${w}%;--dur:${dur}s;--delay:${delay}s"><img src="${import.meta.env.BASE_URL}cosmos/fx/${img}.webp" alt="" draggable="false" /></div>`).join('') : ''
+  return `<div class="cz-fx" aria-hidden="true"><div class="fx-weather w-${fx.weather}"></div><div class="fx-weather w-${fx.weather} far"></div>${sprites}</div>`
+}
+const ALARM_HINT = 'Красная пульсация по краям — в этом месте открыта тревога.'
+const quietHint = (signal) => (signal === 'ok' || signal === 'weak' ? '' : ' Движение техники на сцене появится, когда игра начнёт присылать события.')
 
 function renderCloseup(el, b, st, cu) {
   const r = b.regions.find((x) => x.id === S.closeup)
@@ -594,10 +615,10 @@ function renderCloseup(el, b, st, cu) {
       <div><h2>${esc(cu.title)}</h2><p>${esc(b.name)} · ${esc(r.name)}</p></div>
       <div class="cz-signal ${signal}"><i></i><span>${st.lost ? 'Связь потеряна' : SIGNAL_TEXT[signal === 'lost' ? 'none' : signal]}</span></div>
     </div>
-    <div class="cz-scene closeup ${signal === 'none' || signal === 'lost' ? 'dim' : ''}">
-      <div class="cz-scene-inner"><img src="${cu.image}" alt="${esc(cu.title)}" draggable="false" />${objs}${alerts}</div>
+    <div class="cz-scene closeup ${signal === 'none' || signal === 'lost' ? 'dim' : ''} ${anomalies.length ? `alarm ${worstClass(anomalies)}` : ''}">
+      <div class="cz-scene-inner"><img src="${cu.image}" alt="${esc(cu.title)}" draggable="false" />${sceneFx(b.id, signal)}${objs}${alerts}</div>
     </div>
-    <p class="cz-surface-hint">Осмотрено ${seenN} из ${cu.objects.length}. Каждый объект открывает запись в Кодексе системы.</p>`)
+    <p class="cz-surface-hint">Осмотрено ${seenN} из ${cu.objects.length}. Каждый объект открывает запись в Кодексе системы.${anomalies.length ? ` ${ALARM_HINT}` : ''}${quietHint(signal)}</p>`)
 }
 
 function worldProgress(codex) {
