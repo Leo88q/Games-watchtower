@@ -18,8 +18,10 @@ const LIVE_REFRESH_MS = 15000
 const ICON_IMG = ['planets', 'events', 'anomaly', 'operators', 'time', 'energy', 'trust', 'score', 'codex']
 const icon = (name, cls = '') => (ICON_IMG.includes(name) ? `<img class="cz-ico ${cls}" src="${import.meta.env.BASE_URL}cosmos/icons/${name}.webp" alt="" aria-hidden="true" draggable="false" />` : '')
 // Сгенерированные иконки действий вахты (остальные действия получат свои иконки следующим набором)
-const ACT_IMG = ['mark_false_positive', 'increase_priority']
+const ACT_IMG = ['mark_false_positive', 'increase_priority', 'notify_status_page', 'enable_captcha', 'disable_ingress', 'pause_contract']
 const actIcon = (act) => (ACT_IMG.includes(act) ? `<img class="cz-act-ico" src="${import.meta.env.BASE_URL}cosmos/icons/act-${act}.webp" alt="" aria-hidden="true" draggable="false" />` : '<span class="cz-act-ico" aria-hidden="true"></span>')
+const ROLE_IMG = ['guest', 'candidate', 'observer', 'operator', 'senior']
+const roleBadge = (id, cls = '') => (ROLE_IMG.includes(id) ? `<img class="cz-badge ${cls}" src="${import.meta.env.BASE_URL}cosmos/icons/role-${id}.webp" alt="" aria-hidden="true" draggable="false" />` : `<span class="cz-badge ${cls}" aria-hidden="true"></span>`)
 const medal = (id) => `<img class="cz-medal" src="${import.meta.env.BASE_URL}cosmos/icons/medal-${id}.webp" alt="" aria-hidden="true" draggable="false" />`
 const SEVERITY_TEXT = { critical: 'критично', warn: 'внимание', info: 'наблюдение' }
 const LEVEL_TEXT = {
@@ -656,7 +658,7 @@ function renderWatch() {
   const op = S.live?.operator
   setHTML(el, `
     <div class="cz-ph"><div><h2>Вахта операторов</h2><p>${esc(p.wallet.slice(0, 4))}…${esc(p.wallet.slice(-4))}</p></div><button class="cz-btn small" data-act="logout">Выйти</button></div>
-    <div class="cz-role ${esc(role.id)}"><span>Ваш ранг</span><b>${esc(ROLE_TEXT[role.id] || role.name || 'Гость')}</b></div>
+    <div class="cz-role ${esc(role.id)}">${roleBadge(role.id || 'guest', 'big')}<span>Ваш ранг</span><b>${esc(ROLE_TEXT[role.id] || role.name || 'Гость')}</b></div>
     <div class="cz-metrics three">
       <div class="cz-metric-ico">${icon('score')}<span>Репутация</span><b>${fmt(p.reputation) ?? 0}</b></div>
       <div><span>Точность</span><b class="${acc == null ? 'na' : ''}">${acc == null ? 'нет решений' : `${acc}%`}</b></div>
@@ -673,8 +675,8 @@ function renderWatch() {
     <h3>${icon('anomaly')}Аномалии на вахте</h3>
     ${allAnomalies().length ? `<div class="cz-list">${allAnomalies().map(anomalyRow).join('')}</div>` : '<p class="cz-empty">Открытых аномалий нет.</p>'}
     <h3>${icon('operators')}Лучшие операторы</h3>
-    ${op?.leaderboard?.length ? `<ol class="cz-board">${op.leaderboard.slice(0, 8).map((x) => `<li><span>${esc(x.wallet)}</span><small>${esc(ROLE_TEXT[x.role] || '')}</small><b>${fmt(x.reputation)}</b></li>`).join('')}</ol>` : '<p class="cz-empty">Пока пусто.</p>'}
-    ${rolesBlock()}`)
+    ${op?.leaderboard?.length ? `<ol class="cz-board">${op.leaderboard.slice(0, 8).map((x) => `<li>${roleBadge(x.role, 'mini')}<span>${esc(x.wallet)}</span><small>${esc(ROLE_TEXT[x.role] || '')}</small><b>${fmt(x.reputation)}</b></li>`).join('')}</ol>` : '<p class="cz-empty">Пока пусто.</p>'}
+    ${rolesBlock(role.id || 'guest')}`)
 }
 
 function nextStepBlock(p, role) {
@@ -714,14 +716,21 @@ function closeModal() {
   setHTML(el, '')
 }
 
-function rolesBlock() {
-  return `<details class="cz-details"><summary>Как устроены ранги и защита</summary>
+const LADDER = [
+  ['guest', 'смотрит карту'],
+  ['candidate', 'от 10 часов в одной игре, учится в тренажёре'],
+  ['observer', 'ранг в одной игре и сданная проверка правил: голосует за безопасные действия'],
+  ['operator', 'ранги в двух играх, репутация 100, точность от 75%: действия среднего риска'],
+  ['senior', 'ранги в трёх играх, 60 дней вахты, точность от 85%: все уровни риска и право вето'],
+  ['guardian', 'ранги во всех четырёх играх, 180 дней, точность от 90%'],
+]
+function rolesBlock(current = 'guest') {
+  const idx = LADDER.findIndex(([id]) => id === current)
+  return `<h3>${icon('operators')}Лестница рангов</h3>
+    <ol class="cz-ladder">${LADDER.map(([id, req], i) => `<li class="${i < idx ? 'passed' : ''} ${i === idx ? 'current' : ''}">${roleBadge(id)}<span><b>${esc(ROLE_TEXT[id])}${i === idx ? '<em>вы здесь</em>' : ''}</b><small>${esc(req)}</small></span></li>`).join('')}</ol>
+    <p class="cz-note">Ранги открываются только временем и успехами в играх студии. Купить ранг нельзя.</p>
+    <details class="cz-details"><summary>Как устроена защита</summary>
     <ul>
-      <li><b>Гость</b> — смотрит карту.</li>
-      <li><b>Кандидат</b> — от 10 часов в одной игре, учится в тренажёре.</li>
-      <li><b>Наблюдатель</b> — ранг в одной игре: голосует за безопасные действия.</li>
-      <li><b>Оператор</b> — ранги в двух играх, репутация 100 и точность от 75%: действия среднего риска, выплаты за верные решения.</li>
-      <li><b>Старший смены</b> и <b>Хранитель</b> — ранги в трёх и четырёх играх, месяцы безупречной вахты.</li>
       <li>Вес голоса не больше 5 у любого игрока. Стейкинг лишь усиливает вес уже заслуженного ранга и не открывает доступ.</li>
       <li>Действия среднего и высокого риска исполняет только студия после подтверждения. Критичные аномалии видны вахте через 2 минуты, детали скрыты до разрешения.</li>
     </ul></details>`
