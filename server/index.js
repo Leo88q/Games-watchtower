@@ -15,7 +15,7 @@ import { prometheusMetrics, observeRequest } from './ops/metrics.js'
 import { adjacentAnalytics } from './analytics/adjacent.js'
 import { trafficAnalytics } from './analytics/traffic.js'
 import { liveAggregates, liveAlerts, liveAiReport, demoModel } from './analytics/live-model.js'
-import { auditLog, authenticate, checkRateLimit, configureAccess, clientIp, rateLimitSnapshot, recordAudit } from './security/access.js'
+import { auditLog, authenticate, checkRateLimit, configureAccess, clientIp, hashIp, rateLimitSnapshot, recordAudit } from './security/access.js'
 import { anonymizeEvent, containsRawIdentifier, piiPolicy, playerSummary } from './security/pii.js'
 import { CAPABILITIES } from './security/capabilities.js'
 import { loadConfig, ConfigError, CONFIG_ENV_KEYS } from './config.js'
@@ -48,11 +48,12 @@ import { monetizationLayerConfig, monetizationHealth } from './modules/monetizat
 import { testingLayerConfig, testingHealth } from './modules/testing/index.js'
 import { privacyLayerConfig, privacyHealth } from './modules/privacy/index.js'
 // Watchtower Operator Game — распределённый центр операторов
-import { operatorGameState, playerProfile, castVote, registerIncident, approveAction, cancelAction, resolveAction, handleExecutorResult, operatorJournal, connectWallet, examQuestions, submitExam, initOperatorPersistence, closeOperatorStorage, storageStatus, operatorWrite, hasIncident } from './operations/operator-game.js'
+import { operatorGameState, playerProfile, castVote, registerIncident, approveAction, isStaffWallet, cancelAction, resolveAction, handleExecutorResult, operatorJournal, connectWallet, examQuestions, submitExam, initOperatorPersistence, closeOperatorStorage, storageStatus, operatorWrite, hasIncident } from './operations/operator-game.js'
 import { createChallenge, verifySolanaSignature, isSolanaAddress, isDemoWallet, issueSession, verifySession, sessionToken, configureSessions, NONCE_TTL_MS } from './operations/wallet-auth.js'
 import { createMemoryCache, createSharedCache } from './operations/shared-cache.js'
 import { verifyGameReport, acceptGameReports, refreshProgress, progressSources } from './operations/game-progress.js'
 import { verifyExecutorCallback } from './operations/action-dispatch.js'
+import { partnerRules, partnerCabinet, partnerReview, joinPartners, claimReferral, decidePartner, partnerByCode, CODE_RE } from './operations/partners.js'
 
 let config
 try {
@@ -156,10 +157,17 @@ async function readRawBody(req, maxBytes = config.maxBodyBytes) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-const OPERATOR_POST_ROUTES = new Set(['/api/operator/nonce', '/api/operator/auth', '/api/operator/vote', '/api/operator/approve', '/api/operator/exam', '/api/operator/cancel', '/api/operator/resolve'])
+const OPERATOR_POST_ROUTES = new Set(['/api/operator/nonce', '/api/operator/auth', '/api/operator/vote', '/api/operator/approve', '/api/operator/exam', '/api/operator/cancel', '/api/operator/resolve', '/api/partners/join', '/api/partners/claim', '/api/partners/decide'])
 
 // Коды входа и лимиты входа: память процесса или Redis (REDIS_URL) — см. bootOperatorServices()
 let sharedCache = createMemoryCache()
+
+/** Уникальные переходы по партнёрской ссылке за последние 30 дней (из общего кэша). */
+async function partnerClicks(code, now = Date.now()) {
+  const days = Array.from({ length: 30 }, (_, i) => new Date(now - i * 24 * 3600 * 1000).toISOString().slice(0, 10))
+  const counts = await Promise.all(days.map((d) => sharedCache.count(`ref-clicks:${code}:${d}`).catch(() => 0)))
+  return { last30: counts.reduce((a, b) => a + b, 0), today: counts[0], byDay: days.map((d, i) => ({ day: d, clicks: counts[i] })).filter((x) => x.clicks) }
+}
 let sessionsEphemeral = true
 const demoLoginAllowed = () => !(config.nodeEnv === 'production') && config.allowDemo
 const LOGIN_LIMIT = { perIp: 20, perWallet: 8, windowMs: 10 * 60 * 1000 }
@@ -787,8 +795,22 @@ async function route(req, res) {
   }
   if (method === 'GET' && pathname === '/api/operator/exam') return respond(200, examQuestions())
 
+  // ---------------- партнёрская программа ----------------
+  if (method === 'GET' && pathname === '/api/partners/rules') return respond(200, partnerRules())
+  if (method === 'GET' && (pathname === '/api/partners/me' || pathname === '/api/partners/review')) {
+    const session = verifySession(sessionToken(req))
+    if (!session || (session.mode === 'demo' && !demoLoginAllowed())) return respond(401, { error: 'session_required' })
+    if (pathname === '/api/partners/review') {
+      if (!isStaffWallet(session.wallet)) return respond(403, { error: 'staff_only' })
+      return respond(200, partnerReview())
+    }
+    const cabinet = partnerCabinet(session.wallet)
+    if (cabinet.partner) cabinet.clicks = await partnerClicks(cabinet.partner.code, now)
+    return respond(200, cabinet)
+  }
+
   // Всё, что меняет состояние вахты, требует сессии; кошелёк берётся из сессии, а не из тела
-  const OPERATOR_ACTIONS = ['/api/operator/exam', '/api/operator/vote', '/api/operator/approve', '/api/operator/cancel', '/api/operator/resolve']
+  const OPERATOR_ACTIONS = ['/api/operator/exam', '/api/operator/vote', '/api/operator/approve', '/api/operator/cancel', '/api/operator/resolve', '/api/partners/join', '/api/partners/claim', '/api/partners/decide']
   if (method === 'POST' && OPERATOR_ACTIONS.includes(pathname)) {
     const session = verifySession(sessionToken(req))
     if (!session) return respond(401, { error: 'session_required' })
@@ -804,6 +826,12 @@ async function route(req, res) {
       }
     }
     if (pathname === '/api/operator/exam') return write(() => submitExam(wallet, input.answers), 429)
+    if (pathname === '/api/partners/join') return write(() => ({ ok: true, partner: joinPartners(wallet, { kind: input.kind, channel: input.channel }) }), 409)
+    if (pathname === '/api/partners/claim') return write(() => ({ ok: true, referral: { status: claimReferral(wallet, input.code).status } }), 409)
+    if (pathname === '/api/partners/decide') {
+      if (!isStaffWallet(wallet)) return respond(403, { error: 'staff_only' })
+      return write(() => ({ ok: true, ...decidePartner(wallet, input) }), 409)
+    }
     if (pathname === '/api/operator/vote') {
       if (!input.incidentId || !input.actionId) return respond(400, { error: 'missing_fields' })
       return write(() => ({ ok: true, incident: castVote(wallet, input.incidentId, input.actionId) }), 400)
@@ -820,6 +848,23 @@ async function route(req, res) {
   if (newAlerts.length) {
     operatorWrite(() => newAlerts.forEach((alert) => registerIncident(alert)))
       .catch((error) => logger.warn('incident_register_failed', { message: error.message }))
+  }
+
+  // Партнёрская ссылка: считаем уникальный переход за день и ведём на карту с кодом.
+  // Кошелёк здесь не известен; привязка происходит позже — в игре или после входа.
+  if (method === 'GET' && pathname.startsWith('/r/')) {
+    const code = decodeURIComponent(pathname.slice(3)).toUpperCase()
+    const partner = CODE_RE.test(code) ? partnerByCode(code) : null
+    if (partner?.status === 'active') {
+      const today = new Date(now).toISOString().slice(0, 10)
+      const visitor = hashIp(clientIp(req, config), config.ipHashSalt || 'salt')
+      try {
+        const first = await sharedCache.hit(`ref-uniq:${code}:${today}:${visitor}`, 1, 36 * 3600 * 1000)
+        if (first.allowed) await sharedCache.hit(`ref-clicks:${code}:${today}`, Number.MAX_SAFE_INTEGER, 40 * 24 * 3600 * 1000)
+      } catch (error) { logger.warn('partner_click_count_failed', { message: error.message }) }
+    }
+    res.writeHead(302, { location: partner?.status === 'active' ? `/?ref=${code}` : '/', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' })
+    return res.end()
   }
 
   if (!pathname.startsWith('/api/') && method !== 'POST' && config.serveStatic) {

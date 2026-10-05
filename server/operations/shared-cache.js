@@ -1,5 +1,6 @@
 // ---------------------------------------------------------------------------
-// Общий кэш для коротко живущих данных: одноразовые коды входа и лимиты частоты.
+// Общий кэш для коротко живущих данных: одноразовые коды входа, лимиты частоты и счётчики
+// переходов по партнёрским ссылкам.
 // Без REDIS_URL — память процесса (один экземпляр сервера).
 // С REDIS_URL — Redis: несколько экземпляров API делят одни коды и лимиты,
 // код входа забирается атомарно (GETDEL), поэтому одной подписью нельзя войти дважды.
@@ -35,6 +36,11 @@ class MemoryCache {
     c.count += 1
     return { allowed: c.count <= limit, count: c.count, retryAfterMs: Math.max(0, c.exp - now) }
   }
+  /** Текущее значение счётчика hit() без увеличения. */
+  async count(key) {
+    const c = this.counters.get(key)
+    return c && c.exp > Date.now() ? c.count : 0
+  }
   async close() {}
   status() { return { kind: this.kind } }
 }
@@ -56,6 +62,9 @@ class RedisCache {
     const k = `${this.prefix}rl:${key}`
     const [count, ttl] = await this.client.multi().incr(k).pExpire(k, windowMs, 'NX').pTTL(k).exec()
     return { allowed: Number(count) <= limit, count: Number(count), retryAfterMs: Math.max(0, Number(ttl)) }
+  }
+  async count(key) {
+    return Number(await this.client.get(`${this.prefix}rl:${key}`)) || 0
   }
   async close() { await this.client.quit().catch(() => {}) }
   status() { return { kind: this.kind, ready: this.client.isReady } }

@@ -21,7 +21,8 @@ import { configureExecutor, executorStatus, deliverDecision, DELIVERY_TIMEOUT_MS
 import { logger } from '../obs/logger.js'
 import { createFileBackend, createStorage } from './storage.js'
 import { walletKey, isDemoWallet, isSolanaAddress } from './wallet-auth.js'
-import { configureGameProgress, storedProgress, replaceProgressStore, progressSources, PROGRESS_GAMES } from './game-progress.js'
+import { configureGameProgress, storedProgress, replaceProgressStore, progressSources, PROGRESS_GAMES, onProgressChange } from './game-progress.js'
+import { configurePartners, replacePartnerSection, onProgress as partnerOnProgress, partnerTick, partnerTickDue } from './partners.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -226,7 +227,7 @@ export const ALLOWED_ACTIONS = {
 // До initOperatorPersistence() работает файловое хранилище — как и раньше.
 let storage = createFileBackend(DATA_DIR)
 let demoProgressAllowed = !isProduction
-const SECTIONS = ['players', 'incidents', 'ratelimits', 'cooldowns', 'reputation-log', 'executed', 'shift', 'game-progress', 'journal']
+const SECTIONS = ['players', 'incidents', 'ratelimits', 'cooldowns', 'reputation-log', 'executed', 'shift', 'game-progress', 'journal', 'partners', 'referrals']
 function loadStore(name, defaultValue) {
   return storage.loadSync ? storage.loadSync(name, defaultValue) : defaultValue
 }
@@ -243,6 +244,11 @@ let executedActions = loadStore('executed', [])
 let journalLog = loadStore('journal', [])
 let shiftStatus = loadStore('shift', { seniorOperators: [], lastRotation: Date.now() })
 configureGameProgress({ load: () => loadStore('game-progress', {}), save: (data) => saveStore('game-progress', data), allowDemoWallets: demoProgressAllowed, logger })
+// Партнёрская программа: часы — те же, что дают ранги вахты (данные игр; демо — только в разработке)
+const partnerHours = (wallet) => Object.values(getGameProgress(wallet)).reduce((sum, g) => sum + (Number(g.hours) || 0), 0)
+const partnerDeps = () => ({ save: (name, data) => saveStore(name, data), totalHours: partnerHours, banned: (wallet) => Boolean(players[walletKey(wallet)]?.banned), log: logger })
+configurePartners({ env: {}, load: (name) => loadStore(name, {}), ...partnerDeps() })
+onProgressChange((wallet, change) => partnerOnProgress(wallet, change))
 
 /**
  * Подключает выбранное хранилище (файлы или PostgreSQL по DATABASE_URL) и загружает из него
@@ -255,6 +261,7 @@ export async function initOperatorPersistence({ databaseUrl, ssl, allowDemo = !i
   for (const name of SECTIONS) applySection(name, data[name])
   storage.onReload = applySection
   configureExecutor({ env, isProduction, logger })
+  configurePartners({ env, load: (name) => data[name] || {}, ...partnerDeps() })
   const sources = configureGameProgress({ env, allowDemoWallets: demoProgressAllowed, logger, save: (d) => saveStore('game-progress', d), commit: operatorWrite })
   // Несколько экземпляров могут стартовать одновременно: проверка «пусто ли» — под блокировкой
   await operatorWrite(() => {
@@ -281,6 +288,7 @@ function applySection(name, value) {
     case 'shift': shiftStatus = value || { seniorOperators: [], lastRotation: Date.now() }; break
     case 'game-progress': replaceProgressStore(value || {}); break
     case 'journal': journalLog = value || []; break
+    case 'partners': case 'referrals': replacePartnerSection(name, value); break
     default: break
   }
 }
@@ -293,6 +301,8 @@ function applySection(name, value) {
 export function operatorWrite(fn) { return storage.exclusive(fn) }
 
 export function hasIncident(id) { return Boolean(incidents[id]) }
+/** Сотрудник студии (назначается вручную). */
+export function isStaffWallet(wallet) { return viewPlayer(wallet)?.role?.id === 'staff' }
 export function storageStatus() { return storage.status() }
 export async function flushOperatorStorage() { await storage.flush() }
 export async function closeOperatorStorage() { await storage.close() }
@@ -904,6 +914,7 @@ export function rotateSeniorOperators() {
 /** Есть ли работа для таймера — проверяется без блокировки, чтобы не писать в базу впустую. */
 function tickDue(now) {
   if (now - shiftStatus.lastRotation > 60 * 60 * 1000) return true
+  if (partnerTickDue(now)) return true
   return Object.values(incidents).some((inc) =>
     (['open', 'voting'].includes(inc.status) && now > inc.expiresAt) ||
     (inc.status === 'approved' && inc.scheduledFor && now >= inc.scheduledFor))
@@ -921,6 +932,8 @@ export function periodicTick() {
     if (inc.status === 'approved' && inc.scheduledFor && now >= inc.scheduledFor) { handOff(inc); changed = true }
   })
   if (changed) saveStore('incidents', incidents)
+  // Партнёры: истечение окна квалификации и разморозка наград
+  partnerTick(now)
 }
 const background = (name, fn) => operatorWrite(fn).catch((error) => logger.warn('operator_background_failed', { task: name, message: error.message }))
 setInterval(() => { if (tickDue(Date.now())) background('tick', periodicTick) }, 10 * 1000).unref?.()

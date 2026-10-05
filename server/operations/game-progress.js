@@ -6,7 +6,8 @@
 //       x-watchtower-game: ares1 | aof | neonrelay | guttercaps
 //       x-watchtower-timestamp: unix-время в миллисекундах
 //       x-watchtower-signature: sha256=<hex HMAC-SHA256(секрет игры, "<timestamp>.<тело>")>
-//     Тело: { "reports": [{ "wallet": "<адрес>", "hours": 12.5, "rank": 2, "updatedAt": 1760000000000 }] }
+//     Тело: { "reports": [{ "wallet": "<адрес>", "hours": 12.5, "rank": 2, "updatedAt": 1760000000000, "ref"?: "<код партнёра>" }] }
+//     ref — код приглашения, по которому новичок пришёл в игру (партнёрская программа, partners.js).
 //     Секрет игры: GAME_PROGRESS_SECRET_<ИГРА>. Отчёт старше 5 минут или из будущего — отклоняется.
 //  2. Вахта спрашивает игру при входе игрока: GET <GAME_PROGRESS_URL_<ИГРА>>?wallet=<адрес>
 //     (необязательный токен GAME_PROGRESS_TOKEN_<ИГРА> уходит в заголовке Authorization).
@@ -24,6 +25,15 @@ const MAX_REPORTS_PER_REQUEST = 500
 let cfg = { secrets: {}, pullUrls: {}, pullTokens: {}, allowDemoWallets: false, fetchImpl: globalThis.fetch, logger: null }
 let store = {} // walletKey -> { [game]: { hours, rank, updatedAt, receivedAt, via } }
 let persist = () => {}
+let onChange = null // (wallet, { game, ts, hoursUp, ref, prevHours }) — партнёрская программа
+
+/** Подписка на изменения прогресса; вызывается под той же блокировкой записи. */
+export function onProgressChange(fn) { onChange = fn }
+
+/** Сумма часов во всех играх студии. */
+export function totalHours(wallet) {
+  return Object.values(store[walletKey(wallet)] || {}).reduce((sum, g) => sum + (Number(g?.hours) || 0), 0)
+}
 
 export function configureGameProgress({ env = process.env, allowDemoWallets = false, fetchImpl, logger, load, save, commit } = {}) {
   const pick = (prefix) => Object.fromEntries(PROGRESS_GAMES.map((g) => [g, env[`${prefix}${g.toUpperCase()}`] || null]).filter(([, v]) => v))
@@ -85,7 +95,9 @@ function normalize(report) {
   if (!Number.isFinite(hours) || hours < 0 || hours > 100000) return { error: 'bad_hours' }
   if (!Number.isInteger(rank) || rank < 0 || rank > 100) return { error: 'bad_rank' }
   if (!Number.isFinite(updatedAt) || updatedAt <= 0) return { error: 'bad_updated_at' }
-  return { wallet: report.wallet, hours: Math.round(hours * 10) / 10, rank, updatedAt }
+  const ref = report?.ref == null || report.ref === '' ? null : String(report.ref).toUpperCase()
+  if (ref !== null && !/^[A-Z0-9]{4,16}$/.test(ref)) return { error: 'bad_ref' }
+  return { wallet: report.wallet, hours: Math.round(hours * 10) / 10, rank, updatedAt, ref }
 }
 
 function apply(game, r, via, now) {
@@ -94,7 +106,9 @@ function apply(game, r, via, now) {
   // Отчёты могут прийти не по порядку: более старый не перезаписывает более свежий
   if (prev && prev.updatedAt >= r.updatedAt) return false
   if (r.updatedAt > now + REPORT_MAX_SKEW_MS) return false
+  const prevHours = totalHours(key)
   store[key] = { ...(store[key] || {}), [game]: { hours: r.hours, rank: r.rank, updatedAt: r.updatedAt, receivedAt: now, via } }
+  onChange?.(key, { game, ts: r.updatedAt, hoursUp: r.hours > (prev?.hours ?? 0), ref: r.ref || null, prevHours })
   return true
 }
 

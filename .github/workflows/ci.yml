@@ -112,6 +112,8 @@ jobs:
         run: npm run test:operator-execution
         env:
           TEST_DATABASE_URL: postgres://wt@127.0.0.1:5432/watchtower
+      - name: Партнёрская программа — оплата только за квалифицированных новичков, заморозка, решения сотрудника
+        run: npm run test:partners
       - name: Приватность игровых идентификаторов
         run: npm run test:privacy
       - name: Read-only инвариант
