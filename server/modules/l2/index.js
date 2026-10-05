@@ -24,7 +24,7 @@ export function l2LayerConfig(env = process.env) {
       casual: {
         providers: ['repla', 'magicblock'],
         reason: 'Для казуальных игр — gasless UX, sub-10ms, auto actions',
-        suitableFor: ['Age of Farming', 'GUTTERCAPS collectibles'],
+        suitableFor: ['NeuroForge', 'GUTTERCAPS collectibles'],
       },
       readHeavy: {
         provider: 'sonic-svm',

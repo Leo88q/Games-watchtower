@@ -47,6 +47,8 @@ import path from 'node:path'
 import { monetizationLayerConfig, monetizationHealth } from './modules/monetization/index.js'
 import { testingLayerConfig, testingHealth } from './modules/testing/index.js'
 import { privacyLayerConfig, privacyHealth } from './modules/privacy/index.js'
+// Watchtower Operator Game — распределённый центр операторов
+import { operatorGameState, playerProfile, castVote, registerIncident, approveAction, connectWallet, examQuestions, submitExam } from './operations/operator-game.js'
 
 let config
 try {
@@ -150,11 +152,16 @@ async function readRawBody(req, maxBytes = config.maxBodyBytes) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
+const OPERATOR_POST_ROUTES = new Set(['/api/operator/auth', '/api/operator/vote', '/api/operator/approve', '/api/operator/exam'])
+
 /** Тип маршрута определяет требования аутентификации. Неизвестный POST — всегда write. */
 export function classifyRoute(method, pathname) {
   if (['/api/health', '/api/readyz', '/metrics'].includes(pathname)) return 'public'
   // Статика (собранный интерфейс) не содержит данных; данные отдаёт только /api/*.
   if (!pathname.startsWith('/api/')) return 'public'
+  // Голоса вахты пишут только в журнал голосования операторов (data/operator-game), не в игры и не в блокчейн.
+  // Поэтому они не требуют ingest-секрета, а проходят как чтение (read-токен, если задан) + собственные лимиты.
+  if (method === 'POST' && OPERATOR_POST_ROUTES.has(pathname)) return 'operator'
   if (method === 'POST') return 'write'
   return 'read'
 }
@@ -241,7 +248,7 @@ async function route(req, res) {
   }
 
   let rawBody = ''
-  if (kind === 'write') rawBody = await readRawBody(req)
+  if (kind === 'write' || kind === 'operator') rawBody = await readRawBody(req)
   const auth = authenticate(req, { kind, config, rawBody })
   if (!auth.ok) {
     recordAudit(req, { status: auth.status, reason: auth.reason, path: sanitizePath(req.url), route: kind, ip: limit.ip }, { config, ip: limit.ip })
@@ -645,6 +652,54 @@ async function route(req, res) {
     const prompt = readArenaPrompt(id)
     if (!prompt) return respond(404, { error: 'prompt_not_found', id })
     return respond(200, { writes: false, ...prompt })
+  }
+
+  // ====== Watchtower Operator Game: распределённый центр операторов ======
+  // Важно: все эндпоинты НЕ дают доступа к записи в блокчейн, только голосование.
+  if (method === 'GET' && pathname === '/api/operator/state') {
+    return respond(200, { writes: false, ...operatorGameState(url.searchParams.get('wallet') || undefined) })
+  }
+  if (method === 'POST' && pathname === '/api/operator/auth') {
+    // Упрощённая авторизация по подписи кошелька (на проде — полная валидация сигнатуры Solana)
+    const input = await body()
+    if (!input.wallet) return respond(400, { error: 'wallet_required' })
+    return respond(200, { player: connectWallet(input.wallet), token: `op_${input.wallet.toLowerCase()}_${Date.now()}` })
+  }
+  if (method === 'GET' && pathname.startsWith('/api/operator/player/')) {
+    const wallet = decodeURIComponent(pathname.slice('/api/operator/player/'.length))
+    return respond(200, playerProfile(wallet))
+  }
+  if (method === 'GET' && pathname === '/api/operator/exam') return respond(200, examQuestions())
+  if (method === 'POST' && pathname === '/api/operator/exam') {
+    const input = await body()
+    if (!input.wallet) return respond(400, { error: 'wallet_required' })
+    try { return respond(200, submitExam(input.wallet, input.answers)) } catch (error) { return respond(429, { error: error.message }) }
+  }
+  if (method === 'POST' && pathname === '/api/operator/vote') {
+    const input = await body()
+    if (!input.wallet || !input.incidentId || !input.actionId) return respond(400, { error: 'missing_fields' })
+    try {
+      const inc = castVote(input.wallet, input.incidentId, input.actionId)
+      return respond(200, { ok: true, incident: inc })
+    } catch (error) {
+      return respond(400, { error: error.message })
+    }
+  }
+  if (method === 'POST' && pathname === '/api/operator/approve') {
+    const input = await body()
+    if (!input.wallet || !input.incidentId) return respond(400, { error: 'missing_fields' })
+    try {
+      const inc = approveAction(input.wallet, input.incidentId, input.approved !== false)
+      return respond(200, { ok: true, incident: inc })
+    } catch (error) {
+      return respond(403, { error: error.message })
+    }
+  }
+
+  // Автоматически регистрируем реальные алерты из системы как инциденты для операторов
+  const liveAlertsList = liveAlerts({ windowDays, now })
+  if (liveAlertsList.alerts) {
+    liveAlertsList.alerts.forEach(alert => registerIncident(alert))
   }
 
   if (!pathname.startsWith('/api/') && method !== 'POST' && config.serveStatic) {

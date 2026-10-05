@@ -193,7 +193,8 @@ function sectionOverview() {
     <h1>Watchtower OS —<br/>контроль экосистемы студии</h1>
     <p>Один экран для пяти игр и приложений: подключённость, качество данных, безопасность контрактов, аналитика и готовность к деплою. Каждая цифра помечена источником и статусом — mock не выдаётся за реальность.</p>
     <div class="hero-actions">
-      <button class="btn btn-primary" data-action="refresh">Обновить данные</button>
+      <a class="btn btn-primary" href="./" style="text-decoration:none">К карте системы</a>
+      <button class="btn" data-action="refresh">Обновить данные</button>
       <button class="btn" data-action="start-work">Приступить к работе</button>
       <button class="btn btn-ghost" data-action="open-section" data-section="deploy">Что мешает деплою</button>
     </div>
@@ -720,6 +721,7 @@ function render() {
           <span>Watchtower OS<small>by Leo Games Studio</small></span>
         </div>
         <div class="topbar-spacer"></div>
+        <a class="btn btn-small" href="./" style="text-decoration:none">Карта системы</a>
         <span class="meta-chip"><span class="live-dot"></span>${state.loading ? 'обновление…' : `обновлено ${state.refreshedAt ? state.refreshedAt.toLocaleTimeString('ru-RU') : '—'}`}</span>
         <span class="meta-chip">${isMock() ? 'режим: mock' : `режим: ${provider()}`}</span>
         <button class="btn btn-small" data-action="theme">${state.theme === 'light' ? 'Тёмная' : 'Светлая'}</button>

@@ -7,7 +7,7 @@ const definitions = {
     quality: 'partial',
   },
   aof: {
-    name: 'Age of Farming',
+    name: 'NeuroForge',
     programEnv: 'AOF_CORE_PROGRAM_ID',
     eventTypes: ['PlayerJoined', 'PlotCreated', 'CropHarvested', 'CraftCompleted', 'RewardGranted', 'TokenMinted', 'TokenBurned'],
     resources: ['AOF_REWARD'],
