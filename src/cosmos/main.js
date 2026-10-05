@@ -2,6 +2,10 @@
 // Watchtower — звёздная система студии. Главный экран продукта.
 // Карта (живые данные) · Вахта (операторы голосуют) · Тренажёр (обучение).
 // ---------------------------------------------------------------------------
+import '@fontsource/exo-2/latin-600.css'
+import '@fontsource/exo-2/cyrillic-600.css'
+import '@fontsource/exo-2/latin-800.css'
+import '@fontsource/exo-2/cyrillic-800.css'
 import './cosmos.css'
 import { createEngine } from './engine.js'
 import { loadLiveWorld, operatorApi } from './live.js'
@@ -9,6 +13,9 @@ import { createTraining, DIFFICULTIES, loadTrainingSave } from './training.js'
 import { BODIES, ROUTES, STAR, METRIC_LABELS, ACTION_TEXT, RISK_TEXT, ROLE_TEXT, bodyById, regionFor, severityClass } from './world.js'
 
 const LIVE_REFRESH_MS = 15000
+// Сгенерированные иконки (public/cosmos/icons): вырезаны из чёрного фона с сохранением свечения
+const ICON_IMG = ['planets', 'events', 'anomaly', 'operators', 'time', 'energy', 'trust', 'score']
+const icon = (name, cls = '') => (ICON_IMG.includes(name) ? `<img class="cz-ico ${cls}" src="${import.meta.env.BASE_URL}cosmos/icons/${name}.webp" alt="" aria-hidden="true" draggable="false" />` : '')
 const SEVERITY_TEXT = { critical: 'критично', warn: 'внимание', info: 'наблюдение' }
 const LEVEL_TEXT = {
   L0: ['Не подключена', 'Обсерватория пока ничего не знает об этой игре.'],
@@ -177,8 +184,8 @@ function renderBanner() {
   setHTML(el, html ? `<span>${esc(html)}</span><button class="cz-icon-btn" data-act="close-banner" aria-label="Скрыть">${ICON.close}</button>` : '')
 }
 
-function kpiCard(label, value, sub, extra = '') {
-  return `<div class="cz-kpi"><span class="cz-kpi-label">${esc(label)}</span><span class="cz-kpi-value ${value == null ? 'na' : ''}">${value == null ? 'нет данных' : value}</span>${extra}<span class="cz-kpi-sub">${esc(sub)}</span></div>`
+function kpiCard(ico, label, value, sub, extra = '') {
+  return `<div class="cz-kpi">${icon(ico, 'kpi')}<div class="cz-kpi-body"><span class="cz-kpi-label">${esc(label)}</span><span class="cz-kpi-value ${value == null ? 'na' : ''}">${value == null ? 'нет данных' : value}</span>${extra}<span class="cz-kpi-sub">${esc(sub)}</span></div></div>`
 }
 
 function renderKpis() {
@@ -186,18 +193,18 @@ function renderKpis() {
   if (S.mode === 'training' && S.sim) {
     const s = S.sim.state
     html = [
-      kpiCard('Время смены', `<span data-live="clock">${mmss(s.duration - s.elapsed)}</span>`, `осталось из ${s.difficulty.minutes} мин`),
-      kpiCard('Энергия обсерватории', `<span data-live="energy">${Math.floor(s.energy)}</span> / ${s.maxEnergy}`, 'тратится на действия', '<div class="cz-meter"><i data-live="energy-bar"></i></div>'),
-      kpiCard('Доверие игроков', `<span data-live="trust">${Math.round(s.trust)}</span>%`, 'упадёт до нуля — смена провалена', '<div class="cz-meter trust"><i data-live="trust-bar"></i></div>'),
-      kpiCard('Очки', `<span data-live="score">${Math.round(s.score)}</span>`, `верных решений: ${s.correct} из ${s.resolved}`),
+      kpiCard('time', 'Время смены', `<span data-live="clock">${mmss(s.duration - s.elapsed)}</span>`, `осталось из ${s.difficulty.minutes} мин`),
+      kpiCard('energy', 'Энергия обсерватории', `<span data-live="energy">${Math.floor(s.energy)}</span> / ${s.maxEnergy}`, 'тратится на действия', '<div class="cz-meter"><i data-live="energy-bar"></i></div>'),
+      kpiCard('trust', 'Доверие игроков', `<span data-live="trust">${Math.round(s.trust)}</span>%`, 'упадёт до нуля — смена провалена', '<div class="cz-meter trust"><i data-live="trust-bar"></i></div>'),
+      kpiCard('score', 'Очки', `<span data-live="score">${Math.round(s.score)}</span>`, `верных решений: ${s.correct} из ${s.resolved}`),
     ].join('')
   } else {
     const k = S.live?.kpis || {}
     html = [
-      kpiCard('Планеты на связи', k.planetsTotal ? `${k.planetsOnline} из ${k.planetsTotal}` : null, 'присылают события'),
-      kpiCard('События за 7 дней', fmt(k.events), 'принято обсерваторией'),
-      kpiCard('Открытые аномалии', fmt(k.anomalies), 'ждут решения вахты'),
-      kpiCard('Операторы', fmt(k.operators), 'зарегистрировано на вахте'),
+      kpiCard('planets', 'Планеты на связи', k.planetsTotal ? `${k.planetsOnline} из ${k.planetsTotal}` : null, 'присылают события'),
+      kpiCard('events', 'События за 7 дней', fmt(k.events), 'принято обсерваторией'),
+      kpiCard('anomaly', 'Открытые аномалии', fmt(k.anomalies), 'ждут решения вахты'),
+      kpiCard('operators', 'Операторы', fmt(k.operators), 'зарегистрировано на вахте'),
     ].join('')
   }
   setHTML(slot('kpis'), html)
@@ -215,8 +222,10 @@ function renderPanel() {
   setHTML(slot('panel'), html)
 }
 
-function panelHead(title, sub, back = true) {
-  return `<div class="cz-ph">${back ? `<button class="cz-icon-btn" data-act="panel-back" aria-label="Назад">${ICON.back}</button>` : ''}<div><h2>${esc(title)}</h2>${sub ? `<p>${esc(sub)}</p>` : ''}</div></div>`
+const thumb = (b, cls = '') => `<img class="cz-thumb ${cls}" src="${b.sprite}" alt="" aria-hidden="true" draggable="false" style="--c:${b.color}" />`
+
+function panelHead(title, sub, back = true, art = '') {
+  return `<div class="cz-ph">${back ? `<button class="cz-icon-btn" data-act="panel-back" aria-label="Назад">${ICON.back}</button>` : ''}${art}<div><h2>${esc(title)}</h2>${sub ? `<p>${esc(sub)}</p>` : ''}</div></div>`
 }
 
 function welcomePanel() {
@@ -230,7 +239,7 @@ function welcomePanel() {
       ${BODIES.map((b) => {
         const st = world().bodies?.[b.id] || {}
         const n = (st.anomalies || []).length
-        return `<button class="cz-row" data-act="select" data-id="${b.id}"><i class="cz-swatch" style="--c:${b.color}"></i><span><b>${esc(b.name)}</b><small>${esc(b.tagline)}</small></span>${n ? `<em class="cz-count ${worstClass(st.anomalies)}">${n}</em>` : ''}</button>`
+        return `<button class="cz-row" data-act="select" data-id="${b.id}">${thumb(b)}<span><b>${esc(b.name)}</b><small>${esc(b.tagline)}</small></span>${n ? `<em class="cz-count ${worstClass(st.anomalies)}">${n}</em>` : ''}</button>`
       }).join('')}
     </div>
     <div class="cz-legend">
@@ -274,7 +283,7 @@ function detectorBlock(b) {
     const [title, text] = DETECTOR_TEXT[a.detector]?.(bodyById(a.gameId)) || [a.title, a.detail]
     return `<div class="cz-row static"><i class="cz-sev ${severityClass(a.severity)}"></i><span><b>${esc(title)}</b><small>${esc(text || '')}</small></span></div>`
   }).join('')
-  return `<h3>Тревоги детекторов <em class="cz-count ${worstClass(list)}">${list.length}</em></h3>
+  return `<h3>${icon('events')}Тревоги детекторов <em class="cz-count ${worstClass(list)}">${list.length}</em></h3>
     <div class="cz-list">${rows}</div>
     <p class="cz-note">Это автоматические проверки обсерватории. Голосовать по ним не нужно: аномалией для вахты становится только то, что требует решения.</p>`
 }
@@ -287,13 +296,13 @@ function bodyPanel(id) {
   const keys = b.kind === 'station' ? ['events', 'adapters', 'alerts'] : S.mode === 'training' ? ['players'] : ['players', 'newPlayers', 'retention', 'minted', 'burned', 'volume']
   const anomalies = st.anomalies || []
   return `
-    ${panelHead(b.name, b.formerly ? `${b.tagline} · ${b.formerly}` : b.tagline)}
+    ${panelHead(b.name, b.formerly ? `${b.tagline} · ${b.formerly}` : b.tagline, true, thumb(b, 'big'))}
     <div class="cz-signal ${st.lost ? 'lost' : signal}"><i></i><span>${st.lost ? 'Связь потеряна' : SIGNAL_TEXT[signal]}${S.mode === 'training' && !st.lost ? ` · стабильность ${Math.round(Math.max(0, st.stability || 0))}%` : ''}</span></div>
     ${st.signalReason ? `<p class="cz-note">${esc(st.signalReason)}</p>` : ''}
     <p class="cz-text">${esc(b.about)}</p>
     ${metricsGrid(st.metrics, keys)}
     ${S.mode !== 'training' && st.level ? `<div class="cz-kv"><span>Подключение к обсерватории</span><b>${esc(LEVEL_TEXT[st.level]?.[0] || st.level)}</b></div>${LEVEL_TEXT[st.level] ? `<p class="cz-note">${esc(LEVEL_TEXT[st.level][1])}</p>` : ''}` : ''}
-    <h3>Аномалии ${anomalies.length ? `<em class="cz-count ${worstClass(anomalies)}">${anomalies.length}</em>` : ''}</h3>
+    <h3>${icon('anomaly')}Аномалии ${anomalies.length ? `<em class="cz-count ${worstClass(anomalies)}">${anomalies.length}</em>` : ''}</h3>
     ${anomalies.length ? `<div class="cz-list">${anomalies.map(anomalyRow).join('')}</div>` : '<p class="cz-empty">Аномалий нет.</p>'}
     ${detectorBlock(b)}
     <div class="cz-actions">
@@ -313,7 +322,7 @@ function regionPanel(bodyId, regionId) {
     <p class="cz-text">${esc(r.about)}</p>
     <div class="cz-callout"><b>За чем следит вахта</b><span>${esc(r.watch)}</span></div>
     ${metricsGrid(st.metrics, S.mode === 'training' ? ['players'] : r.metrics)}
-    <h3>Аномалии в районе ${anomalies.length ? `<em class="cz-count ${worstClass(anomalies)}">${anomalies.length}</em>` : ''}</h3>
+    <h3>${icon('anomaly')}Аномалии в районе ${anomalies.length ? `<em class="cz-count ${worstClass(anomalies)}">${anomalies.length}</em>` : ''}</h3>
     ${anomalies.length ? `<div class="cz-list">${anomalies.map(anomalyRow).join('')}</div>` : '<p class="cz-empty">Здесь спокойно.</p>'}`
 }
 
@@ -347,14 +356,14 @@ function trainingDecision(a) {
   const hint = a.investigated ? a.hint : null
   return `
     ${hint ? `<div class="cz-callout info"><b>Телеметрия</b><span>${esc(hint)}</span></div>`
-      : `<button class="cz-btn ghost wide" data-act="investigate" data-id="${a.id}" ${s.energy < 1 ? 'disabled' : ''}>Проверить телеметрию · 1 энергия</button>`}
+      : `<button class="cz-btn ghost wide" data-act="investigate" data-id="${a.id}" ${s.energy < 1 ? 'disabled' : ''}>${icon('events')}Проверить телеметрию<span class="cz-cost">${icon('energy')}1</span></button>`}
     <div class="cz-advisor"><span class="cz-advisor-mark" aria-hidden="true"></span><div><b>Бортовой ИИ советует</b><span>${esc(ACTION_TEXT[adv.actionId].title)} · уверенность ${Math.round(adv.confidence * 100)}%</span></div></div>
     <h3>Что делаем?</h3>
     <div class="cz-options">${a.options.map((act) => {
       const cost = S.sim.costOf(act)
       const risk = RISK_TEXT[S.sim.riskOf(act)]
       return `<button class="cz-option" data-act="resolve" data-id="${a.id}" data-action="${act}" ${s.energy < cost ? 'disabled' : ''}>
-        <span><b>${esc(ACTION_TEXT[act].title)}</b><small class="risk ${risk.cls}">${risk.label}</small></span><em>${cost} эн.</em></button>`
+        <span><b>${esc(ACTION_TEXT[act].title)}</b><small class="risk ${risk.cls}">${risk.label}</small></span><em class="cz-cost">${icon('energy')}${cost}</em></button>`
     }).join('')}</div>`
 }
 
@@ -397,7 +406,7 @@ function liveDecision(a) {
     <div class="cz-actions"><button class="cz-btn primary" data-act="approve" data-id="${a.id}" data-ok="1">Подтвердить</button><button class="cz-btn" data-act="approve" data-id="${a.id}" data-ok="0">Отклонить</button></div>` : ''
   return `
     ${gate ? `<div class="cz-callout warn"><b>Голосование недоступно</b><span>${esc(gate)}</span>${!S.wallet ? '<button class="cz-btn small" data-act="mode" data-mode="watch">Открыть вахту</button>' : ''}</div>` : ''}
-    <h3>Голосование вахты ${total ? `<small>общий вес ${total}</small>` : ''}</h3>
+    <h3>${icon('operators')}Голосование вахты ${total ? `<small>общий вес ${total}</small>` : ''}</h3>
     <div class="cz-options">${options || '<p class="cz-empty">Для этой аномалии нет доступных действий.</p>'}</div>
     ${staffBlock}
     <p class="cz-note">Голос — не команда. Решение исполняется только после порога вахты и подтверждения студии. Напрямую в игры отсюда ничего не пишется.</p>`
@@ -424,8 +433,8 @@ function renderBottom() {
   } else {
     const list = allAnomalies()
     html = list.length
-      ? `<div class="cz-strip"><span class="cz-strip-label">Аномалии</span>${list.map((x) => `<button class="cz-pill ${severityClass(x.severity)}" data-act="anomaly" data-id="${x.id}"><i></i>${esc(bodyById(x.bodyId).short)} · ${esc(x.title)}${x.timeLeft != null ? ` <b data-countdown="${x.id}">${mmss(x.timeLeft)}</b>` : ''}</button>`).join('')}</div>`
-      : `<div class="cz-strip calm"><span class="cz-strip-label">Аномалии</span><span>${S.mode === 'training' ? 'Пока тихо. Скоро что-нибудь случится.' : 'Открытых аномалий нет.'}</span></div>`
+      ? `<div class="cz-strip"><span class="cz-strip-label">${icon('anomaly')}Аномалии</span>${list.map((x) => `<button class="cz-pill ${severityClass(x.severity)}" data-act="anomaly" data-id="${x.id}"><i></i>${esc(bodyById(x.bodyId).short)} · ${esc(x.title)}${x.timeLeft != null ? ` <b data-countdown="${x.id}">${mmss(x.timeLeft)}</b>` : ''}</button>`).join('')}</div>`
+      : `<div class="cz-strip calm"><span class="cz-strip-label">${icon('anomaly')}Аномалии</span><span>${S.mode === 'training' ? 'Пока тихо. Скоро что-нибудь случится.' : 'Открытых аномалий нет.'}</span></div>`
   }
   setHTML(slot('bottom'), html)
 }
@@ -497,21 +506,21 @@ function renderWatch() {
     <div class="cz-ph"><div><h2>Вахта операторов</h2><p>${esc(p.wallet.slice(0, 4))}…${esc(p.wallet.slice(-4))}</p></div><button class="cz-btn small" data-act="logout">Выйти</button></div>
     <div class="cz-role ${esc(role.id)}"><span>Ваш ранг</span><b>${esc(ROLE_TEXT[role.id] || role.name || 'Гость')}</b></div>
     <div class="cz-metrics three">
-      <div><span>Репутация</span><b>${fmt(p.reputation) ?? 0}</b></div>
+      <div class="cz-metric-ico">${icon('score')}<span>Репутация</span><b>${fmt(p.reputation) ?? 0}</b></div>
       <div><span>Точность</span><b class="${acc == null ? 'na' : ''}">${acc == null ? 'нет решений' : `${acc}%`}</b></div>
       <div><span>Стейкинг</span><b>${p.staking ? `${p.staking} SOL` : 'нет'}</b></div>
     </div>
     ${nextStepBlock(p, role)}
-    <h3>Допуск к планетам</h3>
+    <h3>${icon('planets')}Допуск к планетам</h3>
     <div class="cz-list">${planets.map((b) => {
       const g = p.gameProgress?.[b.id] || { hours: 0, rank: 0 }
       const ok = p.clearance?.[b.id] || role.id === 'staff'
-      return `<div class="cz-row static"><i class="cz-swatch" style="--c:${b.color}"></i><span><b>${esc(b.name)}</b><small>${g.hours} ч в игре · ${g.rank ? `ранг ${g.rank}` : 'ранга нет'}</small></span><em class="cz-clear ${ok ? 'ok' : ''}">${ok ? 'допуск есть' : 'нет допуска'}</em></div>`
+      return `<div class="cz-row static">${thumb(b)}<span><b>${esc(b.name)}</b><small>${g.hours} ч в игре · ${g.rank ? `ранг ${g.rank}` : 'ранга нет'}</small></span><em class="cz-clear ${ok ? 'ok' : ''}">${ok ? 'допуск есть' : 'нет допуска'}</em></div>`
     }).join('')}</div>
     <p class="cz-note">Допуск даётся от ${op?.clearanceRule?.minHours ?? 10} часов и ранга в игре. Обсерваторию могут разбирать все, у кого есть право голоса.</p>
-    <h3>Аномалии на вахте</h3>
+    <h3>${icon('anomaly')}Аномалии на вахте</h3>
     ${allAnomalies().length ? `<div class="cz-list">${allAnomalies().map(anomalyRow).join('')}</div>` : '<p class="cz-empty">Открытых аномалий нет.</p>'}
-    <h3>Лучшие операторы</h3>
+    <h3>${icon('operators')}Лучшие операторы</h3>
     ${op?.leaderboard?.length ? `<ol class="cz-board">${op.leaderboard.slice(0, 8).map((x) => `<li><span>${esc(x.wallet)}</span><small>${esc(ROLE_TEXT[x.role] || '')}</small><b>${fmt(x.reputation)}</b></li>`).join('')}</ol>` : '<p class="cz-empty">Пока пусто.</p>'}
     ${rolesBlock()}`)
 }
@@ -573,7 +582,7 @@ function openTrainingMenu() {
   el.hidden = false
   setHTML(el, `
     <div class="cz-dialog" role="dialog" aria-modal="true" aria-labelledby="tr-title">
-      <h2 id="tr-title">Тренажёр оператора</h2>
+      <div class="cz-dialog-hero">${icon('time', 'hero')}<h2 id="tr-title">Тренажёр оператора</h2></div>
       <p class="cz-text">Смена на учебной копии системы. Аномалии взяты из механик самих игр, а ответы — ровно те действия, что есть у вахты в бою. После каждого решения разбор: почему верно или нет.</p>
       <ul class="cz-rules">
         <li>Действия тратят энергию обсерватории, она восстанавливается со временем.</li>
@@ -607,10 +616,10 @@ function trainingOver() {
   const q = { best: 'верно', ok: 'приемлемо', weak: 'слабо', bad: 'ошибка', expired: 'просрочено' }
   setHTML(el, `
     <div class="cz-dialog" role="dialog" aria-modal="true">
-      <h2>${s.won ? 'Смена завершена' : 'Смена провалена'}</h2>
+      <div class="cz-dialog-hero ${s.won ? 'won' : 'lost'}">${icon(s.won ? 'score' : 'anomaly', 'hero')}<h2>${s.won ? 'Смена завершена' : 'Смена провалена'}</h2></div>
       <p class="cz-text">${s.won ? 'Система пережила смену. Посмотрите разбор последних решений.' : 'Слишком много потерь. Разберите ошибки и попробуйте ещё раз.'}</p>
       <div class="cz-metrics three">
-        <div><span>Очки</span><b>${Math.round(s.score)}</b></div>
+        <div class="cz-metric-ico">${icon('score')}<span>Очки</span><b>${Math.round(s.score)}</b></div>
         <div><span>Верных решений</span><b>${s.correct} из ${s.resolved}</b></div>
         <div><span>Неверных советов ИИ принято</span><b>${s.followedBadAdvice}</b></div>
       </div>

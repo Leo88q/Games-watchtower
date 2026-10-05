@@ -25,7 +25,7 @@ function seeded(seed) {
 export function createEngine(canvas, handlers = {}) {
   const ctx = canvas.getContext('2d')
   const images = { star: loadImage(STAR.sprite) }
-  BODIES.forEach((b) => { images[b.id] = loadImage(b.sprite) })
+  BODIES.forEach((b) => { images[b.id] = loadImage(b.sprite); if (b.moon?.sprite) images[`moon:${b.id}`] = loadImage(b.moon.sprite) })
 
   const rand = seeded(1742)
   const stars = [0.25, 0.55, 1].flatMap((depth) => Array.from({ length: depth === 1 ? 60 : 140 }, () => ({
@@ -201,6 +201,17 @@ export function createEngine(canvas, handlers = {}) {
     const mr = p.r * 0.2
     const x = p.x + Math.cos(ang) * p.r * 1.55
     const y = p.y + Math.sin(ang) * p.r * 0.5
+    const img = images[`moon:${body.id}`]
+    if (img && img.complete && img.naturalWidth) {
+      // Спрайт Фобоса: свет падает слева, чуть темнее за планетой
+      const d = mr * 2.9
+      ctx.save()
+      if (behind) ctx.globalAlpha = 0.75
+      ctx.translate(x, y); ctx.rotate(time * 0.15)
+      ctx.drawImage(img, -d / 2, -d / 2, d, d)
+      ctx.restore()
+      return
+    }
     ctx.save()
     ctx.fillStyle = '#8c7a6b'
     ctx.beginPath()
@@ -300,7 +311,7 @@ export function createEngine(canvas, handlers = {}) {
       ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 12
       ctx.beginPath(); ctx.arc(bx, by, 10, 0, Math.PI * 2); ctx.fill()
       ctx.shadowBlur = 0; ctx.fillStyle = '#0b0f1c'
-      ctx.font = '700 11px Inter, -apple-system, system-ui, sans-serif'
+      ctx.font = "800 11px 'Exo 2', Inter, system-ui, sans-serif"
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
       ctx.fillText(String(anomalies.length), bx, by + 0.5)
       ctx.restore()
@@ -332,7 +343,7 @@ export function createEngine(canvas, handlers = {}) {
 
   function label(text, x, y, color, size = 12, bold = false) {
     ctx.save()
-    ctx.font = `${bold ? 650 : 500} ${size}px Inter, -apple-system, system-ui, sans-serif`
+    ctx.font = `${bold ? 800 : 600} ${size}px 'Exo 2', Inter, system-ui, sans-serif`
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(3,5,13,0.85)'
     ctx.strokeText(text, x, y)
