@@ -251,20 +251,42 @@ export async function initOperatorPersistence({ databaseUrl, ssl, allowDemo = !i
   demoProgressAllowed = !isProduction && allowDemo
   storage = await createStorage({ databaseUrl, ssl, dataDir: DATA_DIR, names: SECTIONS, logger })
   const data = await storage.loadAll(SECTIONS)
-  players = data.players || {}
-  incidents = data.incidents || {}
-  rateLimits = data.ratelimits || {}
-  actionCooldowns = data.cooldowns || {}
-  reputationLog = data['reputation-log'] || []
-  executedActions = data.executed || []
-  shiftStatus = data.shift || { seniorOperators: [], lastRotation: Date.now() }
-  const sources = configureGameProgress({ env, allowDemoWallets: demoProgressAllowed, logger, save: (d) => saveStore('game-progress', d) })
-  replaceProgressStore(data['game-progress'] || {})
-  if (!isProduction && demoProgressAllowed && Object.keys(incidents).length === 0) seedDemoIncidents()
+  for (const name of SECTIONS) applySection(name, data[name])
+  storage.onReload = applySection
+  const sources = configureGameProgress({ env, allowDemoWallets: demoProgressAllowed, logger, save: (d) => saveStore('game-progress', d), commit: operatorWrite })
+  // Несколько экземпляров могут стартовать одновременно: проверка «пусто ли» — под блокировкой
+  await operatorWrite(() => {
+    if (!isProduction && demoProgressAllowed && Object.keys(incidents).length === 0) seedDemoIncidents()
+    rotateSeniorOperators()
+  })
+  await storage.startSync()
   logger.info('operator_storage_ready', { backend: storage.kind, players: Object.keys(players).length, incidents: Object.keys(incidents).length, gamesConnected: sources.filter((x) => x.push || x.pull).map((x) => x.game) })
   return storage.status()
 }
 
+/** Раздел, перечитанный из хранилища (запись другого экземпляра API), заменяет копию в памяти. */
+function applySection(name, value) {
+  switch (name) {
+    case 'players': players = value || {}; break
+    case 'incidents': incidents = value || {}; break
+    case 'ratelimits': rateLimits = value || {}; break
+    case 'cooldowns': actionCooldowns = value || {}; break
+    case 'reputation-log': reputationLog = value || []; break
+    case 'executed': executedActions = value || []; break
+    case 'shift': shiftStatus = value || { seniorOperators: [], lastRotation: Date.now() }; break
+    case 'game-progress': replaceProgressStore(value || {}); break
+    default: break
+  }
+}
+
+/**
+ * Единственный способ изменить состояние вахты. fn выполняется синхронно на свежих данных;
+ * всё, что она сохранила, записывается атомарно. С PostgreSQL — транзакция под общей
+ * блокировкой, поэтому экземпляров API может быть несколько.
+ */
+export function operatorWrite(fn) { return storage.exclusive(fn) }
+
+export function hasIncident(id) { return Boolean(incidents[id]) }
 export function storageStatus() { return storage.status() }
 export async function flushOperatorStorage() { await storage.flush() }
 export async function closeOperatorStorage() { await storage.close() }
@@ -640,7 +662,7 @@ export function rotateSeniorOperators() {
   logger.info('senior rotation done', { seniors: shiftStatus.seniorOperators.length })
 }
 
-setInterval(() => {
+function periodicTick() {
   const now = Date.now()
   // Ротация старших раз в час
   if (now - shiftStatus.lastRotation > 60 * 60 * 1000) rotateSeniorOperators()
@@ -654,10 +676,11 @@ setInterval(() => {
     }
   })
   saveStore('incidents', incidents)
-}, 60 * 1000)
-
+}
+const background = (name, fn) => operatorWrite(fn).catch((error) => logger.warn('operator_background_failed', { task: name, message: error.message }))
+setInterval(() => background('tick', periodicTick), 60 * 1000).unref?.()
 // Очистка рейтлимитов раз в 10 минут
-setInterval(() => { rateLimits = {}; saveStore('ratelimits', rateLimits) }, 10 * 60 * 1000)
+setInterval(() => background('ratelimits', () => { rateLimits = {}; saveStore('ratelimits', rateLimits) }), 10 * 60 * 1000).unref?.()
 
 // ---------------------------------------------------------------------------
 // Публичное состояние
@@ -738,8 +761,16 @@ export function submitExam(wallet, answers = {}) {
   return { passed, correct, total: EXAM.length, player: playerProfile(wallet) }
 }
 
+/** Профиль для чтения: незнакомый кошелёк не создаётся и не сохраняется. */
+function viewPlayer(wallet) {
+  const key = walletKey(wallet)
+  const stored = players[key]
+  const base = stored || { wallet: key, joinedAt: null, daysActive: 0, lastActive: null, reputation: 0, correctDecisions: 0, wrongDecisions: 0, passedTest: false, staking: 0, banned: false, banReason: null, unknown: true }
+  return { ...base, role: calculatePlayerRole(base) }
+}
+
 export function playerProfile(wallet) {
-  const p = getOrCreatePlayer(wallet)
+  const p = viewPlayer(wallet)
   const progress = getGameProgress(wallet)
   return { ...p, role: p.role, gameProgress: progress, progressSource: progressSource(wallet), progressSources: progressSources(), clearance: planetClearance(wallet), clearanceRule: PLANET_CLEARANCE }
 }
@@ -749,6 +780,4 @@ function seedDemoIncidents() {
   registerIncident({ id: 'demo_bot_farm_001', title: 'Подозрение на ферму ботов', description: 'Всплеск транзакций в Neon Relay', severity: 'warn', game: 'neonrelay', timerSeconds: 600, demo: true })
   registerIncident({ id: 'demo_ddos_001', title: 'DDoS на хаб', description: 'Повышенный трафик на ingestion', severity: 'bad', game: 'hub', timerSeconds: 300, demo: true })
 }
-if (!isProduction && Object.keys(incidents).length === 0) seedDemoIncidents()
-rotateSeniorOperators()
 logger.info('Watchtower Operator SECURE module loaded, all protections active', { production: isProduction })

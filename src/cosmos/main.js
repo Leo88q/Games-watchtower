@@ -123,6 +123,7 @@ const ERROR_TEXT = {
   session_required: 'Сессия вахты закончилась. Войдите заново',
   wallet_mismatch: 'Сессия открыта для другого кошелька. Войдите заново',
   demo_login_disabled: 'Демо-вход отключён на этом сервере',
+  storage_unavailable: 'Хранилище вахты временно недоступно, голос не записан. Попробуйте через минуту',
 }
 function sessionLost(err) {
   if (err?.status !== 401) return false

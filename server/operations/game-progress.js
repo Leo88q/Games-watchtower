@@ -25,7 +25,7 @@ let cfg = { secrets: {}, pullUrls: {}, pullTokens: {}, allowDemoWallets: false, 
 let store = {} // walletKey -> { [game]: { hours, rank, updatedAt, receivedAt, via } }
 let persist = () => {}
 
-export function configureGameProgress({ env = process.env, allowDemoWallets = false, fetchImpl, logger, load, save } = {}) {
+export function configureGameProgress({ env = process.env, allowDemoWallets = false, fetchImpl, logger, load, save, commit } = {}) {
   const pick = (prefix) => Object.fromEntries(PROGRESS_GAMES.map((g) => [g, env[`${prefix}${g.toUpperCase()}`] || null]).filter(([, v]) => v))
   cfg = {
     secrets: pick('GAME_PROGRESS_SECRET_'),
@@ -34,6 +34,8 @@ export function configureGameProgress({ env = process.env, allowDemoWallets = fa
     allowDemoWallets,
     fetchImpl: fetchImpl || globalThis.fetch,
     logger,
+    // Применение данных к хранилищу. В operator-game это operatorWrite: запись под общей блокировкой
+    commit: commit || (async (fn) => fn()),
   }
   for (const [g, s] of Object.entries(cfg.secrets)) if (s.length < 32) throw new Error(`GAME_PROGRESS_SECRET_${g.toUpperCase()} должен быть не короче 32 символов`)
   if (load) store = load() || {}
@@ -116,7 +118,8 @@ export function acceptGameReports(game, body, { now = Date.now() } = {}) {
 export async function refreshProgress(wallet, { timeoutMs = 3000, now = Date.now() } = {}) {
   const games = Object.keys(cfg.pullUrls)
   if (!games.length || !validWallet(wallet)) return { refreshed: [], failed: [] }
-  const refreshed = []; const failed = []
+  const refreshed = []; const failed = []; const results = []
+  // Сеть — вне блокировки записи: медленная игра не должна задерживать голоса остальных
   await Promise.all(games.map(async (game) => {
     const url = new URL(cfg.pullUrls[game])
     url.searchParams.set('wallet', wallet)
@@ -131,7 +134,7 @@ export async function refreshProgress(wallet, { timeoutMs = 3000, now = Date.now
       const data = await res.json()
       const r = normalize({ ...data, wallet, updatedAt: data?.updatedAt ?? now })
       if (r.error) throw new Error(r.error)
-      apply(game, r, 'pull', now)
+      results.push([game, r])
       refreshed.push(game)
     } catch (error) {
       failed.push(game)
@@ -140,6 +143,12 @@ export async function refreshProgress(wallet, { timeoutMs = 3000, now = Date.now
       clearTimeout(timer)
     }
   }))
-  if (refreshed.length) persist(store)
+  if (results.length) {
+    await cfg.commit(() => {
+      let changed = false
+      for (const [game, r] of results) changed = apply(game, r, 'pull', now) || changed
+      if (changed) persist(store)
+    })
+  }
   return { refreshed, failed }
 }

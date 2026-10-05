@@ -48,7 +48,7 @@ import { monetizationLayerConfig, monetizationHealth } from './modules/monetizat
 import { testingLayerConfig, testingHealth } from './modules/testing/index.js'
 import { privacyLayerConfig, privacyHealth } from './modules/privacy/index.js'
 // Watchtower Operator Game — распределённый центр операторов
-import { operatorGameState, playerProfile, castVote, registerIncident, approveAction, connectWallet, examQuestions, submitExam, initOperatorPersistence, closeOperatorStorage, storageStatus } from './operations/operator-game.js'
+import { operatorGameState, playerProfile, castVote, registerIncident, approveAction, connectWallet, examQuestions, submitExam, initOperatorPersistence, closeOperatorStorage, storageStatus, operatorWrite, hasIncident } from './operations/operator-game.js'
 import { createChallenge, verifySolanaSignature, isSolanaAddress, isDemoWallet, issueSession, verifySession, sessionToken, configureSessions, NONCE_TTL_MS } from './operations/wallet-auth.js'
 import { createMemoryCache, createSharedCache } from './operations/shared-cache.js'
 import { verifyGameReport, acceptGameReports, refreshProgress, progressSources } from './operations/game-progress.js'
@@ -176,6 +176,13 @@ export async function bootOperatorServices(env = process.env) {
 export async function stopOperatorServices() {
   await closeOperatorStorage().catch((error) => logger.error('storage_close_failed', { message: error.message }))
   await sharedCache.close().catch(() => {})
+}
+
+/** Хранилище и кэш вахты: без них нельзя записать голос, экземпляр не готов принимать трафик. */
+function operatorReadiness() {
+  const store = storageStatus()
+  const cache = sharedCache.status()
+  return { ok: !store.lastError && cache.ready !== false, storage: store.kind, cache: cache.kind, listening: store.listening ?? null, lastError: store.lastError ? 'storage_unavailable' : null }
 }
 
 /** Тип маршрута определяет требования аутентификации. Неизвестный POST — всегда write. */
@@ -310,6 +317,7 @@ async function route(req, res) {
       freshness: { ok: !fresh.stale, lastEventAt: fresh.lastEventAt, ageSeconds: fresh.ageSeconds, maxAgeSeconds: fresh.maxAgeSeconds, noDataYet: fresh.noDataYet },
       adapters: { ok: true, configured: adapterReadiness().configured, required: false },
       capacity: { ok: status.events < status.maxEvents, usage: status.maxEvents ? Number((status.events / status.maxEvents).toFixed(3)) : null },
+      operator: operatorReadiness(),
     }
     const ready = Object.values(checks).every((check) => check.ok)
     return respond(ready ? 200 : 503, { ready, mode: 'read-model', dataSource: 'event-inbox', checks, writes: CAPABILITIES.blockchainWrites, reason: ready ? null : Object.entries(checks).filter(([, value]) => !value.ok).map(([key]) => key) })
@@ -716,7 +724,9 @@ async function route(req, res) {
     if (isDemoWallet(wallet) && !isSolanaAddress(wallet)) {
       if (!demoLoginAllowed()) return respond(403, { error: 'demo_login_disabled' })
       const session = issueSession(wallet.toLowerCase(), { mode: 'demo' })
-      return respond(200, { player: connectWallet(wallet), ...session })
+      const player = await operatorWrite(() => connectWallet(wallet)).catch((error) => error)
+      if (player instanceof Error) return respond(503, { error: 'storage_unavailable' })
+      return respond(200, { player, ...session })
     }
     if (!isSolanaAddress(wallet)) return respond(400, { error: 'invalid_wallet_address' })
     if (!input.signature) return respond(400, { error: 'signature_required' })
@@ -728,7 +738,9 @@ async function route(req, res) {
     }
     await refreshProgress(wallet).catch((error) => logger.warn('game_progress_refresh_failed', { message: error.message }))
     const session = issueSession(wallet, { mode: 'signature' })
-    return respond(200, { player: connectWallet(wallet), ...session })
+    const player = await operatorWrite(() => connectWallet(wallet)).catch((error) => error)
+    if (player instanceof Error) return respond(503, { error: 'storage_unavailable' })
+    return respond(200, { player, ...session })
   }
 
   // Отчёты игр о часах и рангах игроков (только чтение прогресса, в игры ничего не пишется)
@@ -743,7 +755,8 @@ async function route(req, res) {
     if (!limit.allowed) return respond(429, { error: 'too_many_reports' })
     let parsed
     try { parsed = JSON.parse(rawBody || '{}') } catch { return respond(400, { error: 'invalid_json' }) }
-    const result = acceptGameReports(game, parsed)
+    let result
+    try { result = await operatorWrite(() => acceptGameReports(game, parsed)) } catch { return respond(503, { error: 'storage_unavailable' }) }
     return respond(result.ok ? 200 : result.status, result.ok ? { writes: false, ...result } : { error: result.reason })
   }
 
@@ -762,31 +775,28 @@ async function route(req, res) {
     const input = await body()
     if (input.wallet && String(input.wallet).toLowerCase() !== session.wallet.toLowerCase()) return respond(403, { error: 'wallet_mismatch' })
     const wallet = session.wallet
-    if (pathname === '/api/operator/exam') {
-      try { return respond(200, submitExam(wallet, input.answers)) } catch (error) { return respond(429, { error: error.message }) }
-    }
-    if (pathname === '/api/operator/vote') {
-      if (!input.incidentId || !input.actionId) return respond(400, { error: 'missing_fields' })
-      try {
-        const inc = castVote(wallet, input.incidentId, input.actionId)
-        return respond(200, { ok: true, incident: inc })
-      } catch (error) {
-        return respond(400, { error: error.message })
+    // Ошибка хранилища — 503 (повторить позже), ошибка правил — код маршрута с понятным текстом
+    const write = async (fn, ruleStatus) => {
+      try { return respond(200, await operatorWrite(fn)) } catch (error) {
+        if (error.status === 503) return respond(503, { error: 'storage_unavailable' })
+        return respond(ruleStatus, { error: error.message })
       }
     }
-    if (!input.incidentId) return respond(400, { error: 'missing_fields' })
-    try {
-      const inc = approveAction(wallet, input.incidentId, input.approved !== false)
-      return respond(200, { ok: true, incident: inc })
-    } catch (error) {
-      return respond(403, { error: error.message })
+    if (pathname === '/api/operator/exam') return write(() => submitExam(wallet, input.answers), 429)
+    if (pathname === '/api/operator/vote') {
+      if (!input.incidentId || !input.actionId) return respond(400, { error: 'missing_fields' })
+      return write(() => ({ ok: true, incident: castVote(wallet, input.incidentId, input.actionId) }), 400)
     }
+    if (!input.incidentId) return respond(400, { error: 'missing_fields' })
+    return write(() => ({ ok: true, incident: approveAction(wallet, input.incidentId, input.approved !== false) }), 403)
   }
 
   // Автоматически регистрируем реальные алерты из системы как инциденты для операторов
   const liveAlertsList = liveAlerts({ windowDays, now })
-  if (liveAlertsList.alerts) {
-    liveAlertsList.alerts.forEach(alert => registerIncident(alert))
+  const newAlerts = (liveAlertsList.alerts || []).filter((alert) => alert.id && !hasIncident(alert.id))
+  if (newAlerts.length) {
+    operatorWrite(() => newAlerts.forEach((alert) => registerIncident(alert)))
+      .catch((error) => logger.warn('incident_register_failed', { message: error.message }))
   }
 
   if (!pathname.startsWith('/api/') && method !== 'POST' && config.serveStatic) {

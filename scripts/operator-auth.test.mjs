@@ -15,7 +15,9 @@ import {
 import { createMemoryCache, createSharedCache } from '../server/operations/shared-cache.js'
 import { base58Encode as clientBase58 } from '../src/cosmos/wallet.js'
 
-const GAME_SECRET = 'ares-progress-secret-0123456789abcdef'
+// Секреты генерируются при каждом запуске: в репозитории не должно быть даже тестовых значений
+const GAME_SECRET = randomBytes(24).toString('hex')
+const otherSecret = () => randomBytes(24).toString('hex')
 
 function solanaKeypair() {
   const { publicKey, privateKey } = generateKeyPairSync('ed25519')
@@ -59,7 +61,7 @@ test('подпись ed25519: принимается только для сво�
 test('сессии: подделка и истечение отклоняются, короткий секрет и отсутствие секрета в продакшене — ошибка', () => {
   assert.throws(() => configureSessions({ secret: 'short', isProduction: false }))
   assert.throws(() => configureSessions({ secret: undefined, isProduction: true }))
-  configureSessions({ secret: 'x'.repeat(40), isProduction: true })
+  configureSessions({ secret: otherSecret(), isProduction: true })
   const now = Date.now()
   const s = issueSession('Wallet111', { now })
   assert.equal(verifySession(s.token, { now }).wallet, 'Wallet111')
@@ -70,7 +72,7 @@ test('сессии: подделка и истечение отклоняютс�
   const extended = s.token.split('.')
   extended[2] = String(s.expiresAt + 1e9)
   assert.equal(verifySession(extended.join('.'), { now }), null, 'продлённый срок')
-  configureSessions({ secret: 'y'.repeat(40), isProduction: true })
+  configureSessions({ secret: otherSecret(), isProduction: true })
   assert.equal(verifySession(s.token, { now }), null, 'другой секрет')
 })
 
@@ -89,7 +91,7 @@ test('общий кэш в памяти: код входа забирается 
 })
 
 test('вход подписью: код одноразовый, действия требуют сессию своего кошелька, отчёты игр подписаны', async () => {
-  const server = await startTestServer({ env: { GAME_PROGRESS_SECRET_ARES1: GAME_SECRET, OPERATOR_SESSION_SECRET: 'z'.repeat(40) } })
+  const server = await startTestServer({ env: { GAME_PROGRESS_SECRET_ARES1: GAME_SECRET, OPERATOR_SESSION_SECRET: otherSecret() } })
   try {
     const me = solanaKeypair()
     const post = (p, body, headers = {}) => server.request(p, { method: 'POST', body, headers })
@@ -144,7 +146,7 @@ test('вход подписью: код одноразовый, действия
     // 4. Отчёт игры: подпись, окно времени, устаревшие данные
     const report = { reports: [{ wallet: me.address, hours: 42, rank: 3, updatedAt: Date.now() }] }
     const send = ({ raw, ts, sig }, game = 'ares1') => server.request('/api/games/progress', { method: 'POST', body: raw, headers: { 'x-watchtower-game': game, 'x-watchtower-timestamp': ts, 'x-watchtower-signature': sig } })
-    assert.equal((await send(signReport(report, { secret: 'w'.repeat(40) }))).status, 401, 'чужой секрет')
+    assert.equal((await send(signReport(report, { secret: otherSecret() }))).status, 401, 'чужой секрет')
     assert.equal((await send(signReport(report, { ts: Date.now() - 10 * 60 * 1000 }))).status, 401, 'старая метка времени')
     assert.equal((await send(signReport(report), 'guttercaps')).status, 403, 'игра без секрета')
     const forged = signReport(report)
@@ -207,7 +209,7 @@ test('PostgreSQL + Redis: состояние переживает перезап
   const db = new pg.Client({ connectionString: PG })
   await db.connect()
   await db.query('DROP TABLE IF EXISTS watchtower_state')
-  const env = { DATABASE_URL: PG, REDIS_URL: REDIS, OPERATOR_SESSION_SECRET: 's'.repeat(40), GAME_PROGRESS_SECRET_ARES1: GAME_SECRET }
+  const env = { DATABASE_URL: PG, REDIS_URL: REDIS, OPERATOR_SESSION_SECRET: otherSecret(), GAME_PROGRESS_SECRET_ARES1: GAME_SECRET }
   const me = solanaKeypair()
   const a = await startTestServer({ env })
   const b = await startTestServer({ env })
@@ -251,6 +253,7 @@ test('PostgreSQL + Redis: состояние переживает перезап
 test('опрос игры при входе: прогресс берётся из API игры с токеном, 404 — нет данных', async () => {
   const { createServer } = await import('node:http')
   const me = solanaKeypair()
+  const PULL_TOKEN = otherSecret()
   const seen = []
   const game = createServer((req, res) => {
     const url = new URL(req.url, 'http://x')
@@ -259,17 +262,73 @@ test('опрос игры при входе: прогресс берётся и�
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ hours: 120.5, rank: 4 }))
   })
   await new Promise((r) => game.listen(0, '127.0.0.1', r))
-  const server = await startTestServer({ env: { GAME_PROGRESS_URL_AOF: `http://127.0.0.1:${game.address().port}/progress`, GAME_PROGRESS_TOKEN_AOF: 'pull-token' } })
+  const server = await startTestServer({ env: { GAME_PROGRESS_URL_AOF: `http://127.0.0.1:${game.address().port}/progress`, GAME_PROGRESS_TOKEN_AOF: PULL_TOKEN } })
   try {
     const nonce = await server.request('/api/operator/nonce', { method: 'POST', body: { wallet: me.address } })
     const ok = await server.request('/api/operator/auth', { method: 'POST', body: { wallet: me.address, signature: me.signText(nonce.body.message) } })
     assert.equal(ok.status, 200)
-    assert.equal(seen[0].auth, 'Bearer pull-token')
+    assert.equal(seen[0].auth, `Bearer ${PULL_TOKEN}`)
     assert.equal(ok.body.player.gameProgress.aof.hours, 120.5)
     assert.equal(ok.body.player.gameProgress.aof.rank, 4)
     assert.equal(ok.body.player.progressSource, 'game')
   } finally {
     await server.stop()
     game.close()
+  }
+})
+
+test('несколько экземпляров на одной базе: одновременные голоса по одному инциденту не теряются', { skip: !PG && 'задайте TEST_DATABASE_URL' }, async () => {
+  const pg = (await import('pg')).default
+  const db = new pg.Client({ connectionString: PG })
+  await db.connect()
+  await db.query('DROP TABLE IF EXISTS watchtower_state')
+  const env = { DATABASE_URL: PG, OPERATOR_SESSION_SECRET: otherSecret() }
+  const a = await startTestServer({ env })
+  const b = await startTestServer({ env })
+  try {
+    const nodes = [a, b]
+    const wallets = Array.from({ length: 8 }, (_, i) => `demo_parallel_${i}`)
+    const post = (node, p, body, token) => node.request(p, { method: 'POST', body, headers: token ? { 'x-operator-session': token } : {} })
+    const questions = (await a.request('/api/operator/exam')).body.questions
+    const answers = Object.fromEntries(questions.map((q) => [q.id, 1]))
+
+    // Всё одновременно и вперемешку по экземплярам: вход, проверка правил, голос
+    const results = await Promise.all(wallets.map(async (wallet, i) => {
+      const node = nodes[i % 2]
+      const other = nodes[(i + 1) % 2]
+      const login = await post(node, '/api/operator/auth', { wallet })
+      assert.equal(login.status, 200, JSON.stringify(login.body))
+      const exam = await post(other, '/api/operator/exam', { answers }, login.body.token)
+      assert.equal(exam.body.passed, true, JSON.stringify(exam.body))
+      return post(node, '/api/operator/vote', { incidentId: 'demo_bot_farm_001', actionId: 'increase_priority' }, login.body.token)
+    }))
+    for (const r of results) assert.equal(r.status, 200, JSON.stringify(r.body))
+
+    const { rows } = await db.query("SELECT data->'demo_bot_farm_001'->'votes'->'increase_priority' AS v FROM watchtower_state WHERE name = 'incidents'")
+    const voters = new Set(rows[0].v.map((x) => x.wallet))
+    for (const w of wallets) assert.ok(voters.has(w), `голос ${w} потерян`)
+    const players = await db.query("SELECT data FROM watchtower_state WHERE name = 'players'")
+    for (const w of wallets) assert.equal(players.rows[0].data[w]?.passedTest, true, `сдача проверки ${w} потеряна`)
+
+    // Оба экземпляра видят все голоса (через NOTIFY, без перезапуска)
+    await new Promise((r) => setTimeout(r, 300))
+    for (const node of nodes) {
+      const state = await node.request('/api/operator/state')
+      const inc = state.body.incidents.find((x) => x.id === 'demo_bot_farm_001')
+      assert.ok(inc.votes.increase_priority.count >= wallets.length, `экземпляр ${node.port} видит ${inc.votes.increase_priority.count} голосов`)
+    }
+
+    // Чтение профиля незнакомого кошелька ничего не создаёт
+    const before = (await a.request('/api/operator/state')).body.totalOperators
+    const ghost = await b.request('/api/operator/player/never_seen_wallet_123')
+    assert.equal(ghost.status, 200)
+    assert.equal(ghost.body.role.id, 'guest')
+    await new Promise((r) => setTimeout(r, 200))
+    assert.equal((await a.request('/api/operator/state')).body.totalOperators, before)
+  } finally {
+    await a.stop()
+    await b.stop()
+    await db.query('DROP TABLE IF EXISTS watchtower_state')
+    await db.end()
   }
 })
