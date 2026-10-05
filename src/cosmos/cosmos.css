@@ -492,3 +492,13 @@ button.cz-row:hover { background: linear-gradient(90deg, rgba(67, 227, 255, 0.16
 .cz-ach.on { filter: none; opacity: 1; background: rgba(255, 181, 71, 0.07); box-shadow: inset 0 0 0 1px rgba(255, 181, 71, 0.4); }
 .cz-ach.new { animation: cz-starpop 0.6s ease backwards; }
 h3 small { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transform: none; margin-left: 6px; }
+.cz-hot span .cz-explore { font-size: 10px; font-weight: 700; letter-spacing: 0; color: #c9b8ff; padding-left: 6px; margin-left: 2px; box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.18); }
+.cz-hot.explored span .cz-explore { color: #9df2c5; }
+.cz-hot.explored:not(.critical):not(.warn) i { border-color: var(--good); box-shadow: 0 0 0 5px rgba(62, 224, 143, 0.22), 0 0 14px rgba(62, 224, 143, 0.6); }
+.cz-worlds { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 7px; margin-top: 12px; }
+.cz-world { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: rgba(90, 160, 255, 0.05); box-shadow: inset 0 0 0 1px var(--line); }
+.cz-world .cz-thumb { width: 28px; height: 28px; }
+.cz-world b { font-size: 12px; }
+.cz-world small { margin-left: auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.cz-world.full { box-shadow: inset 0 0 0 1px rgba(62, 224, 143, 0.5), inset 3px 0 0 var(--good); }
+.cz-world.full small { color: #9df2c5; }

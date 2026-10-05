@@ -15,7 +15,7 @@ import { BODIES, ROUTES, STAR, METRIC_LABELS, ACTION_TEXT, RISK_TEXT, ROLE_TEXT,
 
 const LIVE_REFRESH_MS = 15000
 // Сгенерированные иконки (public/cosmos/icons): вырезаны из чёрного фона с сохранением свечения
-const ICON_IMG = ['planets', 'events', 'anomaly', 'operators', 'time', 'energy', 'trust', 'score']
+const ICON_IMG = ['planets', 'events', 'anomaly', 'operators', 'time', 'energy', 'trust', 'score', 'codex']
 const icon = (name, cls = '') => (ICON_IMG.includes(name) ? `<img class="cz-ico ${cls}" src="${import.meta.env.BASE_URL}cosmos/icons/${name}.webp" alt="" aria-hidden="true" draggable="false" />` : '')
 const SEVERITY_TEXT = { critical: 'критично', warn: 'внимание', info: 'наблюдение' }
 const LEVEL_TEXT = {
@@ -238,7 +238,7 @@ const stars = (n, cls = '') => `<span class="cz-stars ${cls}" aria-label="Звё
 function codexBlock() {
   const n = loadCodex().size
   return `<div class="cz-codex">
-    <div class="cz-codex-head">${icon('events')}<b>Кодекс системы</b><span>${n} из ${CODEX_TOTAL}</span></div>
+    <div class="cz-codex-head">${icon('codex')}<b>Кодекс системы</b><span>${n} из ${CODEX_TOTAL}</span></div>
     <div class="cz-meter"><i style="width:${(n / CODEX_TOTAL) * 100}%"></i></div>
     <small>Спускайтесь в районы планет и осматривайте объекты: каждый открывает запись с фактами из самой игры.</small>
     <button class="cz-btn small" data-act="codex">Открыть кодекс</button>
@@ -375,7 +375,7 @@ function objectPanel(bodyId, regionId, objId) {
   const n = codex.size
   return `
     ${panelHead(o.name, `${b.name} · ${cu.title}`)}
-    <div class="cz-entry"><span class="cz-entry-tag">${icon('events')}Запись кодекса</span><p>${esc(o.text)}</p></div>
+    <div class="cz-entry"><span class="cz-entry-tag">${icon('codex')}Запись кодекса</span><p>${esc(o.text)}</p></div>
     <div class="cz-codex mini"><div class="cz-codex-head"><b>Кодекс системы</b><span>${n} из ${CODEX_TOTAL}</span></div><div class="cz-meter"><i style="width:${(n / CODEX_TOTAL) * 100}%"></i></div></div>
     <div class="cz-actions">${next ? `<button class="cz-btn primary" data-act="object" data-id="${next.id}">Дальше: ${esc(next.name)}</button>` : '<span class="cz-note">Район осмотрен полностью.</span>'}<button class="cz-btn" data-act="codex">Весь кодекс</button></div>`
 }
@@ -538,11 +538,14 @@ function renderSurface() {
     const r = regionFor(b, a)
     if (r) (byRegion[r.id] ||= []).push(a)
   }
+  const codex = loadCodex()
   const hotspots = b.regions.map((r) => {
     const list = byRegion[r.id] || []
-    const cls = list.length ? worstClass(list) : ''
+    const cu = closeupFor(b.id, r.id)
+    const got = cu ? cu.objects.filter((o) => codex.has(codexKey(b.id, r.id, o.id))).length : 0
+    const cls = `${list.length ? worstClass(list) : ''} ${cu && got === cu.objects.length ? 'explored' : ''}`
     return `<button class="cz-hot ${cls} ${S.region === r.id ? 'active' : ''}" style="left:${r.x * 100}%;top:${r.y * 100}%" data-act="region" data-id="${r.id}">
-      <i></i><span>${esc(r.name)}${list.length ? ` <em>${list.length}</em>` : ''}</span></button>`
+      <i></i><span>${esc(r.name)}${list.length ? ` <em>${list.length}</em>` : ''}${cu ? `<small class="cz-explore">${got}/${cu.objects.length}</small>` : ''}</span></button>`
   }).join('')
   const signal = st.lost ? 'lost' : (st.signal || 'none')
   setHTML(el, `
@@ -586,6 +589,19 @@ function renderCloseup(el, b, st, cu) {
     <p class="cz-surface-hint">Осмотрено ${seenN} из ${cu.objects.length}. Каждый объект открывает запись в Кодексе системы.</p>`)
 }
 
+function worldProgress(codex) {
+  return BODIES.filter((b) => b.regions?.length).map((b) => {
+    let got = 0; let all = 0
+    for (const r of b.regions) {
+      const c = closeupFor(b.id, r.id)
+      if (!c) continue
+      all += c.objects.length
+      got += c.objects.filter((o) => codex.has(codexKey(b.id, r.id, o.id))).length
+    }
+    return all ? `<div class="cz-world ${got === all ? 'full' : ''}">${thumb(b)}<b>${esc(b.short)}</b><small>${got} из ${all}</small></div>` : ''
+  }).join('')
+}
+
 function openCodex() {
   const codex = loadCodex()
   const n = codex.size
@@ -605,8 +621,9 @@ function openCodex() {
   const el = slot('modal')
   el.hidden = false
   setHTML(el, `<div class="cz-dialog wide" role="dialog" aria-modal="true" aria-label="Кодекс системы">
-    <div class="cz-dialog-hero">${icon('events', 'hero')}<div><h2>Кодекс системы</h2><p class="cz-note">Собрано ${n} из ${CODEX_TOTAL} записей. Прогресс хранится в этом браузере.</p></div><button class="cz-icon-btn" data-act="close-modal" aria-label="Закрыть">${ICON.close}</button></div>
+    <div class="cz-dialog-hero">${icon('codex', 'hero')}<div><h2>Кодекс системы</h2><p class="cz-note">Собрано ${n} из ${CODEX_TOTAL} записей. Прогресс хранится в этом браузере.</p></div><button class="cz-icon-btn" data-act="close-modal" aria-label="Закрыть">${ICON.close}</button></div>
     <div class="cz-meter xp"><i style="width:${(n / CODEX_TOTAL) * 100}%"></i></div>
+    <div class="cz-worlds">${worldProgress(codex)}</div>
     <div class="cz-codex-grid">${groups}</div>
   </div>`)
 }
@@ -855,7 +872,17 @@ root.addEventListener('click', async (e) => {
   if (act === 'object' && S.surface && S.closeup) {
     S.object = id; S.anomalyId = null; S.lastResult = null
     const res = discover(codexKey(S.surface, S.closeup, id))
-    if (res.isNew) toast(res.count === res.total ? `Кодекс собран полностью: ${res.total} из ${res.total}` : `Новая запись в кодексе · ${res.count} из ${res.total}`, 'good')
+    if (res.isNew) {
+      const codex = loadCodex()
+      const b = bodyById(S.surface)
+      const cu = closeupFor(S.surface, S.closeup)
+      const regionDone = cu.objects.every((o) => codex.has(codexKey(S.surface, S.closeup, o.id)))
+      const worldDone = b.regions.every((r) => { const c = closeupFor(b.id, r.id); return !c || c.objects.every((o) => codex.has(codexKey(b.id, r.id, o.id))) })
+      if (res.count === res.total) toast(`Кодекс собран полностью: ${res.total} из ${res.total}. Вы знаете систему лучше всех.`, 'good')
+      else if (regionDone && worldDone) toast(`${b.name} изучен полностью · кодекс ${res.count} из ${res.total}`, 'good')
+      else if (regionDone) toast(`Район «${cu.title}» осмотрен полностью · кодекс ${res.count} из ${res.total}`, 'good')
+      else toast(`Новая запись в кодексе · ${res.count} из ${res.total}`, 'good')
+    }
     return render()
   }
   if (act === 'codex') return openCodex()
