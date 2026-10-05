@@ -103,10 +103,10 @@ Español, Tiếng Việt, Bahasa Indonesia, Filipino, Русский. Язык �
 POST <PARTNER_GRANT_URL_ARES1>
 content-type: application/json
 x-watchtower-timestamp: 1791216000000
-x-watchtower-grant: g_…            (ключ идемпотентности)
+x-watchtower-grant: <UUID>         (ключ идемпотентности, равен grantId)
 x-watchtower-signature: sha256=HMAC_SHA256(secret, "<timestamp>.<сырое тело>")
 
-{ "grantId": "g_…", "game": "ares1", "wallet": "<адрес партнёра>", "reason": "partner_referral" | "partner_milestone",
+{ "grantId": "<UUID>", "game": "ares1", "wallet": "<адрес партнёра>", "reason": "partner_referral" | "partner_milestone",
   "milestone": null | 5 | 25 | 100, "partnerKind": "player" | "creator" | "traffic",
   "tokens": { "symbol": "POTATO", "amount": 50 } | null,
   "items": [ { "id": "ares1.seed_crate", "kind": "item", "amount": 1 } ], "issuedAt": 1791216000000 }
@@ -155,6 +155,9 @@ x-watchtower-signature: sha256=HMAC_SHA256(secret, "<timestamp>.<сырое те
 `ref-clicks:<код>:<день>` (40 дней) и `ref-clicks-cc:<код>:<день>:<страна>` (10 дней, для сводки за неделю).
 
 ## Что нужно от игр
+
+Готовый код для всех трёх пунктов (браузер и бэкенд игры) и стенд для проверки без игры лежат в
+[sdk/partner-kit](../sdk/partner-kit/README.md).
 
 1. Передать код из `?ref=` на сайте игры в первый подписанный отчёт игрока, а если известна страна — `country`
    (ISO 3166-1 alpha-2):
