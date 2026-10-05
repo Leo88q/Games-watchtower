@@ -11,6 +11,8 @@ export default defineConfig({
         // новый белый iOS-интерфейс — основной продукт (ios.html, он же отдаётся на "/")
         index: resolve(process.cwd(), 'index.html'),
         ios: resolve(process.cwd(), 'ios.html'),
+        // портал партнёров на 7 языках (/partners.html, сюда же ведёт /r/<код>)
+        partners: resolve(process.cwd(), 'partners.html'),
       },
     },
   },

@@ -38,6 +38,7 @@ export async function startTestServer({ env = {}, ingestToken = 'test-ingest-tok
       WATCHTOWER_ALLOW_DEMO: '1',
       WATCHTOWER_CURSOR_FILE: path.join(stateDir, 'cursors.json'),
       WATCHTOWER_SNAPSHOT_FILE: path.join(stateDir, 'snapshots.json'),
+      OPERATOR_DATA_DIR: path.join(stateDir, 'operator-game'),
       ...extra,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -93,7 +94,10 @@ export async function startTestServer({ env = {}, ingestToken = 'test-ingest-tok
       if (child.exitCode !== null) return { code: child.exitCode, signal: null }
       const exited = new Promise((resolve) => child.once('exit', (code, sig) => resolve({ code, signal: sig })))
       child.kill(signal)
-      const result = await Promise.race([exited, new Promise((resolve) => setTimeout(() => resolve({ code: null, signal: 'timeout' }), 5000))])
+      let result = await Promise.race([exited, new Promise((resolve) => setTimeout(() => resolve({ code: null, signal: 'timeout' }), 5000))])
+      // Не вышел — добиваем: живой дочерний процесс держит открытые pipe, и node --test
+      // повисает до таймаута CI вместо понятного падения
+      if (result.signal === 'timeout') { child.kill('SIGKILL'); await exited; result = { code: null, signal: 'timeout_killed' } }
       try { rmSync(stateDir, { recursive: true, force: true }) } catch { /* временный каталог */ }
       return result
     },

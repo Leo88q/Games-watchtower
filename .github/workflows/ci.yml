@@ -16,6 +16,23 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # Для проверки нескольких экземпляров вахты на общей базе (scripts/operator-auth.test.mjs)
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          # Одноразовая база только для тестов внутри раннера: без пароля, чтобы в репозитории не было учётных данных
+          POSTGRES_USER: wt
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: watchtower
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U wt" --health-interval 2s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 5s --health-retries 20
     env:
       NODE_ENV: test
       WATCHTOWER_PII_SALT: ci-salt-0123456789abcdef
@@ -86,6 +103,23 @@ jobs:
         run: npm run test:unit
       - name: Интеграционные проверки API
         run: npm run test:hardening
+      - name: Вход подписью кошелька, сессии, отчёты игр, PostgreSQL и Redis
+        run: npm run test:operator-auth
+        env:
+          TEST_DATABASE_URL: postgres://wt@127.0.0.1:5432/watchtower
+          TEST_REDIS_URL: redis://127.0.0.1:6379
+      - name: Исполнение решений вахты — вебхук исполнителю студии, повторы, отмена, несколько экземпляров
+        run: npm run test:operator-execution
+        env:
+          TEST_DATABASE_URL: postgres://wt@127.0.0.1:5432/watchtower
+      - name: Партнёрская программа — награды за квалифицированных новичков, регионы, выдача играми, портал на 7 языках
+        run: npm run test:partners
+        env:
+          TEST_REDIS_URL: redis://127.0.0.1:6379
+      - name: Набор подключения игр к партнёрской программе — подписи, приём выдач без повторов, сквозной сценарий
+        run: npm run test:partner-kit
+        env:
+          TEST_REDIS_URL: redis://127.0.0.1:6379
       - name: Приватность игровых идентификаторов
         run: npm run test:privacy
       - name: Read-only инвариант
@@ -140,6 +174,7 @@ jobs:
           CI_INGEST_TOKEN="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-ingest"
           CI_READ_TOKEN="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-read"
           CI_PII_SALT="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-pii-salt-0123456789abcdef"
+          CI_SESSION_KEY="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-operator-session-0123456789abcdef"
           AUTH_HEADER_NAME=Authorization:
           AUTH_SCHEME=Bearer
           docker run -d --name watchtower-ci -p 8787:8787 \
@@ -147,6 +182,7 @@ jobs:
             -e "WATCHTOWER_INGEST_TOKEN=$CI_INGEST_TOKEN" \
             -e "WATCHTOWER_READ_TOKEN=$CI_READ_TOKEN" \
             -e "WATCHTOWER_PII_SALT=$CI_PII_SALT" \
+            -e "OPERATOR_SESSION_SECRET=$CI_SESSION_KEY" \
             watchtower-os:ci
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/health >/dev/null && break; sleep 1; done
           curl -s http://127.0.0.1:8787/api/health | grep -q '\"writes\":false'

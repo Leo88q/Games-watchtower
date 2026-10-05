@@ -7,7 +7,7 @@ export const HANDOFF = [
   {
     id: 'ares1',
     title: 'ARES-1 — Strategy farming — tenant ares1',
-    icon: '🥔',
+    icon: '',
     color: '#37e5a0',
     program: 'CgInv111... SessKeys111... STrEaSuRy111... + ARES1_CORE_PROGRAM_ID',
     promptPath: 'prompts/games-v3/PROMPT_ARES1_V3.md',
@@ -64,8 +64,8 @@ export const HANDOFF = [
   },
   {
     id: 'aof',
-    title: 'AOF — Age of Farming — tenant aof',
-    icon: '🌾',
+    title: 'NeuroForge (бывш. AOF) — tenant aof',
+    icon: '',
     color: '#a78bfa',
     program: 'AOF_CORE_PROGRAM_ID + CgInv SessKeys STrEaSuRy',
     promptPath: 'prompts/games-v3/PROMPT_AOF_V3.md',
@@ -89,7 +89,7 @@ export const HANDOFF = [
   {
     id: 'neonrelay',
     title: 'Neon Relay — Race Neon DM high frequency — tenant neonrelay',
-    icon: '🏁',
+    icon: '',
     color: '#ffb85c',
     program: 'NEONRELAY_REWARDS_PROGRAM_ID + CgInv SessKeys STrEaSuRy — high frequency Sonic HyperGrid + MagicBlock ER sub-10ms',
     promptPath: 'prompts/games-v3/PROMPT_NEON_RELAY_V3.md',
@@ -113,7 +113,7 @@ export const HANDOFF = [
   {
     id: 'guttercaps',
     title: 'Gutter Caps — Pop-n-shoot casual ECS 8-12 memory leaked gasless — tenant guttercaps',
-    icon: '🧢',
+    icon: '',
     color: '#ff6b8a',
     program: 'GUTTERCAPS_CORE_PROGRAM_ID + CgInv SessKeys STrEaSuRy — gasless MagicBlock ER sub-10ms',
     promptPath: 'prompts/games-v3/PROMPT_GUTTERCAPS_V3.md',
@@ -136,8 +136,8 @@ export const HANDOFF = [
   },
   {
     id: 'web',
-    title: 'Web — Frontend — 19 control panels 🎛️',
-    icon: '🌐',
+    title: 'Web — Frontend — 19 control panels',
+    icon: '',
     color: '#37e5a0',
     program: 'Web @solana/web3.js @solana/kit + Gamba + Husks + RitArena best free + relayzero + StealthSDK + RACE + idosgames + Xandeum + PST + Core Attributes + Access + Arcium',
     promptPath: 'prompts/games-v3/PROMPT_WEB_V3.md',
@@ -147,14 +147,14 @@ export const HANDOFF = [
     sdk: ['sdk/ 13 READMEs best free'],
     whatToDeliver: [
       'Web project @solana/web3.js @solana/kit @solana/wallet-adapter @privy-io/react-auth @phantom/connect-kit + Gamba @gamba-labs/gamba-react UI provably fair + Husks @bytez3/husks-sdk AI autobattler + RitArena ritarena-sdk AI arena lifecycle retry events best free arena + relayzero relayzero-sdk agent economy + StealthSDK stealthsdk framework token STEALTH + RACE @race-foundation/sdk-solana multichain + @idosgames/wallet bridge EVM Solana RewardPool + Xandeum @xandeum/sdk scalable storage + PST @private-state-toolkit/sdk private verifiable + Core Attributes @metaplex-foundation/mpl-core on-chain key-value + Access Protocol @access-protocol/sdk stake-to-access + Security Auditing Skill + Sentio @sentio/cli + SolGuard solguard + SLAM solana-slam + Arcium @arcium/sdk confidential rollups best free Web ideal stack',
-      '19 control panels 🎛️ Identity Session Keys Assets Storage Security Indexer L2 Analytics Marketplace Engines Infra Monetization AI Testing Privacy CrossChain GameSignals Payments Utils + 4 tenants ares1 aof neonrelay guttercaps + cross-game PDA studio_profile + Core Attributes Xandeum + Game Signals ML churn >85% + Security Auditing Skill Sentio SolGuard best free security + Solana SLAM best free testing + Build vite 151.65 kB gzip 37.48 kB + Runtime smoke devnet',
+      '19 control panels Identity Session Keys Assets Storage Security Indexer L2 Analytics Marketplace Engines Infra Monetization AI Testing Privacy CrossChain GameSignals Payments Utils + 4 tenants ares1 aof neonrelay guttercaps + cross-game PDA studio_profile + Core Attributes Xandeum + Game Signals ML churn >85% + Security Auditing Skill Sentio SolGuard best free security + Solana SLAM best free testing + Build vite 151.65 kB gzip 37.48 kB + Runtime smoke devnet',
     ],
     apiChecks: ['/api/os/config v3 33 components ideal free stack duplicates deprecated', '/api/os/health 19 layers', '/api/sdk/* best free per category', '/api/security/* /api/storage/* /api/monetization/* /api/testing/* /api/privacy/* /api/ai/* /api/health mode watchtower-os-v3 osVersion 3.0.0 totalComponents 33'],
   },
   {
     id: 'backend',
     title: 'Backend — Indexer LaserStream + Rust API Actix + 35+ routes',
-    icon: '⚙️',
+    icon: '',
     color: '#a78bfa',
     program: 'Backend Node.js Fastify vs Rust Actix Actix high-performance reference + LaserStream gRPC + Shyft + PG TimescaleDB Redis + 35+ routes',
     promptPath: 'prompts/games-v3/PROMPT_BACKEND_V3.md',
@@ -180,7 +180,7 @@ export const HANDOFF = [
   {
     id: 'analytics',
     title: 'Analytics ML — Helika + GameSight + Game Signals 60M+ churn 14d >85%',
-    icon: '📊',
+    icon: '',
     color: '#37e5a0',
     program: 'Analytics Helika cross-game dashboard + GameSight solana_wallet external_id Late ID Binding ad->on-chain attribution + Game Signals ML 60M+ tx 12 games churn 14d >85% sklearn RandomForest common wallets funnel LTV',
     promptPath: 'prompts/games-v3/PROMPT_ANALYTICS_ML_V3.md',
@@ -196,7 +196,7 @@ export const HANDOFF = [
   {
     id: 'aiAgents',
     title: 'AI Agents — Husks INT8 + RitArena lifecycle retry events best free + relayzero + StealthSDK',
-    icon: '🤖',
+    icon: '',
     color: '#a78bfa',
     program: 'AI Agents Husks INT8 autobattler procedural pixel train auto PvP + RitArena arena lifecycle retry events best free arena chosen over Aureus duplicate + relayzero agent economy + StealthSDK framework token STEALTH ideal free not garbage',
     promptPath: 'prompts/games-v3/PROMPT_AI_AGENTS_V3.md',
@@ -212,7 +212,7 @@ export const HANDOFF = [
   {
     id: 'crosschain',
     title: 'Cross-Chain — RACE multichain + idosgames bridge RewardPool',
-    icon: '🌉',
+    icon: '',
     color: '#ffb85c',
     program: 'Cross-Chain RACE multichain SDK sdk-solana CLI race-cli bundles publish Solana EVM fairness verifiable cNFT Solana Tensor NFT EVM OpenSea + @idosgames/wallet bridge EVM Solana RewardPool deposits withdrawals SPL best free bridge ideal free cross-chain bridge full coverage',
     promptPath: 'prompts/games-v3/PROMPT_CROSSCHAIN_V3.md',
@@ -234,37 +234,37 @@ export function renderHandoff(container, osData = {}) {
     <section class="panel" style="margin-top:24px;">
       <div class="panel-head">
         <div>
-          <h2>📦 Handoff per game — что отдавать в работу каждой игре — где промты</h2>
+          <h2>Handoff per game — что отдавать в работу каждой игре — где промты</h2>
           <p>9 промтов v3 ideal free stack 33 компонента 19 layers duplicates deprecated — что отдавать в работу каждой игре — где промты — быстрый доступ</p>
         </div>
-        <span class="status-pill healthy"><i></i>OS v${esc(config.version || '3.0.0')} — ${esc(totalComponents)} components — 9 prompts games-v3 — 19 control panels 🎛️ — handoff per game</span>
+        <span class="status-pill healthy"><i></i>OS v${esc(config.version || '3.0.0')} — ${esc(totalComponents)} components — 9 prompts games-v3 — 19 control panels — handoff per game</span>
       </div>
 
       <div style="margin-bottom:16px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px;">
         <div class="os-card" style="padding:12px;">
-          <h3>📁 Где промты v3</h3>
+          <h3>Где промты v3</h3>
           <b>prompts/games-v3/</b>
           <small>9 файлов ideal free stack 33 компонента deduplicated — PROMPT_ARES1_V3, PROMPT_AOF_V3, PROMPT_NEON_RELAY_V3, PROMPT_GUTTERCAPS_V3, PROMPT_WEB_V3, PROMPT_BACKEND_V3, PROMPT_ANALYTICS_ML_V3, PROMPT_AI_AGENTS_V3, PROMPT_CROSSCHAIN_V3 + INDEX_V3.md</small>
         </div>
         <div class="os-card" style="padding:12px;">
-          <h3>📚 Доки OS v3</h3>
+          <h3>Доки OS v3</h3>
           <b>docs/os/v3/</b>
           <small>STUDIO_OS_V3.md архитектура 20 steps ideal free stack per category API routes 35+ duplicates deprecated best free per category + CONTROL_PANELS_V3.md 19 панелей что умеет SDK и что внедряем + HANDOFF_PER_GAME_V3.md что отдавать в работу каждой игре где промты</small>
         </div>
         <div class="os-card" style="padding:12px;">
-          <h3>🎛️ Панели управления</h3>
+          <h3>Панели управления</h3>
           <b>src/os/control-panels-v3.js</b>
           <small>19 panels CONTROL_PANELS array each with id title icon color sdk {name capabilities api npm} games {ares1 aof neonrelay guttercaps} control {actions metrics} + renderControlPanels + renderOSPanel — что умеет SDK и что внедряем в игры</small>
         </div>
         <div class="os-card" style="padding:12px;">
-          <h3>⚙️ Backend + SDK</h3>
+          <h3>Backend + SDK</h3>
           <b>server/modules/ + sdk/</b>
           <small>server/modules/os.js v3.0.0 33 components + security Skill+Sentio+SolGuard + storage Xandeum+PST+CoreAttributes + monetization Access+idosgames + testing SLAM + privacy Arcium + ai Husks+RitArena+relayzero+StealthSDK + infra ARC+Bolt+DePIN+Arcium+Xandeum+PST+CoreAttributes 7 frameworks + server/index.js mode watchtower-os-v3 35+ routes + sdk/ 13 READMEs best free per category</small>
         </div>
       </div>
 
       <div class="control-tabs" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
-        ${HANDOFF.map(h=>`<button class="os-badge ok" data-handoff="${h.id}" style="cursor:pointer; padding:8px 12px; font-size:13px;">${h.icon} ${h.title.split(' — ')[0]}</button>`).join('')}
+        ${HANDOFF.map(h=>`<button class="os-badge ok" data-handoff="${h.id}" style="cursor:pointer; padding:8px 12px; font-size:13px;">${h.title.split(' — ')[0]}</button>`).join('')}
       </div>
 
       <div id="handoff-container">
@@ -276,23 +276,23 @@ export function renderHandoff(container, osData = {}) {
             </div>
             <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
               <div>
-                <h4>📁 Промт где — prompt path</h4>
+                <h4>Промт где — prompt path</h4>
                 <div class="os-mono" style="font-size:12px;">${h.promptPath}</div>
-                <h4 style="margin-top:12px;">📚 Доки — docs</h4>
+                <h4 style="margin-top:12px;">Доки — docs</h4>
                 <div class="os-row" style="flex-wrap:wrap;">${h.docs.map(d=>`<span class="os-badge ok" style="font-size:11px;">${d}</span>`).join('')}</div>
-                <h4 style="margin-top:12px;">🎛️ Frontend — что отдавать</h4>
+                <h4 style="margin-top:12px;">Frontend — что отдавать</h4>
                 <div class="os-row" style="flex-wrap:wrap;">${h.frontend.map(f=>`<span class="os-badge ok" style="font-size:11px;">${f.slice(0,80)}</span>`).join('')}</div>
-                <h4 style="margin-top:12px;">⚙️ Backend — что отдавать</h4>
+                <h4 style="margin-top:12px;">Backend — что отдавать</h4>
                 <div class="os-row" style="flex-wrap:wrap;">${h.backend.map(b=>`<span class="os-badge ok" style="font-size:11px;">${b.slice(0,80)}</span>`).join('')}</div>
-                <h4 style="margin-top:12px;">📦 SDK — что отдавать</h4>
+                <h4 style="margin-top:12px;">SDK — что отдавать</h4>
                 <div class="os-row" style="flex-wrap:wrap;">${h.sdk.map(s=>`<span class="os-badge ok" style="font-size:11px;">${s.slice(0,80)}</span>`).join('')}</div>
               </div>
               <div>
-                <h4>📦 Что отдавать в работу — what to deliver — handoff</h4>
+                <h4>Что отдавать в работу — what to deliver — handoff</h4>
                 <ul style="margin:8px 0; padding-left:16px;">
                   ${h.whatToDeliver.map(w=>`<li style="margin-bottom:6px; font-size:12px; line-height:1.4;"><small>${w.slice(0,300)}</small></li>`).join('')}
                 </ul>
-                <h4 style="margin-top:12px;">📡 API проверки — api checks — отдавать команде</h4>
+                <h4 style="margin-top:12px;">API проверки — api checks — отдавать команде</h4>
                 <div class="os-row" style="flex-wrap:wrap;">${h.apiChecks.map(a=>`<span class="os-badge ok" style="font-size:11px;">${a.slice(0,80)}</span>`).join('')}</div>
               </div>
             </div>
@@ -301,14 +301,14 @@ export function renderHandoff(container, osData = {}) {
       </div>
 
       <div style="margin-top:24px; padding:16px; background:#1a1a2e; border-radius:12px;">
-        <h3>📁 Структура — где промты — быстрый доступ — отдавать всем командам</h3>
+        <h3>Структура — где промты — быстрый доступ — отдавать всем командам</h3>
         <div class="os-mono" style="font-size:12px; line-height:1.6;">
 prompts/games-v3/
 ├── PROMPT_ARES1_V3.md — ARES-1 strategy farming — tenant ares1 — CgInv111... SessKeys111... STrEaSuRy111... + ARES1_CORE_PROGRAM_ID — ideal free stack 33 components 19 layers — отдавать ARES-1 команде
 ├── PROMPT_AOF_V3.md — AOF farming crafting trading marketplace — tenant aof — AOF_CORE_PROGRAM_ID — отдавать AOF команде
 ├── PROMPT_NEON_RELAY_V3.md — Neon Relay race Neon DM server-authoritative high frequency Sonic HyperGrid + MagicBlock ER sub-10ms — tenant neonrelay — NEONRELAY_REWARDS_PROGRAM_ID — отдавать Neon Relay команде
 ├── PROMPT_GUTTERCAPS_V3.md — Gutter Caps pop-n-shoot casual ECS 8-12 memory leaked gasless MagicBlock ER — tenant guttercaps — GUTTERCAPS_CORE_PROGRAM_ID — отдавать Gutter Caps команде
-├── PROMPT_WEB_V3.md — Web frontend @solana/web3.js Gamba Husks RitArena relayzero StealthSDK RACE idosgames Xandeum PST CoreAttributes Access Arcium Security Auditing Skill Sentio SolGuard SLAM — 19 control panels 🎛️ — отдавать Web команде
+├── PROMPT_WEB_V3.md — Web frontend @solana/web3.js Gamba Husks RitArena relayzero StealthSDK RACE idosgames Xandeum PST CoreAttributes Access Arcium Security Auditing Skill Sentio SolGuard SLAM — 19 control panels — отдавать Web команде
 ├── PROMPT_BACKEND_V3.md — Backend LaserStream gRPC 24h replay Shyft gPA 15ms PG TimescaleDB Redis idempotency gap backfill + ARC Bolt DePIN Gamba Husks RitArena RACE Arcium Xandeum PST CoreAttributes + Rust API Actix Swagger + 35+ routes — отдавать Backend команде
 ├── PROMPT_ANALYTICS_ML_V3.md — Analytics Helika + GameSight solana_wallet external_id Late ID Binding + Game Signals ML 60M+ tx 12 games churn 14d >85% sklearn RandomForest common wallets funnel LTV SEO/GEO Blinks — отдавать Analytics ML команде
 ├── PROMPT_AI_AGENTS_V3.md — AI Agents Husks INT8 autobattler + RitArena lifecycle retry events best free + relayzero + StealthSDK + Xandeum PST CoreAttributes Arcium Access idosgames Gamba Bolt ARC Security SLAM ideal free not garbage — отдавать AI Agents команде

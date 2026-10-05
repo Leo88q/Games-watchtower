@@ -5,7 +5,7 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
-COPY vite.config.js index.html ios.html ./
+COPY vite.config.js index.html ios.html partners.html ./
 COPY src ./src
 COPY public ./public
 RUN npm run build

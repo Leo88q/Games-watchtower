@@ -14,6 +14,10 @@
     "test:traffic": "node --test scripts/traffic-channels.test.mjs",
     "test:economy": "node --test scripts/economy-metrics.test.mjs",
     "test:hardening": "node --test --test-concurrency=1 scripts/api-hardening.test.mjs",
+    "test:operator-auth": "node --test scripts/operator-auth.test.mjs",
+    "test:operator-execution": "node --test scripts/operator-execution.test.mjs",
+    "test:partners": "node --test scripts/partners.test.mjs",
+    "test:partner-kit": "node --test scripts/partner-kit.test.mjs",
     "test:privacy": "node --test scripts/pii-privacy.test.mjs",
     "test:readonly": "node scripts/check-read-only.mjs",
     "test:source-safety": "node scripts/check-source-safety.mjs",
@@ -23,7 +27,7 @@
     "site:preview": "node scripts/site-server.mjs",
     "test:smoke": "node scripts/smoke-test.mjs",
     "test:mutation": "node scripts/mutation-test.mjs",
-    "test": "npm run test:unit && npm run test:hardening && npm run test:privacy && npm run test:readonly && npm run test:source-safety && npm run test:agent-safety && npm run test:threat-coverage && npm run test:docs && npm run test:ui && npm run test:site",
+    "test": "npm run test:unit && npm run test:hardening && npm run test:operator-auth && npm run test:operator-execution && npm run test:partners && npm run test:partner-kit && npm run test:privacy && npm run test:readonly && npm run test:source-safety && npm run test:agent-safety && npm run test:threat-coverage && npm run test:docs && npm run test:ui && npm run test:site",
     "verify": "npm run test && npm run test:mutation && npm run build && npm run build:public-site",
     "release:check": "node scripts/prod-release.mjs",
     "release:plan": "node scripts/prod-release.mjs --dry-run",
@@ -41,5 +45,12 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "@fontsource/exo-2": "^5.3.0"
+  },
+  "optionalDependencies": {
+    "pg": "^8.23.1",
+    "redis": "^4.7.1"
   }
 }

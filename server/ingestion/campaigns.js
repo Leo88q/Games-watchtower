@@ -4,7 +4,7 @@ import { crossGameSegments } from './player-projections.js'
 const proposals = new Map()
 const catalog = {
   ares1: { name: 'ARES-1', offer: 'Стартовый набор ресурсов' },
-  aof: { name: 'Age of Farming', offer: 'Пробный набор для фермы' },
+  aof: { name: 'NeuroForge', offer: 'Пробный набор для лаборатории' },
   neonrelay: { name: 'Neon Relay', offer: 'Бонус за первую гонку' },
   guttercaps: { name: 'GUTTERCAPS', offer: 'Билет на первый матч' },
 }

@@ -8,8 +8,8 @@ import { esc, escJson } from './escape.js'
 export const CONTROL_PANELS = [
   {
     id: 'identity',
-    title: '👛 Identity Layer — best free',
-    icon: '👛',
+    title: 'Identity Layer — best free',
+    icon: '',
     color: '#37e5a0',
     sdk: {
       name: 'Privy + Phantom Connect Kit + FirstStep + Altude',
@@ -37,8 +37,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'sessionKeys',
-    title: '🔑 Session Keys — JWT для Web3, риск 0.01 SOL',
-    icon: '🔑',
+    title: 'Session Keys — JWT для Web3, риск 0.01 SOL',
+    icon: '',
     color: '#a78bfa',
     sdk: {
       name: 'Session Keys — временные ключи',
@@ -67,8 +67,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'assets',
-    title: '🗜️ Assets — cNFT $110/M + Core Attributes + Xandeum — best free ideal stack',
-    icon: '🗜️',
+    title: 'Assets — cNFT $110/M + Core Attributes + Xandeum — best free ideal stack',
+    icon: '',
     color: '#ffb85c',
     sdk: {
       name: 'cNFT + Standard + Core Attributes + Xandeum + Gamba + Husks + RitArena + RACE',
@@ -97,8 +97,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'storage',
-    title: '💾 Storage — Xandeum exabyte + PST private + Core Attributes — best free ideal stack',
-    icon: '💾',
+    title: 'Storage — Xandeum exabyte + PST private + Core Attributes — best free ideal stack',
+    icon: '',
     color: '#37e5a0',
     sdk: {
       name: 'Xandeum + Private State Toolkit + Core Attributes Plugin',
@@ -125,8 +125,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'security',
-    title: '🔒 Security — Auditing Skill + Sentio CLI + SolGuard 130+ — best free ideal stack',
-    icon: '🔒',
+    title: 'Security — Auditing Skill + Sentio CLI + SolGuard 130+ — best free ideal stack',
+    icon: '',
     color: '#ff6b8a',
     sdk: {
       name: 'Solana Security Auditing Skill + Sentio CLI + SolGuard 130+ patterns',
@@ -152,8 +152,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'indexer',
-    title: '📡 Indexer — LaserStream gRPC 24h replay + Shyft gPA 15ms + PG — best free',
-    icon: '📡',
+    title: 'Indexer — LaserStream gRPC 24h replay + Shyft gPA 15ms + PG — best free',
+    icon: '',
     color: '#a78bfa',
     sdk: {
       name: 'Helius LaserStream gRPC + WS + DAS + Shyft REST callbacks + Custom PG TimescaleDB Redis',
@@ -182,8 +182,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'l2',
-    title: '⚡ L2 — Sonic HyperGrid + MagicBlock ER sub-10ms + REPLA + Arcium confidential — best free ideal stack',
-    icon: '⚡',
+    title: 'L2 — Sonic HyperGrid + MagicBlock ER sub-10ms + REPLA + Arcium confidential — best free ideal stack',
+    icon: '',
     color: '#ffb85c',
     sdk: {
       name: 'Sonic SVM HyperGrid Sorada Rush + REPLA repla-cli + MagicBlock ER sub-10ms gasless Magic Actions + Arcium Rollups confidential + PST private + Xandeum exabyte',
@@ -214,8 +214,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'analytics',
-    title: '📊 Analytics — Helika + GameSight + Game Signals ML 60M+ — best free',
-    icon: '📊',
+    title: 'Analytics — Helika + GameSight + Game Signals ML 60M+ — best free',
+    icon: '',
     color: '#37e5a0',
     sdk: {
       name: 'Helika cross-game dashboard + GameSight ad->on-chain attribution + Game Signals 60M+ tx 12 games ML churn 14d >85%',
@@ -242,8 +242,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'marketplace',
-    title: '🛒 Marketplace — ME 120 QPM + Shyft escrow-less + GameShift USD 170+ + Tensor + Access + idosgames — best free ideal stack',
-    icon: '🛒',
+    title: 'Marketplace — ME 120 QPM + Shyft escrow-less + GameShift USD 170+ + Tensor + Access + idosgames — best free ideal stack',
+    icon: '',
     color: '#ffb85c',
     sdk: {
       name: 'Magic Eden REST 120 QPM + Shyft Marketplace escrow-less + GameShift USD 170+ + Tensor Bubblegum v2 + Gamba + Husks + RitArena + RACE + Access Protocol + idosgames wallet',
@@ -276,8 +276,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'engines',
-    title: '🎮 Engines — Unity Godot Unreal Turbo Web + 13 SDKs best free ideal stack deduplicated',
-    icon: '🎮',
+    title: 'Engines — Unity Godot Unreal Turbo Web + 13 SDKs best free ideal stack deduplicated',
+    icon: '',
     color: '#a78bfa',
     sdk: {
       name: 'Unity Solana.Unity-SDK + Godot godot-solana-sdk GDExtension + Unreal VAR META Bifrost + Turbo.Computer Rust + Web @solana/web3.js/@solana/kit + Godot detailed SolanaClient WalletAdapter AnchorProgram + Gamba monorepo betting + Preset official + RitArena best free arena + relayzero agent economy + StealthSDK framework token STEALTH + Xandeum + PST + Core Attributes + Access + idosgames + Security Auditing Skill + Sentio + SolGuard + SLAM + Arcium',
@@ -320,8 +320,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'infra',
-    title: '🏗️ Infra — ARC + Bolt + DePIN + Arcium + Xandeum + PST + Core Attributes — best free ideal stack',
-    icon: '🏗️',
+    title: 'Infra — ARC + Bolt + DePIN + Arcium + Xandeum + PST + Core Attributes — best free ideal stack',
+    icon: '',
     color: '#37e5a0',
     sdk: {
       name: 'ARC Framework + Bolt FOCG + DePIN Beamable + Arcium Rollups confidential + Xandeum scalable exabyte + PST private verifiable + Core Attributes on-chain key-value',
@@ -351,8 +351,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'monetization',
-    title: '💰 Monetization — Access Protocol stake-to-access + idosgames bridge — best free ideal stack',
-    icon: '💰',
+    title: 'Monetization — Access Protocol stake-to-access + idosgames bridge — best free ideal stack',
+    icon: '',
     color: '#ffb85c',
     sdk: {
       name: 'Access Protocol stake-to-access + @idosgames/wallet bridge EVM Solana RewardPool + GameShift USD 170+ + Gamba betting',
@@ -379,8 +379,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'aiAgents',
-    title: '🤖 AI Agents — Husks INT8 + RitArena lifecycle retry events best free + relayzero + StealthSDK — best free ideal stack not garbage',
-    icon: '🤖',
+    title: 'AI Agents — Husks INT8 + RitArena lifecycle retry events best free + relayzero + StealthSDK — best free ideal stack not garbage',
+    icon: '',
     color: '#a78bfa',
     sdk: {
       name: 'Husks SDK autobattler INT8 + RitArena SDK arena lifecycle retry events best free chosen over Aureus + relayzero agent economy + StealthSDK framework token STEALTH',
@@ -410,8 +410,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'testing',
-    title: '🧪 Testing — Solana SLAM LiteSVM Anchor Mocha best free + Preset official — ideal free testing duplicate deprecated',
-    icon: '🧪',
+    title: 'Testing — Solana SLAM LiteSVM Anchor Mocha best free + Preset official — ideal free testing duplicate deprecated',
+    icon: '',
     color: '#37e5a0',
     sdk: {
       name: 'Solana SLAM LiteSVM Anchor Mocha best free testing + solana-game-preset official best free scaffold',
@@ -438,8 +438,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'privacy',
-    title: '🕵️ Privacy — Arcium confidential + PST private verifiable — best free ideal stack',
-    icon: '🕵️',
+    title: 'Privacy — Arcium confidential + PST private verifiable — best free ideal stack',
+    icon: '',
     color: '#a78bfa',
     sdk: {
       name: 'Arcium Rollups confidential computing rollups + Private State Toolkit PST private verifiable commitments',
@@ -467,8 +467,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'crossChain',
-    title: '🌉 Cross-Chain — RACE multichain + idosgames bridge RewardPool — best free ideal stack',
-    icon: '🌉',
+    title: 'Cross-Chain — RACE multichain + idosgames bridge RewardPool — best free ideal stack',
+    icon: '',
     color: '#ffb85c',
     sdk: {
       name: 'RACE Protocol multichain SDK sdk-solana CLI race-cli + @idosgames/wallet bridge EVM Solana RewardPool',
@@ -494,8 +494,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'gameSignals',
-    title: '📈 Game Signals ML — 60M+ tx 12 games churn 14d >85% — best free',
-    icon: '📈',
+    title: 'Game Signals ML — 60M+ tx 12 games churn 14d >85% — best free',
+    icon: '',
     color: '#37e5a0',
     sdk: {
       name: 'Solana Game Signals 60M+ tx 12 games ML churn 14d >85% common wallets funnel LTV',
@@ -526,8 +526,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'payments',
-    title: '💳 Payments — Rust API Actix + Access Protocol + idosgames — best free ideal stack',
-    icon: '💳',
+    title: 'Payments — Rust API Actix + Access Protocol + idosgames — best free ideal stack',
+    icon: '',
     color: '#ffb85c',
     sdk: {
       name: 'Solana Game API Rust Actix + Access Protocol stake-to-access + @idosgames/wallet bridge RewardPool + GameShift USD 170+ + Gamba',
@@ -555,8 +555,8 @@ export const CONTROL_PANELS = [
   },
   {
     id: 'utils',
-    title: '🛠️ Utils — Claude Skill + Security Auditing Skill — best free ideal stack',
-    icon: '🛠️',
+    title: 'Utils — Claude Skill + Security Auditing Skill — best free ideal stack',
+    icon: '',
     color: '#ffb85c',
     sdk: {
       name: 'Solana Game Skill for Claude Code + Solana Security Auditing Skill',
@@ -595,7 +595,7 @@ export function renderControlPanels(container, osData = {}) {
     <section class="panel" style="margin-top:24px;">
       <div class="panel-head">
         <div>
-          <h2>🎛️ Панель управления Watchtower OS v3 — 33 компонента ideal free stack</h2>
+          <h2>Панель управления Watchtower OS v3 — 33 компонента ideal free stack</h2>
           <p>Что умеет наше SDK и что внедряем в игры (ares1, aof, neonrelay, guttercaps) — идеальный бесплатный стек без мусорки, дедуплицированный, лучший бесплатный для каждого действия</p>
         </div>
         <span class="status-pill healthy"><i></i>OS v${esc(config.version || '3.0.0')} — ${esc(totalComponents)} components — 19 layers — ideal free stack — duplicates deprecated: create-solana-game vs preset, Aureus vs RitArena, SolGuard vs SolShield</span>
@@ -603,29 +603,29 @@ export function renderControlPanels(container, osData = {}) {
 
       <div style="margin-bottom:16px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px;">
         <div class="os-card" style="padding:12px;">
-          <h3>📊 Всего компонентов</h3>
+          <h3>Всего компонентов</h3>
           <b style="font-size:24px;">${esc(totalComponents)}</b>
           <small>v1 8 layers + v2 12 products + v3 13 best free ideal stack deduplicated</small>
         </div>
         <div class="os-card" style="padding:12px;">
-          <h3>🎮 Игры</h3>
+          <h3>Игры</h3>
           <b>4 tenants</b>
           <small>ares1 strategy, aof farming crafting trading, neonrelay race Neon DM server-authoritative, guttercaps pop-n-shoot casual ECS 8-12 memory leaked</small>
         </div>
         <div class="os-card" style="padding:12px;">
-          <h3>🔍 Дубликаты депрекейтнуты</h3>
+          <h3>Дубликаты депрекейтнуты</h3>
           <b>3 дубликата</b>
           <small>create-solana-game duplicate of preset official → preset best free, Aureus duplicate of RitArena → RitArena best free lifecycle retry events, SolShield duplicate of SolGuard → SolGuard best free 130+ more established</small>
         </div>
         <div class="os-card" style="padding:12px;">
-          <h3>💰 Free Preferred</h3>
+          <h3>Free Preferred</h3>
           <b>Идеальный бесплатный стек</b>
           <small>Лучший бесплатный для каждого действия, не мусорка, full ideal stack per action not garbage collection, free preferred</small>
         </div>
       </div>
 
       <div class="control-tabs" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
-        ${CONTROL_PANELS.map(p=>`<button class="os-badge ok" data-panel="${p.id}" style="cursor:pointer; padding:8px 12px; font-size:13px;">${p.icon} ${p.title.split(' — ')[0]}</button>`).join('')}
+        ${CONTROL_PANELS.map(p=>`<button class="os-badge ok" data-panel="${p.id}" style="cursor:pointer; padding:8px 12px; font-size:13px;">${p.title.split(' — ')[0]}</button>`).join('')}
       </div>
 
       <div id="control-panels-container">
@@ -638,24 +638,24 @@ export function renderControlPanels(container, osData = {}) {
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:12px;">
               <div>
-                <h4>🛠️ Что умеет наше SDK — capabilities</h4>
+                <h4>Что умеет наше SDK — capabilities</h4>
                 <ul style="margin:8px 0; padding-left:16px;">
                   ${panel.sdk.capabilities.map(c=>`<li style="margin-bottom:6px; font-size:13px; line-height:1.4;"><small>${c}</small></li>`).join('')}
                 </ul>
                 <div style="margin-top:12px;">
-                  <h4>📡 API Routes</h4>
+                  <h4>API Routes</h4>
                   <div class="os-row" style="flex-wrap:wrap;">
                     ${panel.sdk.api.map(a=>`<span class="os-badge ok" style="font-size:11px;">${a}</span>`).join('')}
                   </div>
                 </div>
                 <div style="margin-top:12px;">
-                  <h4>📦 NPM / Cargo Install — best free</h4>
+                  <h4>NPM / Cargo Install — best free</h4>
                   <div class="os-mono" style="font-size:11px;">${panel.sdk.npm.join('\n')}</div>
                 </div>
               </div>
 
               <div>
-                <h4>🎮 Что внедряем в игры — implementations</h4>
+                <h4>Что внедряем в игры — implementations</h4>
                 ${Object.entries(panel.games).map(([gameId, desc])=>`
                   <div style="margin-bottom:12px; padding:8px; background:rgba(255,255,255,0.03); border-radius:6px;">
                     <strong style="color:${panel.color}; font-size:13px;">${gameId.toUpperCase()}</strong>
@@ -664,14 +664,14 @@ export function renderControlPanels(container, osData = {}) {
                 `).join('')}
 
                 <div style="margin-top:16px;">
-                  <h4>🎛️ Панель управления — control actions</h4>
+                  <h4>Панель управления — control actions</h4>
                   <div style="display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;">
                     ${panel.control.actions.map(a=>`<button class="os-badge ok" style="cursor:pointer; font-size:11px; padding:6px 10px;">${a.slice(0,40)}</button>`).join('')}
                   </div>
                 </div>
 
                 <div style="margin-top:12px;">
-                  <h4>📊 Метрики — metrics best free</h4>
+                  <h4>Метрики — metrics best free</h4>
                   <div class="os-row" style="flex-wrap:wrap;">
                     ${panel.control.metrics.map(m=>`<span class="os-badge ok" style="font-size:11px;">${m.slice(0,80)}</span>`).join('')}
                   </div>
@@ -680,7 +680,7 @@ export function renderControlPanels(container, osData = {}) {
             </div>
 
             <div style="margin-top:16px; padding:12px; background:rgba(0,0,0,0.2); border-radius:8px;">
-              <h4>🔗 Интеграция с идеальным стеком v3 — integration</h4>
+              <h4>Интеграция с идеальным стеком v3 — integration</h4>
               <small style="line-height:1.5;">
                 Интеграция с другими слоями:
                 ${panel.id === 'identity' ? 'Privy Phantom FirstStep Altude → Session Keys 0.01 SOL → studio_profile PDA cross-game → ARC Entity-Component → Bolt FOCG verifiable → MagicBlock ER sub-10ms gasless → RACE multichain + idosgames bridge EVM Solana RewardPool → Xandeum exabyte scalable + PST private verifiable + Core Attributes on-chain key-value + Arcium confidential + Security Auditing Skill Sentio SolGuard best free security + Solana SLAM best free testing' : ''}
@@ -696,10 +696,10 @@ export function renderControlPanels(container, osData = {}) {
       </div>
 
       <div style="margin-top:24px; padding:16px; background:#1a1a2e; border-radius:12px;">
-        <h3>🎯 Что умеет наше SDK в целом — Watchtower OS v3 Ideal Free Stack 33 компонента</h3>
+        <h3>Что умеет наше SDK в целом — Watchtower OS v3 Ideal Free Stack 33 компонента</h3>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); gap:12px; margin-top:12px;">
           <div class="os-mono" style="font-size:12px; line-height:1.6;">
-<strong>🔐 Identity + Session Keys best free:</strong>
+<strong>Identity + Session Keys best free:</strong>
 - Privy useCreateWallet useSolanaWallets email/social enclave export
 - Phantom Connect Kit OAuth instant wallet deep links MWA
 - FirstStep guest gas sponsorship progressive onboarding
@@ -707,7 +707,7 @@ export function renderControlPanels(container, osData = {}) {
 - Session Keys createSession targetProgram topUp 0.01 SOL expiry 60min signAndSendTransaction risk 0.01 SOL only scope denied withdraw_treasury
 - Cross-game PDA studio_profile CgInv111... ARC Entity-Component + Bolt world + RACE multichain + idosgames bridge
 
-<strong>🗜️ Assets + Storage best free ideal stack:</strong>
+<strong>Assets + Storage best free ideal stack:</strong>
 - cNFT Bubblegum v2 Merkle Tree MCC $110/M off-chain no token/mint account savings x10000 Tensor primary ME deprecated
 - Standard NFT Metaplex Token Metadata rare legendary
 - Core Attributes Plugin on-chain key-value NFT stats readable programs DAS 5ms best free on-chain stats
@@ -716,7 +716,7 @@ export function renderControlPanels(container, osData = {}) {
 - Husks fighter procedural pixel INT8 auto PvP + RitArena bot lifecycle retry events best free arena chosen over Aureus
 - RACE multichain cNFT Solana Tensor NFT EVM OpenSea
 
-<strong>📡 Indexer best free:</strong>
+<strong>Indexer best free:</strong>
 - LaserStream gRPC 24h replay failover priority fee API webhooks DAS API critical backend
 - WebSocket logsSubscribe programSubscribe accountSubscribe signatureSubscribe UI real-time
 - DAS getAssetsByOwner getAsset getAssetsByGroup searchAssets metadata normalization cNFT/standard + Core Attributes 5ms vs 150ms
@@ -724,7 +724,7 @@ export function renderControlPanels(container, osData = {}) {
 - Custom PG PostgreSQL TimescaleDB Redis idempotency dedup cursor replay backfill gap finalized reconciliation parser versioning tenant_id RLS cross-game materialized view + Xandeum exabyte scalable
           </div>
           <div class="os-mono" style="font-size:12px; line-height:1.6;">
-<strong>⚡ L2 + Privacy best free ideal stack:</strong>
+<strong>L2 + Privacy best free ideal stack:</strong>
 - Sonic HyperGrid dedicated grid thousands no contention high frequency ARES-1 Neon Relay real-time PvP
 - Sorada 30-40x faster RPC 5ms reads leaderboards inventory getAssetsByOwner 5ms vs 150ms
 - Rush ECS declarative world config generates Anchor contracts
@@ -735,12 +735,12 @@ export function renderControlPanels(container, osData = {}) {
 - Xandeum scalable storage exabytes best free scalable
 - Router l2Router gameId tpsRequirement uxRequirement decision tree
 
-<strong>📊 Analytics best free:</strong>
+<strong>Analytics best free:</strong>
 - Helika cross-game dashboard Web2 in-game on-chain acquisition LiveOps A/B mapping campaign_id solana_wallet Yuga Labs Treasure AI focus shift backup
 - GameSight ad->on-chain ad_click gamesight_click_id -> PlayerJoined external_id click_id -> WalletConnected solana_wallet link -> on-chain Anonymous Event wallet_id mint/buy/sell -> attribution solana_wallet as external_id Late ID Binding POST /api/ingest/solana
 - Game Signals 60M+ tx 12 games ML churn 14d >85% common wallets funnel LTV cross-game retention which funnel brings most valuable SEO/GEO Blinks short videos whale radar TipLink vs payer LTV Python sklearn RandomForest campaign proposal POST /api/campaigns/proposals churn risk >0.7
 
-<strong>🛒 Marketplace + Monetization best free ideal stack:</strong>
+<strong>Marketplace + Monetization best free ideal stack:</strong>
 - Magic Eden REST 120 QPM free Bearer MCC+MT Tensor alternative for new cNFT Bubblegum v2
 - Shyft Marketplace escrow-less NFT stays in wallet until sale in-app за дни stats API one call
 - GameShift API-first without blockchain knowledge wallet self-custodial asset creation trading USD payments 170+ countries 100% chargeback gas abstraction
@@ -752,7 +752,7 @@ export function renderControlPanels(container, osData = {}) {
 - @idosgames/wallet bridge EVM Solana RewardPool deposits withdrawals SPL best free bridge
           </div>
           <div class="os-mono" style="font-size:12px; line-height:1.6;">
-<strong>🎮 Engines + Infra best free ideal stack:</strong>
+<strong>Engines + Infra best free ideal stack:</strong>
 - Unity Solana.Unity-SDK NFT RPC Candy Machine Phantom deep links WebGL MWA Session Keys + Preset Unity client + Core Attributes
 - Godot godot-solana-sdk GDExtension 4.3+ SolanaClient WalletAdapter AnchorProgram Candy Machine SPL builders session keys analog + Core Attributes
 - Unreal VAR META open SDK + Bifrost C# Solnet C++ Blueprints Metaplex mint payments
@@ -767,7 +767,7 @@ export function renderControlPanels(container, osData = {}) {
 - Core Attributes on-chain key-value NFT stats readable programs DAS best free on-chain stats
 - Arcium confidential rollups privacy best free privacy rollup
 
-<strong>🔒 Security + Testing best free ideal stack:</strong>
+<strong>Security + Testing best free ideal stack:</strong>
 - Security Auditing Skill ready instructions AI assistants Claude systematic audit Anchor Rust vulnerabilities signer/owner/PDA/CPI/reentrancy/overflow/access control close account init checks — best free security skill prompt-based
 - Sentio CLI AST scanner security Solana Anchor Rust common vuln patterns — best free static AST scanner
 - SolGuard AI auto audit 130+ patterns signer checks rights bypass flash-loan exploits — best free AI audit 130+ chosen over SolShield duplicate
@@ -775,7 +775,7 @@ export function renderControlPanels(container, osData = {}) {
 - Preset official scaffold best free official, create-solana-game duplicate deprecated
 - Ideal free: Skill prompt-based + Sentio static AST + SolGuard AI 130+ = full coverage, SolShield duplicate deprecated, Preset + SLAM = ideal free testing
 
-<strong>💰 Monetization + AI + Cross-Chain best free ideal stack not garbage:</strong>
+<strong>Monetization + AI + Cross-Chain best free ideal stack not garbage:</strong>
 - Access Protocol stake-to-access sustainable income — best free monetization
 - @idosgames/wallet bridge EVM Solana RewardPool deposits withdrawals SPL — best free bridge complementary to RACE
 - Husks autobattler INT8 procedural pixel train auto PvP — best free autobattler
@@ -792,7 +792,7 @@ export function renderControlPanels(container, osData = {}) {
       </div>
 
       <div style="margin-top:24px; padding:16px; background:#0f1419; border-radius:12px; border:1px solid #37e5a0;">
-        <h3>🎮 Что внедряем в игры — ARES-1, AOF, Neon Relay, Gutter Caps — ideal free stack v3</h3>
+        <h3>Что внедряем в игры — ARES-1, AOF, Neon Relay, Gutter Caps — ideal free stack v3</h3>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:16px; margin-top:12px;">
           <div class="os-card">
             <h4 style="color:#37e5a0;">ARES-1 — Strategy</h4>
@@ -816,7 +816,7 @@ export function renderControlPanels(container, osData = {}) {
             </small>
           </div>
           <div class="os-card">
-            <h4 style="color:#a78bfa;">AOF — Age of Farming</h4>
+            <h4 style="color:#a78bfa;">NeuroForge (бывш. AOF — Age of Farming)</h4>
             <small style="line-height:1.5;">
 <strong>Identity:</strong> Guest gas sponsorship FirstStep → embedded Privy → native Phantom → linked cross-game PDA studio_profile<br/>
 <strong>Assets:</strong> Common seeds crops materials → cNFT $110/M, golden tools land → Standard, GrowthStage Position → Core Attributes on-chain key-value best free, farming states → Xandeum exabyte best free scalable, crafting gamble → Gamba wager NFT, crop fighters → Husks + RitArena best free arena<br/>
