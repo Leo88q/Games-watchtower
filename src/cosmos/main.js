@@ -9,7 +9,7 @@ import '@fontsource/exo-2/cyrillic-800.css'
 import './cosmos.css'
 import { createEngine } from './engine.js'
 import { loadLiveWorld, operatorApi } from './live.js'
-import { createTraining, DIFFICULTIES, loadTrainingSave, levelFor, ACHIEVEMENTS } from './training.js'
+import { createTraining, DIFFICULTIES, loadTrainingSave, levelFor, ACHIEVEMENTS, LEVELS } from './training.js'
 import { CLOSEUPS, CODEX_TOTAL, closeupFor, loadCodex, discover } from './closeups.js'
 import { BODIES, ROUTES, STAR, METRIC_LABELS, ACTION_TEXT, RISK_TEXT, ROLE_TEXT, bodyById, regionFor, severityClass } from './world.js'
 
@@ -17,10 +17,10 @@ const LIVE_REFRESH_MS = 15000
 // Сгенерированные иконки (public/cosmos/icons): вырезаны из чёрного фона с сохранением свечения
 const ICON_IMG = ['planets', 'events', 'anomaly', 'operators', 'time', 'energy', 'trust', 'score', 'codex']
 const icon = (name, cls = '') => (ICON_IMG.includes(name) ? `<img class="cz-ico ${cls}" src="${import.meta.env.BASE_URL}cosmos/icons/${name}.webp" alt="" aria-hidden="true" draggable="false" />` : '')
-// Сгенерированные иконки действий вахты (остальные действия получат свои иконки следующим набором)
-const ACT_IMG = ['mark_false_positive', 'increase_priority', 'notify_status_page', 'enable_captcha', 'disable_ingress', 'pause_contract']
+// Сгенерированные иконки действий вахты
+const ACT_IMG = ['mark_false_positive', 'increase_priority', 'notify_status_page', 'enable_captcha', 'disable_ingress', 'pause_bridge', 'pause_contract']
 const actIcon = (act) => (ACT_IMG.includes(act) ? `<img class="cz-act-ico" src="${import.meta.env.BASE_URL}cosmos/icons/act-${act}.webp" alt="" aria-hidden="true" draggable="false" />` : '<span class="cz-act-ico" aria-hidden="true"></span>')
-const ROLE_IMG = ['guest', 'candidate', 'observer', 'operator', 'senior']
+const ROLE_IMG = ['guest', 'candidate', 'observer', 'operator', 'senior', 'guardian', 'staff']
 const roleBadge = (id, cls = '') => (ROLE_IMG.includes(id) ? `<img class="cz-badge ${cls}" src="${import.meta.env.BASE_URL}cosmos/icons/role-${id}.webp" alt="" aria-hidden="true" draggable="false" />` : `<span class="cz-badge ${cls}" aria-hidden="true"></span>`)
 const medal = (id) => `<img class="cz-medal" src="${import.meta.env.BASE_URL}cosmos/icons/medal-${id}.webp" alt="" aria-hidden="true" draggable="false" />`
 const SEVERITY_TEXT = { critical: 'критично', warn: 'внимание', info: 'наблюдение' }
@@ -265,13 +265,18 @@ function goalsList(gs) {
 
 function levelCard(lv, gain = 0, up = false) {
   return `<div class="cz-level-card ${up ? 'up' : ''}">
-    <div class="cz-level-badge"><span>${lv.level}</span></div>
+    <div class="cz-level-badge"><img src="${import.meta.env.BASE_URL}cosmos/icons/level-${lv.level}.webp" alt="" aria-hidden="true" draggable="false" /><span>${lv.level}</span></div>
     <div class="cz-level-body">
       <b>${esc(lv.name)}${up ? '<em>Новый уровень</em>' : ''}</b>
       <div class="cz-meter xp"><i style="width:${Math.round(lv.progress * 100)}%"></i></div>
       <small>${gain ? `+${gain} опыта · ` : ''}${lv.next ? `${lv.xp} из ${lv.next} до следующего уровня` : `${lv.xp} опыта · высший уровень`}</small>
     </div>
   </div>`
+}
+
+function levelPath(xp = 0) {
+  const cur = levelFor(xp).level
+  return `<ol class="cz-path" aria-label="Путь курсанта">${LEVELS.map(([need, name], i) => `<li class="${i + 1 < cur ? 'passed' : ''} ${i + 1 === cur ? 'current' : ''}" title="${esc(name)} · от ${need} опыта"><img src="${import.meta.env.BASE_URL}cosmos/icons/level-${i + 1}.webp" alt="" aria-hidden="true" draggable="false" /><small>${need}</small></li>`).join('')}</ol>`
 }
 
 function achGrid(owned, highlight = [], onlyOwned = false) {
@@ -745,6 +750,7 @@ function openTrainingMenu() {
     <div class="cz-dialog" role="dialog" aria-modal="true" aria-labelledby="tr-title">
       <div class="cz-dialog-hero">${icon('time', 'hero')}<h2 id="tr-title">Тренажёр оператора</h2></div>
       ${levelCard(levelFor(save.xp))}
+      ${levelPath(save.xp)}
       <p class="cz-text">Смена на учебной копии системы. Аномалии взяты из механик самих игр, а ответы — ровно те действия, что есть у вахты в бою. После каждого решения разбор: почему верно или нет.</p>
       <ul class="cz-rules">
         <li>Действия тратят энергию обсерватории, она восстанавливается со временем.</li>

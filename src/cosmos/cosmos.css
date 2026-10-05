@@ -476,8 +476,10 @@ button.cz-row:hover { background: linear-gradient(90deg, rgba(67, 227, 255, 0.16
 .cz-level-card { display: flex; align-items: center; gap: 13px; margin: 12px 0; padding: 11px 13px; background: linear-gradient(90deg, rgba(168, 121, 255, 0.14), rgba(67, 227, 255, 0.05)); box-shadow: inset 0 0 0 1px rgba(168, 121, 255, 0.35); }
 .cz-level-card.up { animation: cz-levelup 1.2s ease 2; }
 @keyframes cz-levelup { 50% { box-shadow: inset 0 0 0 1px #d8c8ff, 0 0 0 0 transparent; background: linear-gradient(90deg, rgba(168, 121, 255, 0.32), rgba(67, 227, 255, 0.12)); } }
-.cz-level-badge { width: 46px; height: 52px; flex: none; display: grid; place-items: center; background: linear-gradient(180deg, #a879ff, #4d3aa8); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
-.cz-level-badge span { font-family: var(--display); font-size: 20px; font-weight: 800; color: #fff; }
+.cz-level-badge { position: relative; width: 64px; height: 64px; flex: none; }
+.cz-level-badge img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 10px rgba(168, 121, 255, 0.35)); }
+.cz-level-badge span { position: absolute; right: -2px; bottom: -2px; min-width: 20px; height: 20px; display: grid; place-items: center; padding: 0 5px; font-family: var(--display); font-size: 12px; font-weight: 800; color: #07101f; background: linear-gradient(180deg, #e3d6ff, #a879ff); clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.cz-level-card.up .cz-level-badge img { animation: cz-starpop 0.7s ease backwards; }
 .cz-level-body { flex: 1; display: grid; gap: 3px; min-width: 0; }
 .cz-level-body b { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
 .cz-level-body b em { font-style: normal; font-size: 10px; padding: 2px 7px; color: #07101f; background: var(--warn); }
@@ -522,3 +524,11 @@ h3 small { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transf
 .cz-ladder li.passed .cz-badge, .cz-ladder li.current .cz-badge { filter: drop-shadow(0 0 8px rgba(67, 227, 255, 0.35)); }
 .cz-ladder li.current { opacity: 1; background: linear-gradient(90deg, rgba(67, 227, 255, 0.14), rgba(67, 227, 255, 0.03)); box-shadow: inset 0 0 0 1px var(--line-strong), inset 3px 0 0 var(--cyan); }
 .cz-ladder li.current .cz-badge { width: 44px; height: 44px; }
+.cz-path { list-style: none; margin: -4px 0 12px; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; position: relative; }
+.cz-path::before { content: ''; position: absolute; left: 7%; right: 7%; top: 21px; height: 2px; background: linear-gradient(90deg, rgba(168, 121, 255, 0.5), rgba(67, 227, 255, 0.2)); }
+.cz-path li { position: relative; display: grid; justify-items: center; gap: 2px; }
+.cz-path img { width: 42px; height: 42px; object-fit: contain; filter: grayscale(1) brightness(0.55); }
+.cz-path small { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cz-path li.passed img { filter: none; opacity: 0.85; }
+.cz-path li.current img { filter: drop-shadow(0 0 10px rgba(168, 121, 255, 0.7)); transform: scale(1.18); }
+.cz-path li.current small { color: #d8c8ff; font-weight: 700; }
