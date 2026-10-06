@@ -1,36 +1,38 @@
-# Публичные площадки: сайт Watchtower OS и лендинг $WTWR
+# Публичные площадки: Leo Games Studio / Watchtower и лендинг $WTWR
 
 Две статические двуязычные (RU по умолчанию, EN рядом) площадки без бэкенда и без сборки.
-Они работают по тем же принципам, что и продукт: **никаких выдуманных цифр**, всё плановое
-помечено планом, всё скрытое — скрыто до появления параметра, а не притворяется.
+Главный сайт позиционирует Leo Games как игровую студию, а Watchtower — как её внутреннюю операционную систему. Текущие стадии игр, плейтест-инструкции и release gates отделены от будущего плана. Абсолютный тезис «первое в мире» явно обозначен как позиционирование, а не независимый отраслевой рейтинг.
 
 | Площадка | Каталог | Назначение |
 |---|---|---|
-| Сайт Watchtower OS | `watchtower-site/` (`index.html` = RU, `en.html` = EN) | продукт, модули, полный инвентарь возможностей (#capabilities), цены Studio API, четыре пути развития + линия времени (#roadmap), лист ожидания API |
-| Лендинг $WTWR | `token-landing/` | токеномика, три раунда (NFT + пресейл), стейкинг CapsStake, Compute Grid, риски, вайтлист |
-| Общий слой | `web-shared/` | трекер переходов, параметры запуска, логика форм, favicon, OG-обложки |
+| Сайт Leo Games Studio | `watchtower-site/` (`index.html` = RU, `en.html` = EN; `studio.css` и `studio.js`) | игровые миры и актуальные стадии (#games), инструкция игроку (#play), Watchtower (#studio), проверяемые принципы, roadmap по release gates и Terms/Privacy RU/EN в подвале |
+| Лендинг $WTWR | `token-landing/` | отдельная информация о токене и его рисках; денежные факты и условия не смешиваются с главным игровым брендом |
+| Общий слой | `web-shared/` | трекер переходов, параметры запуска, логика форм, favicon, OG-обложки и игровые key art; окно портфолио показывает реальные стадии четырёх игр без имитации live-телеметрии |
 
 Предпросмотр без зависимостей:
 
 ```bash
-npm run site:preview      # http://localhost:4173/watchtower-site/ · /token-landing/
+npm run site:preview      # http://localhost:4173/ (главный сайт) · /token-landing/
 ```
 
 Проверки (в CI, гейт как у остальных тестов):
 
 ```bash
-npm run test:site         # 12 проверок: сходимость чисел, паритет RU/EN, анти-хайп стоп-лист,
-                          # существование ресурсов, кросс-ссылки, no-drift трекера, безопасные CTA
+npm run test:site         # проверка фактов токена, RU/EN-паритета, игровых стадий и roadmap,
+                          # анти-хайп стоп-листа, ресурсов, публичного allowlist и безопасных форм
 ```
 
 ## Как устроены данные и логика
 
 ```
-watchtower-site/*.html ──► web-shared/wt-params.js   параметры запуска (1 файл на всё)
-token-landing/*.html   ──► web-shared/wt-landing.js  подтверждение перехода TalkChart (click-id)
-                           web-shared/wt-forms.js    формы вайтлиста + «просыпающиеся» CTA
-                           web-shared/favicon.svg · og-watchtower.jpg · og-wtwr.jpg
-token-landing только ──► token-data.mjs (числа) ──► token-render.mjs (рендер + самопроверка)
+watchtower-site/*.html ──► studio.css + studio.js       фирменная оболочка, навигация, доступность
+public/cosmos/*        ──► карточки реальных миров      актуальные иллюстрации игры и обсерватории
+web-shared/brand-*.jpg ──► key art и Open Graph         сгенерированные изображения ребрендинга
+watchtower-site/       ──► game stages + release gates  фактический статус отдельно от будущего плана
+token-landing/*.html   ──► web-shared/wt-landing.js    подтверждение перехода TalkChart (click-id)
+                           web-shared/wt-forms.js      безопасные формы и скрытые CTA
+                           web-shared/favicon.svg · og-wtwr.jpg
+только token-landing ──► token-data.mjs → token-render.mjs (денежные факты + самопроверка)
 ```
 
 - **`token-landing/token-data.mjs`** — единственный источник чисел лендинга (аллокация,

@@ -94,7 +94,7 @@ export function eventAsset(event) {
 
 export function eventGame(event) {
   const p = event?.payload || {}
-  return p.gameId || event?.app || event?.source || 'unknown'
+  return event?.gameId || p.gameId || event?.app || event?.source || 'unknown'
 }
 
 export function isBot(event) {
@@ -175,7 +175,7 @@ const U = (id, label, family, formula, source, needs, extra = {}) =>
 const ok = (id, label, family, value, unit, formula, source, extra = {}) =>
   metric({ id, label, family, value, unit, formula, source, quality: extra.quality || 'complete', ...extra })
 
-export function computeEconomy({ events = [], window = '7d', now = Date.now(), config = {}, demo = false, retention = {} } = {}) {
+export function computeEconomy({ events = [], window = '7d', now = Date.now(), config = {}, demo = false, retention = {}, scopeGameId = null } = {}) {
   const scanned = events.length
   const retainedTotal = Number.isFinite(retention.eventsRetained) ? retention.eventsRetained : events.length
   const truncated = Boolean(retention.truncated)
@@ -393,18 +393,22 @@ export function computeEconomy({ events = [], window = '7d', now = Date.now(), c
     : U('sybil_flagged_share', 'Доля кошельков, помеченных как сибилы', 'risk', 'flagged / all', 'нужны данные антифрода', ['SecurityEvent', 'config.sybilFlaggedWallets'], { reason: 'Нет данных антифрода: игры не передают метки' }))
 
   // ------------------------------------------------------------------ Кросс-игра
-  const gameSet = new Map()
-  for (const event of human) {
-    const player = eventPlayer(event)
-    if (!player) continue
-    if (!gameSet.has(player)) gameSet.set(player, new Set())
-    gameSet.get(player).add(eventGame(event))
+  if (scopeGameId) {
+    metrics.push(U('cross_game_player_share', 'Доля игроков в 2+ играх', 'cross', 'игроки с событиями в 2+ tenant’ах / все игроки', 'нужна межигровая сводка, не срез одной игры', ['события с gameId из всех игр'], { reason: 'Не вычисляется по срезу одной игры: нужен общий набор событий всех игр.' }))
+  } else {
+    const gameSet = new Map()
+    for (const event of human) {
+      const player = eventPlayer(event)
+      if (!player) continue
+      if (!gameSet.has(player)) gameSet.set(player, new Set())
+      gameSet.get(player).add(eventGame(event))
+    }
+    const multi = [...gameSet.values()].filter((s) => s.size > 1).length
+    metrics.push(gameSet.size
+      ? ok('cross_game_player_share', 'Доля игроков в 2+ играх', 'cross', Number((multi / gameSet.size).toFixed(4)), 'ratio',
+          'игроки с событиями в двух и более tenant\'ах / все игроки', 'события с gameId по playerKey', { window: win.id, quality: 'partial', novelties: ['cross-game interweaving'] })
+      : U('cross_game_player_share', 'Доля игроков в 2+ играх', 'cross', 'multi-game / all', 'нужны события с gameId', ['любые события с payload.gameId']))
   }
-  const multi = [...gameSet.values()].filter((s) => s.size > 1).length
-  metrics.push(gameSet.size
-    ? ok('cross_game_player_share', 'Доля игроков в 2+ играх', 'cross', Number((multi / gameSet.size).toFixed(4)), 'ratio',
-        'игроки с событиями в двух и более tenant\'ах / все игроки', 'события с gameId по playerKey', { window: win.id, quality: 'partial', novelties: ['cross-game interweaving'] })
-    : U('cross_game_player_share', 'Доля игроков в 2+ играх', 'cross', 'multi-game / all', 'нужны события с gameId', ['любые события с payload.gameId']))
   metrics.push(U('net_bridge_flow', 'Чистый поток через мост', 'cross', 'Σ bridge_in − Σ bridge_out', 'нужны bridge-события игр', ['BridgeIn', 'BridgeOut'], { novelties: ['cross-chain economy'] }))
 
   const inputs = {

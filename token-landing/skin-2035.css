@@ -1,13 +1,12 @@
-/* Watchtower 2035 skin — общий визуальный слой для лендинга $WTWR, как у watchtower-site.
-   Подключается после встроенных стилей и переопределяет только внешний вид: разметка и цифры не меняются. */
-@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Inter+Tight:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
-@property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
-:root{--bg:#04060b;--panel:rgba(18,26,44,.45);--panel2:rgba(24,34,56,.55);--line:rgba(160,190,255,.12);--muted:#8793ab;--text:#eef3ff;
-  --blue:#5cc8ff;--mx:50vw;--my:30vh;color-scheme:dark}
-body{background:var(--bg);font-family:"Inter Tight",system-ui,sans-serif;font-size:17px;overflow-x:hidden}
-::selection{background:var(--green);color:#03110b}
+/* Leo Games visual layer for the separate $WTWR disclosure page.
+   It shares the studio palette and typography; legal and financial facts stay in the page data. */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+:root{--bg:#050811;--panel:rgba(11,18,32,.82);--panel2:rgba(18,28,46,.72);--line:rgba(161,187,229,.18);--muted:#a0aec4;--text:#f3f6fb;
+  --green:#b8ff68;--purple:#ad95ff;--orange:#ffbd67;--red:#ff7c9f;--blue:#65dcf2;--mx:50vw;--my:30vh;color-scheme:dark}
+body{background:var(--bg);font-family:"DM Sans",system-ui,sans-serif;font-size:16px;overflow-x:hidden}
+::selection{background:var(--green);color:#08110a}
 .mono,.num,.badge,.tk,.flow,.kpi b{font-family:"JetBrains Mono",ui-monospace,monospace!important}
-h1,h2,h3,.logo{font-family:Unbounded,sans-serif;letter-spacing:-.02em}
+h1,h2,h3,.logo{font-family:"Space Grotesk",system-ui,sans-serif;letter-spacing:-.04em}
 h1{font-size:clamp(40px,7vw,96px);line-height:.98;font-weight:800}
 h2{font-size:clamp(30px,4.4vw,56px);line-height:1.04;font-weight:600}
 h3{font-weight:600}
@@ -31,11 +30,7 @@ nav a{padding:6px 10px;border-radius:99px}nav a:hover{background:rgba(255,255,25
 /* стекло */
 .card,details,.node,.warn,.risk,.flow span,input{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .card{border-radius:26px;padding:28px;position:relative;transition:transform .25s ease,border-color .25s;transform-style:preserve-3d}
-.card::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;pointer-events:none;
-  background:conic-gradient(from var(--a),transparent 70%,var(--blue),var(--green),transparent);
-  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .3s}
-.card:hover::before{opacity:1;animation:wt-spin 3s linear infinite}
-@keyframes wt-spin{to{--a:360deg}}
+.card::before,.card::after{content:none!important}
 .card.hl{box-shadow:0 0 0 1px rgba(55,229,160,.25) inset,0 30px 90px -40px rgba(55,229,160,.5)}
 .kpi b{background:linear-gradient(100deg,var(--green),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent;font-size:34px}
 details{border-radius:18px}
@@ -57,3 +52,26 @@ tbody tr{transition:background .2s}tbody tr:hover{background:rgba(92,200,255,.05
 
 @media (max-width:900px){header .wrap{border-radius:22px}.hero{padding-top:120px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.wt-rv{opacity:1;transform:none}}
+
+/* Shared studio visual language: no rotating neon borders or fake interface chrome. */
+:root{--green:#b8ff68;--purple:#ad95ff;--orange:#ffbd67;--red:#ff7c9f;--blue:#65dcf2}
+body{background:radial-gradient(900px 560px at 82% 8%,rgba(101,220,242,.055),transparent 70%),radial-gradient(720px 540px at 8% 64%,rgba(173,149,255,.035),transparent 75%),var(--bg)}
+header .wrap{border:1px solid rgba(161,187,229,.18);border-radius:6px 18px 6px 18px;background:#080e17;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:0 12px 28px rgba(0,0,0,.26)}
+.logo i{animation:none;box-shadow:none;background:var(--green)}
+h1 span,h1 .num,h1 b,h1 em{color:var(--green)!important;-webkit-text-fill-color:var(--green);background:none!important}
+.card{border:1px solid rgba(161,187,229,.17);border-radius:12px;background:#0a111b;box-shadow:0 12px 32px rgba(0,0,0,.22);transform-style:flat;backdrop-filter:none;-webkit-backdrop-filter:none}
+.card::before,.card::after{content:none!important}
+.card.hl{border-left:2px solid var(--green);border-color:rgba(184,255,104,.28);box-shadow:none}
+.card:hover{transform:translateY(-2px);border-color:rgba(101,220,242,.34)}
+.card.hl:hover{border-color:rgba(184,255,104,.44)}
+.card .kpi b,.kpi b{color:var(--green)!important;-webkit-text-fill-color:var(--green);background:none!important;-webkit-background-clip:initial;background-clip:initial}
+details,.node,.warn,.risk,.flow span,input{border-color:rgba(161,187,229,.17);border-radius:6px;background-color:#0c141f;backdrop-filter:none;-webkit-backdrop-filter:none}
+details[open]{border-color:rgba(101,220,242,.28)}
+details>summary{color:#e7edf7;cursor:pointer}
+.btn{border-radius:6px 14px 6px 14px;color:#10180b;background:var(--green);border:1px solid var(--green);box-shadow:none}
+.btn:hover{transform:translateY(-1px);box-shadow:none}
+.btn.ghost{color:var(--text);border-color:rgba(161,187,229,.23);background:#0c141f;box-shadow:none}
+.btn.ghost:hover{border-color:rgba(101,220,242,.4);background:#111b28}
+tbody tr:hover{background:rgba(101,220,242,.045)}
+.flow span{padding:7px 10px;border:1px solid rgba(101,220,242,.14);background:rgba(101,220,242,.025)}
+@media(max-width:900px){.card{border-radius:9px}}

@@ -1,5 +1,8 @@
-import { list } from './event-inbox.js'
+import { list, windowEvents } from './event-inbox.js'
 import { anonymizeIdentifier } from '../security/pii.js'
+import { eventGameId, eventLocationId } from './location.js'
+
+const DAY_MS = 86_400_000
 
 /**
  * События, которыми игра сообщает о переносе предмета между играми.
@@ -17,8 +20,16 @@ function eventPlayers(events, predicate) {
   return new Set(events.filter(predicate).map(playerKey).filter(Boolean))
 }
 
-export function buildFunnel({ gameId, limit = 5000 } = {}) {
-  const events = list({ limit }).filter((event) => !gameId || event.payload?.gameId === gameId)
+export function buildFunnel({ gameId, regionId, limit = 5000, windowDays, now = Date.now() } = {}) {
+  const max = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(100_000, Math.floor(Number(limit)))) : 5000
+  const hasWindow = Number.isFinite(Number(windowDays))
+  const days = hasWindow ? Math.min(365, Math.max(1, Math.floor(Number(windowDays)))) : null
+  const source = hasWindow
+    ? windowEvents({ since: now - days * DAY_MS, until: now })
+    : list({ limit: max })
+  const events = source
+    .filter((event) => (!gameId || eventGameId(event) === gameId) && (!regionId || eventLocationId(event) === regionId))
+    .slice(-max)
   const stages = [
     ['first_entry', 'Первый вход', (event) => ['PlayerJoined', 'WalletConnected', 'SessionStarted'].includes(event.eventType)],
     ['first_action', 'Первое действие', (event) => ['MatchStarted', 'RaceStarted', 'PlotCreated', 'PotatoPlanted', 'PackOpened'].includes(event.eventType)],
@@ -29,7 +40,7 @@ export function buildFunnel({ gameId, limit = 5000 } = {}) {
   ]
   const counts = stages.map(([id, label, predicate]) => ({ id, label, players: eventPlayers(events, predicate).size }))
   const base = counts[0]?.players || 0
-  return { gameId: gameId || 'all', stages: counts.map((stage) => ({ ...stage, conversionRate: base ? Number((stage.players / base * 100).toFixed(2)) : null })), events: events.length, dataQuality: events.length ? 'partial' : 'unavailable', privacy: 'anonymized-player-keys', generatedAt: new Date().toISOString() }
+  return { gameId: gameId || 'all', regionId: regionId || null, windowDays: days, scope: regionId ? 'location' : gameId ? 'game' : 'studio', stages: counts.map((stage) => ({ ...stage, conversionRate: base ? Number((stage.players / base * 100).toFixed(2)) : null })), events: events.length, dataQuality: events.length ? 'partial' : 'unavailable', privacy: 'anonymized-player-keys', generatedAt: new Date(now).toISOString() }
 }
 
 export function crossGameSegments({ limit = 5000 } = {}) {

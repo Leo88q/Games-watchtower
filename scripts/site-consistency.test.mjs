@@ -1,5 +1,5 @@
 /**
- * Согласованность статических площадок (сайт Watchtower OS + лендинг $WTWR):
+ * Согласованность статических площадок (сайт Leo Games Studio / Watchtower + лендинг $WTWR):
  *   node --test scripts/site-consistency.test.mjs   (npm run test:site)
  *
  * Проверяет, что маркетинговые страницы живут по тем же правилам, что и продукт:
@@ -29,6 +29,13 @@ const PAGES = [
   'watchtower-site/en.html',
   'token-landing/index.html',
   'token-landing/en.html',
+]
+
+const LEGAL_PAGES = [
+  'watchtower-site/terms-of-use.html',
+  'watchtower-site/terms-of-use-en.html',
+  'watchtower-site/privacy-policy.html',
+  'watchtower-site/privacy-policy-en.html',
 ]
 
 // ── 1. Данные лендинга сходятся ────────────────────────────────────────────
@@ -93,35 +100,89 @@ test('ключевые денежные факты паритетны между
   }
 })
 
-test('тарифы сайта паритетны между языками', () => {
+test('новый сайт студии не обещает неподтверждённые цены и честно размечает форму', () => {
   const ru = read('watchtower-site/index.html')
   const en = read('watchtower-site/en.html')
-  for (const fact of ['$299', '$0', '3–5%', '#api-waitlist', '1 млн', '1M']) {
-    const inRu = ru.includes(fact.replace('1M', '1 млн'))
-    const inEn = en.includes(fact.replace('1 млн', '1M').replace('50 млн', '50M'))
-    assert.ok(inRu && inEn, `тариф «${fact}» должен быть на обеих версиях сайта`)
+  for (const [lang, html] of [['RU', ru], ['EN', en]]) {
+    assert.ok(html.includes('data-wt-waitlist="studio-playtests"'), `${lang}: нужна форма интереса к плейтестам`)
+    assert.ok(html.includes('data-wt-msg'), `${lang}: нет сообщения о результате формы`)
+    assert.ok(html.includes('studio.css') && html.includes('studio.js'), `${lang}: не подключена новая система оформления`)
+    for (const obsolete of ['$299', '3–5%', 'Q1 2027', '2035', 'Launchpad']) {
+      assert.ok(!html.includes(obsolete), `${lang}: устаревшее обещание «${obsolete}» осталось на сайте`)
+    }
   }
-  for (const fact of ['50 млн']) assert.ok(ru.includes(fact) && en.includes('50M'), 'лимит событий Studio')
+  assert.match(read('web-shared/wt-forms.js'), /Форма пока не подключена/)
+  assert.match(read('web-shared/wt-forms.js'), /This form is not connected yet/)
 })
 
-test('секция возможностей и пути развития описаны и паритетны на обоих языках', () => {
+test('новая концепция сайта, игровые статусы и release gates синхронизированы RU/EN', () => {
   const ru = read('watchtower-site/index.html')
   const en = read('watchtower-site/en.html')
-  // Якоря и структура новых секций есть на обеих версиях.
+  const sectionIds = ['games', 'play', 'studio', 'why', 'proof', 'roadmap', 'join']
   for (const [lang, html] of [['RU', ru], ['EN', en]]) {
-    for (const mark of ['id="capabilities"', 'class="tracks rv"', 'class="track"', '#roadmap']) {
-      assert.ok(html.includes(mark), `${lang}: нет разметки «${mark}»`)
+    for (const id of sectionIds) assert.ok(html.includes(`id="${id}"`), `${lang}: отсутствует раздел #${id}`)
+    assert.equal((html.match(/class="game-card reveal"/g) || []).length, 4, `${lang}: должны быть показаны 4 игровых проекта`)
+    assert.equal((html.match(/class="roadmap-card track reveal"/g) || []).length, 4, `${lang}: roadmap должен состоять из 4 проверяемых фаз`)
+    assert.equal((html.match(/class="proof-card reveal"/g) || []).length, 4, `${lang}: отсутствует один из аргументов позиционирования`)
+  }
+  for (const fact of ['ARES-1', 'GUTTERCAPS', 'NeuroForge', 'Neon Relay']) {
+    assert.ok(ru.includes(fact) && en.includes(fact), `игра «${fact}» должна присутствовать в обеих версиях`)
+  }
+  for (const [lang, html, claimNote] of [
+    ['RU', ru, 'Независимый глобальный рейтинг решений не проводился'],
+    ['EN', en, 'No independent global product ranking has been conducted'],
+  ]) {
+    assert.ok(html.includes(claimNote), `${lang}: позиционирование «first» должно быть корректно оговорено`)
+    assert.ok(html.includes('40') && html.includes('8'), `${lang}: факты о каталоге метрик пропали`)
+    const prototypeLabel = lang === 'RU' ? 'ПРОТОТИП' : 'PROTOTYPE'
+    assert.ok(html.includes('Devnet') && html.includes(prototypeLabel), `${lang}: статусы игр должны отличаться от live`)
+    assert.ok(html.includes('production') || html.includes('production-интеграции'), `${lang}: нужен статус интеграции с production`)
+    assert.ok(html.includes('PHASE 01') && html.includes('PHASE 04'), `${lang}: фазы roadmap потеряны`)
+  }
+})
+
+test('окно портфолио показывает реальные стадии игр, а не фейковую live-панель', () => {
+  const ru = read('watchtower-site/index.html')
+  const en = read('watchtower-site/en.html')
+  for (const [lang, html, disclaimer, stages] of [
+    ['RU', ru, 'не live-поток', ['БЕТА', 'АЛЬФА', 'ПРОТОТИП', 'БИЛД ЗАКРЫТ']],
+    ['EN', en, 'not a live event stream', ['BETA', 'ALPHA', 'PROTOTYPE', 'BUILD CLOSED']],
+  ]) {
+    assert.equal((html.match(/class="studio-window"/g) || []).length, 1, `${lang}: должно быть одно окно портфолио`)
+    assert.equal((html.match(/class="world-row /g) || []).length, 4, `${lang}: окно должно показывать четыре проекта`)
+    assert.ok(html.includes('brand-console.jpg'), `${lang}: не подключён новый key art обсерватории`)
+    assert.ok(html.includes(disclaimer), `${lang}: каталог не должен выдаваться за live-данные`)
+    assert.ok(!html.includes('window-readout') && !html.includes('SCHEMATIC VIEW'), `${lang}: в портфолио не должно быть декоративного фейкового дашборда`)
+    for (const stage of stages) assert.ok(html.includes(stage), `${lang}: в окне потеряна стадия ${stage}`)
+  }
+})
+
+test('юридические страницы готовы к публикации и доступны из футеров RU/EN', () => {
+  const pairs = [
+    ['watchtower-site/terms-of-use.html', 'watchtower-site/terms-of-use-en.html'],
+    ['watchtower-site/privacy-policy.html', 'watchtower-site/privacy-policy-en.html'],
+  ]
+  for (const [ruPath, enPath] of pairs) {
+    const ru = read(ruPath)
+    const en = read(enPath)
+    assert.deepEqual(idsOf(ru), idsOf(en), `структура RU/EN разошлась: ${ruPath} / ${enPath}`)
+    for (const [lang, html] of [['RU', ru], ['EN', en]]) {
+      assert.ok(html.includes('2026-10-06'), `${lang}: дата обновления не указана`)
+      assert.ok(!/ЧЕРНОВИК|DRAFT|НЕ ПУБЛИКОВАТЬ|NOT FOR PUBLICATION|УТОЧНИТЬ|TO COMPLETE/i.test(html), `${lang}: в чистовике остался маркер черновика`)
+      assert.ok(!/DUCKY DUCK|KowiyGames|HE 496948|Limassol|Cyprus/i.test(html), `${lang}: в текст попали чужие реквизиты`)
+      assert.ok(!html.includes('mailto:'), `${lang}: не должен появляться выдуманный контакт`)
     }
-    const cap = html.slice(html.indexOf('id="capabilities"'), html.indexOf('id="games"'))
-    assert.equal((cap.match(/<article class="tile rv"><span class="stage/g) || []).length, 6, `${lang}: групп возможностей должно быть шесть`)
-    const tracks = html.slice(html.indexOf('class="tracks rv"'), html.indexOf('class="lane rv"'))
-    assert.equal((tracks.match(/class="track"/g) || []).length, 4, `${lang}: путей развития должно быть ровно четыре`)
   }
-  // Фактические опоры не должны отличаться между языками.
-  for (const fact of ['40', '0–100', '0.8', '21', 'L0 → L4', 'test:readonly', 'writes: false',
-    '?demo=1', 'DEMO DATA', 'DNT/GPC', 'Launchpad 3–5%', 'Q1 2027', 'Q4 2027', '2028']) {
-    assert.ok(ru.includes(fact) && en.includes(fact), `факт «${fact}» должен быть на обеих версиях сайта`)
-  }
+  const ruSite = read('watchtower-site/index.html')
+  const enSite = read('watchtower-site/en.html')
+  const ruToken = read('token-landing/index.html')
+  const enToken = read('token-landing/en.html')
+  assert.ok(ruSite.includes('href="terms-of-use.html"') && ruSite.includes('href="privacy-policy.html"'))
+  assert.ok(enSite.includes('href="terms-of-use-en.html"') && enSite.includes('href="privacy-policy-en.html"'))
+  assert.ok(ruToken.includes('../watchtower-site/terms-of-use.html') && ruToken.includes('../watchtower-site/privacy-policy.html'))
+  assert.ok(enToken.includes('../watchtower-site/terms-of-use-en.html') && enToken.includes('../watchtower-site/privacy-policy-en.html'))
+  assert.ok(read('scripts/build-public-site.mjs').includes('watchtower-site/terms-of-use.html'))
+  assert.ok(read('scripts/build-public-site.mjs').includes('watchtower-site/privacy-policy-en.html'))
 })
 
 // ── 3. Анти-хайп: стоп-лист X_POSTS.md действует на публичных страницах ────
@@ -156,7 +217,7 @@ test('на страницах нет обещаний дохода из стоп
 test('локальные ресурсы, на которые ссылаются страницы, существуют', () => {
   const attrRe = /(?:src|href|content)="([^"#]+)"/g
   const skipExt = /^mailto:/i
-  for (const page of PAGES) {
+  for (const page of [...PAGES, ...LEGAL_PAGES]) {
     const dir = path.dirname(page)
     for (const m of read(page).matchAll(attrRe)) {
       const ref = m[1]
@@ -203,6 +264,30 @@ test('формы и трекинг на страницах подключены 
   for (const page of ['token-landing/index.html', 'token-landing/en.html']) {
     assert.match(read(page), /type="module" src="token-render\.mjs"/, `${page}: не подключён token-render.mjs`)
   }
+})
+
+test('новая навигация доступна с клавиатуры и мобильный пункт закрывает меню после выбора', () => {
+  const dom = new JSDOM(read('watchtower-site/index.html'), {
+    url: 'https://studio-smoke.local/',
+    runScripts: 'outside-only',
+    pretendToBeVisual: true,
+  })
+  const { window } = dom
+  window.matchMedia = () => ({ matches: true })
+  window.HTMLCanvasElement.prototype.getContext = () => null
+  window.eval(read('watchtower-site/studio.js'))
+
+  const button = window.document.querySelector('[data-menu-toggle]')
+  const links = window.document.querySelector('[data-nav-links]')
+  assert.equal(button.getAttribute('aria-expanded'), 'false')
+  button.click()
+  assert.equal(button.getAttribute('aria-expanded'), 'true')
+  assert.ok(links.classList.contains('is-open'))
+  links.querySelector('a[href="#games"]').click()
+  assert.equal(button.getAttribute('aria-expanded'), 'false')
+  assert.ok(!links.classList.contains('is-open'))
+  assert.ok([...window.document.querySelectorAll('.reveal')].every((element) => element.classList.contains('is-visible')))
+  window.close()
 })
 
 test('публикуемые держателю страницы не заявляют открытую продажу до параметров', () => {

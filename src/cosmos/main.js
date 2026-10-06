@@ -7,14 +7,18 @@ import '@fontsource/exo-2/cyrillic-600.css'
 import '@fontsource/exo-2/latin-800.css'
 import '@fontsource/exo-2/cyrillic-800.css'
 import './cosmos.css'
+import './intelligence.css'
+import './visual-polish.css'
 import { createEngine } from './engine.js'
 import { loadLiveWorld, operatorApi, operatorSession, partnerApi } from './live.js'
 import { detectWallets, signInWithWallet } from './wallet.js'
 import { createTraining, DIFFICULTIES, loadTrainingSave, levelFor, ACHIEVEMENTS, LEVELS, dailyChallenge, MODIFIERS, DAILY_BONUS_XP, dayKey, prevDayKey } from './training.js'
 import { CLOSEUPS, CODEX_TOTAL, closeupFor, loadCodex, discover } from './closeups.js'
 import { BODIES, ROUTES, STAR, METRIC_LABELS, ACTION_TEXT, RISK_TEXT, ROLE_TEXT, bodyById, regionFor, severityClass } from './world.js'
+import { ECONOMY_FAMILIES, INTEL_WINDOWS, analyzeEconomy, deriveIndirectMetrics, economyScenario, formatMetricValue, metricAvailable, metricById } from './intelligence.js'
 
 const LIVE_REFRESH_MS = 15000
+const INTEL_REFRESH_MS = 60000
 // Сгенерированные иконки (public/cosmos/icons): вырезаны из чёрного фона с сохранением свечения
 const ICON_IMG = ['planets', 'events', 'anomaly', 'operators', 'time', 'energy', 'trust', 'score', 'codex']
 const icon = (name, cls = '') => (ICON_IMG.includes(name) ? `<img class="cz-ico ${cls}" src="${import.meta.env.BASE_URL}cosmos/icons/${name}.webp" alt="" aria-hidden="true" draggable="false" />` : '')
@@ -52,12 +56,22 @@ const S = {
   player: null,
   busy: false,
   query: '',
+  intelWindow: INTEL_WINDOWS.some((window) => window.id === localStorage.getItem('wt-cosmos-intel-window')) ? localStorage.getItem('wt-cosmos-intel-window') : '7d',
+  intel: {},
+  intelTabs: {},
+  intelDisclosures: {},
 }
 
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 const fmt = (v) => (v === null || v === undefined ? null : typeof v === 'number' ? v.toLocaleString('ru-RU') : String(v))
 const mmss = (sec) => { const s = Math.max(0, Math.ceil(sec)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
 const ago = (ts) => { const d = Math.max(0, (Date.now() - ts) / 1000); return d < 60 ? 'только что' : d < 3600 ? `${Math.floor(d / 60)} мин назад` : `${Math.floor(d / 3600)} ч назад` }
+const ruCount = (value, one, few, many) => {
+  const n = Math.abs(Number(value) || 0)
+  const lastTwo = n % 100
+  const last = n % 10
+  return lastTwo >= 11 && lastTwo <= 14 ? many : last === 1 ? one : last >= 2 && last <= 4 ? few : many
+}
 
 const ICON = {
   search: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
@@ -104,7 +118,7 @@ const setHTML = (el, html) => { if (el._html !== html) { el.innerHTML = html; el
 
 const engine = createEngine(root.querySelector('.cz-canvas'), {
   onHover(target, pt) { showTooltip(target, pt) },
-  onSelect(id) { S.selected = id; S.anomalyId = null; S.lastResult = null; render() },
+  onSelect(id) { S.selected = id; S.anomalyId = null; S.lastResult = null; if (bodyById(id)?.kind === 'planet') ensureGameIntel(id, { regionId: S.surface === id ? S.region : null }); render() },
   onEnter(id) { openSurface(id) },
   onRoute(id) { S.selected = `route:${id}`; S.anomalyId = null; render() },
 })
@@ -434,6 +448,291 @@ function metricsGrid(metrics, keys) {
   }).join('')}</div>`
 }
 
+const INTEL_TAB_DEFS = [
+  { id: 'overview', label: 'Обзор' },
+  { id: 'economy', label: 'Экономика' },
+  { id: 'analytics', label: 'Аналитика' },
+  { id: 'security', label: 'Безопасность' },
+  { id: 'forecast', label: 'Прогноз' },
+]
+const DATA_QUALITY_TEXT = { complete: 'рассчитано', partial: 'частично', limited: 'ограничено', unavailable: 'нет данных' }
+const DATA_QUALITY_CLASS = { complete: 'good', partial: 'partial', limited: 'warn', unavailable: 'na' }
+const INTEL_CACHE_TTL_MS = 60_000
+
+function intelContextKey(gameId, regionId = null) { return `${gameId}:${regionId || 'planet'}` }
+function intelDisclosureKey(gameId, regionId, disclosure) { return `${intelContextKey(gameId, regionId)}:${disclosure}` }
+function intelTabFor(gameId, regionId = null) { return S.intelTabs[intelContextKey(gameId, regionId)] || 'overview' }
+function intelRecordKey(gameId, regionId = null, window = S.intelWindow) { return `${gameId}:${regionId || 'planet'}:${window}` }
+function currentGameIntel(gameId, regionId = null) { return S.intel[intelRecordKey(gameId, regionId)] || null }
+
+function gameIntelTabs(gameId, regionId = null) {
+  const active = intelTabFor(gameId, regionId)
+  return `<nav class="cz-intel-tabs" role="tablist" aria-label="Метрики ${esc(bodyById(gameId)?.name || gameId)}">${INTEL_TAB_DEFS.map((tab) => `<button type="button" role="tab" aria-selected="${active === tab.id}" class="${active === tab.id ? 'active' : ''}" data-act="intel-tab" data-game="${esc(gameId)}" data-region="${esc(regionId || '')}" data-tab="${tab.id}">${tab.label}</button>`).join('')}</nav>`
+}
+
+function intelToolbar(gameId, regionId = null, record = currentGameIntel(gameId, regionId)) {
+  const windowLabel = INTEL_WINDOWS.find((window) => window.id === S.intelWindow)?.label || '7 дней'
+  const source = record?.economy?.demo ? 'DEMO DATA' : record?.economy?.source || 'event-inbox'
+  const updated = record?.fetchedAt ? new Date(record.fetchedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : null
+  const scope = regionId ? `район ${bodyById(gameId)?.regions.find((region) => region.id === regionId)?.name || regionId}` : 'вся игра'
+  return `<div class="cz-intel-toolbar"><label><span>Окно</span><select data-act="intel-window" data-game="${esc(gameId)}" data-region="${esc(regionId || '')}" aria-label="Окно агрегации">${INTEL_WINDOWS.map((window) => `<option value="${window.id}" ${S.intelWindow === window.id ? 'selected' : ''}>${window.label}</option>`).join('')}</select></label><span class="cz-intel-source">${esc(scope)} · ${esc(windowLabel)} · UTC · ${esc(source)}${updated ? ` · ${esc(updated)}` : ''}</span><button type="button" class="cz-icon-btn cz-intel-refresh" data-act="refresh-intel" data-game="${esc(gameId)}" data-region="${esc(regionId || '')}" title="Обновить метрики" aria-label="Обновить метрики">↻</button></div>`
+}
+
+async function getIntelJson(path) {
+  const response = await fetch(path, { headers: { accept: 'application/json' } })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(payload.reason || payload.error || `HTTP ${response.status}`)
+  return payload
+}
+
+function ensureGameIntel(gameId, { regionId = null, force = false } = {}) {
+  if (S.mode === 'training' || bodyById(gameId)?.kind !== 'planet') return Promise.resolve(null)
+  const window = S.intelWindow
+  const key = intelRecordKey(gameId, regionId, window)
+  const cached = S.intel[key]
+  if (cached?.loading) return cached.promise || Promise.resolve(cached)
+  if (!force && cached?.fetchedAt && Date.now() - cached.fetchedAt < INTEL_CACHE_TTL_MS) return Promise.resolve(cached)
+
+  const requestId = Symbol(key)
+  const windowDays = window === '24h' ? '1' : window.slice(0, -1)
+  const scopeQuery = regionId ? `&regionId=${encodeURIComponent(regionId)}` : ''
+  const economyPath = `/api/economy/overview?window=${encodeURIComponent(window)}&gameId=${encodeURIComponent(gameId)}${scopeQuery}`
+  const funnelPath = `/api/funnels?gameId=${encodeURIComponent(gameId)}&windowDays=${encodeURIComponent(windowDays)}&limit=5000${scopeQuery}`
+  const telemetryPath = `/api/games/${encodeURIComponent(gameId)}/telemetry?windowDays=${encodeURIComponent(windowDays)}${scopeQuery}`
+  const forecastPath = `/api/games/${encodeURIComponent(gameId)}/forecast?windowDays=${encodeURIComponent(windowDays)}`
+  const tasks = Promise.allSettled([
+    getIntelJson(economyPath),
+    getIntelJson(funnelPath),
+    getIntelJson(forecastPath),
+    getIntelJson(telemetryPath),
+  ]).then((results) => {
+    if (S.intel[key]?.requestId !== requestId) return S.intel[key]
+    const [economyResult, funnelResult, forecastResult, telemetryResult] = results
+    const errors = {}
+    if (economyResult.status === 'rejected') errors.economy = String(economyResult.reason?.message || economyResult.reason || 'Не удалось загрузить экономику')
+    if (funnelResult.status === 'rejected') errors.funnel = String(funnelResult.reason?.message || funnelResult.reason || 'Не удалось загрузить воронку')
+    if (forecastResult.status === 'rejected') errors.forecast = String(forecastResult.reason?.message || forecastResult.reason || 'Не удалось загрузить статус прогноза')
+    if (telemetryResult.status === 'rejected') errors.telemetry = String(telemetryResult.reason?.message || telemetryResult.reason || 'Не удалось загрузить телеметрию')
+    S.intel[key] = {
+      loading: false,
+      requestId,
+      fetchedAt: Date.now(),
+      window,
+      regionId,
+      economy: economyResult.status === 'fulfilled' ? economyResult.value : null,
+      funnel: funnelResult.status === 'fulfilled' ? funnelResult.value : null,
+      forecast: forecastResult.status === 'fulfilled' ? forecastResult.value : null,
+      telemetry: telemetryResult.status === 'fulfilled' ? telemetryResult.value : null,
+      errors,
+    }
+    if (S.mode !== 'training') render()
+    return S.intel[key]
+  }).catch((error) => {
+    if (S.intel[key]?.requestId !== requestId) return S.intel[key]
+    S.intel[key] = { loading: false, requestId, fetchedAt: Date.now(), window, regionId, economy: null, funnel: null, forecast: null, telemetry: null, errors: { request: String(error?.message || error) } }
+    if (S.mode !== 'training') render()
+    return S.intel[key]
+  })
+  S.intel[key] = { loading: true, requestId, promise: tasks, window, regionId, economy: null, funnel: null, forecast: null, telemetry: null, errors: {} }
+  if (S.mode !== 'training') render()
+  return tasks
+}
+
+function intelLoading(record, section = 'данные') {
+  if (record?.loading) return `<div class="cz-intel-empty loading"><i></i><b>Загружаем ${esc(section)}…</b><small>Читаем только существующие данные API.</small></div>`
+  return ''
+}
+
+function intelFailure(record, section, fallback = 'Источник не ответил. Повторите запрос кнопкой ↻.') {
+  const reason = record?.errors?.[section] || record?.errors?.request || fallback
+  return `<div class="cz-intel-empty"><b>${esc(section === 'economy' ? 'Экономические метрики не загрузились' : section === 'funnel' ? 'Воронка недоступна' : 'Данные недоступны')}</b><small>${esc(reason)}</small></div>`
+}
+
+function metricCard(metric) {
+  const quality = metric?.quality || 'unavailable'
+  const status = DATA_QUALITY_TEXT[quality] || quality
+  const statusClass = DATA_QUALITY_CLASS[quality] || 'na'
+  const value = formatMetricValue(metric)
+  const reason = quality === 'unavailable' ? (metric?.reason || metric?.note) : metric?.note
+  const needs = Array.isArray(metric?.needs) ? metric.needs : []
+  return `<article class="cz-intel-metric ${statusClass}"><div class="cz-intel-metric-head"><b>${esc(metric?.label || metric?.id || 'Метрика')}</b><em class="${statusClass}">${esc(status)}</em></div><strong class="${metricAvailable(metric) ? '' : 'na'}">${esc(value)}</strong>${reason ? `<small class="cz-intel-reason">${esc(reason)}</small>` : ''}<details><summary>Формула и источник</summary><div class="cz-intel-meta"><span><b>Формула:</b> ${esc(metric?.formula || 'не указана')}</span><span><b>Источник:</b> ${esc(metric?.source || 'не указан')}</span>${needs.length ? `<span><b>Нужно:</b> ${needs.map(esc).join(' · ')}</span>` : ''}${metric?.window ? `<span><b>Окно:</b> ${esc(metric.window)} · ${esc(metric.timezone || 'UTC')}</span>` : ''}</div></details></article>`
+}
+
+function renderEconomyTab(gameId, record, regionId = null) {
+  const economy = record?.economy
+  if (!economy) return record?.loading ? intelLoading(record, '40 метрик экономики') : intelFailure(record, 'economy')
+  const metrics = Array.isArray(economy.metrics) ? economy.metrics : []
+  const available = metrics.filter(metricAvailable).length
+  const familyGroups = ECONOMY_FAMILIES.map((family, index) => {
+    const group = metrics.filter((metric) => metric.family === family.id)
+    const have = group.filter(metricAvailable).length
+    if (!group.length) return ''
+    return `<details class="cz-intel-family" ${index < 2 ? 'open' : ''}><summary><span>${family.label}</span><em>${have}/${group.length}</em></summary><p>${family.why}</p><div class="cz-intel-metric-grid">${group.map(metricCard).join('')}</div></details>`
+  }).join('')
+  const index = economy.index || {}
+  const score = Number.isFinite(index.score) ? `<div class="cz-intel-index ${esc(index.status || '')}"><span>Индекс здоровья экономики</span><b>${index.score}<small>/100</small></b><em>${esc(index.status || '—')}</em><small>${(index.components || []).length} компонентов учтено · ${esc(index.reason || '')}</small></div>` : `<div class="cz-callout warn"><b>Индекс здоровья не рассчитан</b><span>${esc(index.reason || 'Недостаточно доступных компонентов. Порог движка — минимум четыре.')}</span></div>`
+  const scopeNote = regionId ? '<div class="cz-callout info"><b>Срез района</b><span>Считаются только события этой игры с совпадающей меткой regionId/locationId. Значения конфигурации студии сюда не переносятся.</span></div>' : '<div class="cz-callout info"><b>Срез игры</b><span>Считаются события выбранной игры. Глобальные финансовые настройки студии не приписываются tenant’у.</span></div>'
+  return `${intelToolbar(gameId, regionId, record)}${scopeNote}<div class="cz-intel-summary"><b>${available} из ${metrics.length || 40} метрик рассчитано</b><span>${economy.demo ? 'DEMO DATA · синтетические данные' : `Источник: ${esc(economy.source || 'event-inbox')}`}</span></div>${score}<div class="cz-intel-family-list">${familyGroups}</div><p class="cz-note">Метрики с пометкой «нет данных» не считаются нулём. Разверните «Формула и источник», чтобы увидеть требуемые события и настройки.</p>`
+}
+
+function renderProxyMetric(row) {
+  const quality = row.quality || 'unavailable'
+  const statusClass = DATA_QUALITY_CLASS[quality] || 'na'
+  return `<article class="cz-intel-metric proxy ${statusClass}"><div class="cz-intel-metric-head"><b>${esc(row.label)}</b><em class="${statusClass}">прокси</em></div><strong class="${row.value == null ? 'na' : ''}">${esc(row.display)}</strong><small>${esc(row.formula)}</small><details><summary>Происхождение</summary><div class="cz-intel-meta"><span>${esc(row.source)}</span></div></details></article>`
+}
+
+function renderFunnel(funnel, record) {
+  if (!funnel) return record?.errors?.funnel ? intelFailure(record, 'funnel') : '<p class="cz-intel-empty"><b>Воронка пока недоступна</b><small>Нужны события входа, первого действия, возврата и покупки.</small></p>'
+  const stages = Array.isArray(funnel.stages) ? funnel.stages : []
+  if (!stages.length) return '<p class="cz-intel-empty"><b>Этапы воронки не определены</b><small>Источник не вернул этапы для этой игры.</small></p>'
+  return `<div class="cz-intel-funnel">${stages.map((stage) => {
+    const hasRate = stage.conversionRate !== null && stage.conversionRate !== undefined && Number.isFinite(Number(stage.conversionRate))
+    const rate = hasRate ? Math.max(0, Math.min(100, Number(stage.conversionRate))) : null
+    const hasEvents = funnel.dataQuality !== 'unavailable'
+    const value = !hasEvents || stage.players == null ? 'нет данных' : Number(stage.players).toLocaleString('ru-RU')
+    return `<div class="cz-intel-funnel-row"><div><span>${esc(stage.label)}</span><b>${esc(value)}${rate == null || !hasEvents ? '' : ` · ${rate.toLocaleString('ru-RU')}% от первого входа`}</b></div><i><em style="width:${hasEvents ? rate ?? 0 : 0}%"></em></i></div>`
+  }).join('')}</div><p class="cz-note">${funnel.dataQuality === 'unavailable' ? 'Событий воронки нет; этапы отображены как «нет данных», а не нулевые конверсии.' : `Приватность: ${esc(funnel.privacy || 'анонимные группы')} · обработано ${Number(funnel.events || 0).toLocaleString('ru-RU')} событий.`}</p>`
+}
+
+function renderAnalyticsTab(gameId, record, regionId = null) {
+  if (!record) return '<div class="cz-intel-empty"><b>Аналитика появится после загрузки</b><small>Откройте вкладку ещё раз через мгновение.</small></div>'
+  if (record.loading && !record.economy && !record.funnel) return intelLoading(record, 'аналитику игры')
+  const economy = record.economy
+  const metrics = economy?.metrics || []
+  const directRows = [
+    ['Активные кошельки', metricById(economy, 'active_wallets')],
+    ['Доля новых кошельков', metricById(economy, 'new_wallets_share')],
+    ['Выпущено', metricById(economy, 'total_minted')],
+    ['Сожжено', metricById(economy, 'total_burned')],
+    ['Источники', metricById(economy, 'sources_total')],
+    ['Стоки', metricById(economy, 'sinks_total')],
+  ]
+  const direct = `<div class="cz-intel-stat-grid">${directRows.map(([label, metric]) => `<div><span>${esc(label)}</span><b class="${metricAvailable(metric) ? '' : 'na'}">${esc(metricAvailable(metric) ? formatMetricValue(metric) : 'нет данных')}</b></div>`).join('')}<div><span>События в окне</span><b>${economy?.inputs?.eventsTotal == null ? 'нет данных' : Number(economy.inputs.eventsTotal).toLocaleString('ru-RU')}</b></div></div>`
+  const proxies = economy ? deriveIndirectMetrics(economy) : []
+  const available = metrics.filter(metricAvailable).length
+  const quality = economy ? `${available} из ${metrics.length} экономических метрик имеют значение в окне ${esc(economy.window || S.intelWindow)}.` : (record.errors?.economy || 'Экономические метрики не загружены.')
+  const scopeTitle = regionId ? 'Срез наблюдений по району' : 'Срез наблюдений по игре'
+  const scopeNote = regionId ? 'Воронка и метрики отфильтрованы по regionId/locationId; без явной метки данные не приписываются району.' : 'Межигровые показатели не подменяются данными одной игры.'
+  return `${intelToolbar(gameId, regionId, record)}<div class="cz-callout info"><b>${scopeTitle}</b><span>${quality} Косвенные показатели ниже помечены как прокси и раскрывают формулу. ${scopeNote}</span></div><h3>${icon('events')}Прямые показатели</h3>${direct}<h3>${icon('anomaly')}Косвенные метрики / прокси</h3><div class="cz-intel-metric-grid">${proxies.map(renderProxyMetric).join('') || '<p class="cz-intel-empty"><b>Прокси пока не вычисляются</b><small>Нужны события и знаменатели метрик.</small></p>'}</div><h3>${icon('planets')}Воронка игрока</h3>${renderFunnel(record.funnel, record)}<h3>${icon('codex')}Интерпретация</h3>${economy ? `<div class="cz-intel-insights">${analyzeEconomy(economy).map((item) => `<div class="cz-intel-insight ${esc(item.kind)}"><b>${esc(item.title)}</b><span>${esc(item.detail)}</span></div>`).join('')}</div>` : intelFailure(record, 'economy')}<p class="cz-note">Воронка строится по событиям входа, действия, возврата, покупки и перехода. Отсутствующие типы событий не подменяются расчётной конверсией.</p>`
+}
+
+function renderTelemetryTimeline(rows = [], windowDays = 7, timedEvents = 0) {
+  if (!timedEvents) return '<div class="cz-intel-empty"><b>Временной ряд недоступен</b><small>События без корректной метки времени не распределяются по интервалам.</small></div>'
+  const max = Math.max(0, ...rows.map((row) => Number(row.events) || 0))
+  const stride = windowDays <= 1 ? 4 : 1
+  const bars = rows.map((row, index) => {
+    const value = Number(row.events) || 0
+    const height = max ? Math.max(value ? 4 : 0, value / max * 100) : 0
+    const title = `${row.label}: ${value.toLocaleString('ru-RU')} событий`
+    return `<div class="cz-intel-bar" title="${esc(title)}"><i style="height:${height}%"></i><small>${index % stride === 0 ? esc(row.label) : ''}</small></div>`
+  }).join('')
+  return `<div class="cz-intel-chart" role="img" aria-label="Количество событий по интервалам">${bars}</div><p class="cz-note">Показаны интервалы UTC. Всего с временными метками: ${Number(timedEvents).toLocaleString('ru-RU')}.</p>`
+}
+
+function renderEventTypes(summary) {
+  const items = Array.isArray(summary?.items) ? summary.items : []
+  if (!items.length) return '<p class="cz-intel-empty"><b>Типы событий не определены</b><small>В выбранном срезе нет событий.</small></p>'
+  const max = Math.max(...items.map((item) => Number(item.count) || 0), 1)
+  const rows = items.map((item) => `<div class="cz-intel-type"><span>${esc(item.type)}</span><b>${Number(item.count || 0).toLocaleString('ru-RU')}</b><i><em style="width:${Math.max(1, Number(item.count || 0) / max * 100)}%"></em></i></div>`).join('')
+  const omitted = Number(summary?.omittedTypes) || 0
+  return `${rows}${omitted ? `<p class="cz-note">Показаны 20 самых частых типов из ${Number(summary.typesTotal || items.length).toLocaleString('ru-RU')}; ещё ${omitted} типов в агрегации не раскрыты.</p>` : ''}`
+}
+
+function renderTelemetryOverview(gameId, record, regionId = null) {
+  if (!record) return '<div class="cz-intel-empty"><b>Телеметрия появится после загрузки</b><small>Агрегаты обновляются автоматически по выбранному окну.</small></div>'
+  if (record.loading && !record.telemetry) return intelLoading(record, 'статистику и телеметрию')
+  const telemetry = record.telemetry
+  if (!telemetry) return intelFailure(record, 'telemetry', 'API телеметрии не ответил.')
+  const windowDays = telemetry.windowDays || 7
+  const location = regionId ? (telemetry.selectedLocation || telemetry.locations?.find((item) => item.id === regionId) || null) : null
+  const selectedCount = location?.events || 0
+  const locationTitle = regionId ? (bodyById(gameId)?.regions.find((item) => item.id === regionId)?.name || regionId) : null
+  const overviewScope = regionId
+    ? `<div class="cz-callout ${selectedCount ? 'info' : 'warn'}"><b>${selectedCount ? `Телеметрия района: ${esc(locationTitle)}` : `Нет размеченных событий района «${esc(locationTitle)}»`}</b><span>${selectedCount ? `В inbox есть ${selectedCount.toLocaleString('ru-RU')} событий с явной меткой локации за выбранное окно.` : 'Данные всей планеты не копируются сюда. Игровые события должны передавать regionId/locationId; отсутствие метки не означает нулевую активность.'}</span></div>`
+    : telemetry.totalEvents
+      ? '<div class="cz-callout info"><b>Поток выбранной игры</b><span>Агрегаты считаются только по событиям этой игры, принятым в event-inbox. Число принятых событий не равно DAU, если игра не передаёт полный поток.</span></div>'
+      : '<div class="cz-callout warn"><b>События этой игры не поступили в окно</b><span>Счётчик входящего потока равен 0, но активность самой игры этим не измерена. Не делаем вывод, что игроков или игровых действий нет.</span></div>'
+  const source = regionId ? location : telemetry
+  const cards = regionId
+    ? `<div class="cz-intel-stat-grid"><div><span>События с меткой района</span><b class="${selectedCount ? '' : 'na'}">${selectedCount ? selectedCount.toLocaleString('ru-RU') : 'нет данных'}</b></div><div><span>Типы событий</span><b class="${selectedCount ? '' : 'na'}">${selectedCount ? Number(location.eventTypes?.typesTotal || location.eventTypes?.items?.length || 0).toLocaleString('ru-RU') : 'нет данных'}</b></div><div><span>Последнее событие</span><b class="${location?.lastEventAt ? '' : 'na'}">${location?.lastEventAt ? new Date(location.lastEventAt).toLocaleString('ru-RU', { timeZone: 'UTC', dateStyle: 'short', timeStyle: 'short' }) : 'нет данных'}</b></div><div><span>Качество источника</span><b class="${location?.events ? 'partial' : 'na'}">${location?.events ? 'частично' : 'нет данных'}</b></div></div>`
+    : `<div class="cz-intel-stat-grid"><div><span>События в окне</span><b>${Number(telemetry.totalEvents || 0).toLocaleString('ru-RU')}</b></div><div><span>С временной меткой</span><b>${Number(telemetry.timedEvents || 0).toLocaleString('ru-RU')}</b></div><div><span>Без времени</span><b class="${telemetry.untimedEvents ? 'warn' : ''}">${Number(telemetry.untimedEvents || 0).toLocaleString('ru-RU')}</b></div><div><span>Последнее событие</span><b class="${telemetry.lastEventAt ? '' : 'na'}">${telemetry.lastEventAt ? new Date(telemetry.lastEventAt).toLocaleString('ru-RU', { timeZone: 'UTC', dateStyle: 'short', timeStyle: 'short' }) : 'нет данных'}</b></div></div>`
+  const series = source?.timeline || []
+  const types = regionId
+    ? source?.eventTypes
+    : { items: telemetry.eventTypes || [], typesTotal: telemetry.eventTypeCoverage?.totalTypes || telemetry.eventTypes?.length || 0, omittedTypes: telemetry.eventTypeCoverage?.omittedTypes || 0 }
+  const locationRows = !regionId && Array.isArray(telemetry.locations) && telemetry.locations.length
+    ? `<div class="cz-intel-location-list">${telemetry.locations.map((item) => {
+      const region = bodyById(gameId)?.regions.find((candidate) => candidate.id === item.id)
+      const label = region?.name || item.id
+      return `<button type="button" data-act="intel-location" data-game="${esc(gameId)}" data-region="${esc(item.id)}"><span><b>${esc(label)}</b><small>${esc(item.id)}</small></span><strong>${Number(item.events).toLocaleString('ru-RU')}</strong></button>`
+    }).join('')}</div>${telemetry.locationCoverage?.omittedLocationEvents ? `<p class="cz-note">Показаны 20 локаций с наибольшим числом событий; ещё ${Number(telemetry.locationCoverage.omittedLocationEvents).toLocaleString('ru-RU')} событий относятся к другим меткам.</p>` : ''}`
+    : ''
+  const totalTypes = Number(types?.typesTotal || types?.items?.length || 0)
+  const eventTypesOpen = S.intelDisclosures[intelDisclosureKey(gameId, regionId, 'event-types')]
+  const disclosureContext = `data-game="${esc(gameId)}" data-region="${esc(regionId || '')}"`
+  const eventTypesDetails = `<details class="cz-intel-accordion" ${eventTypesOpen ? 'open' : ''}><summary data-act="intel-disclosure" data-disclosure="event-types" ${disclosureContext}><span>${icon('events')}Типы событий</span><small>${totalTypes.toLocaleString('ru-RU')} ${ruCount(totalTypes, 'тип', 'типа', 'типов')}</small></summary><div class="cz-intel-accordion-body"><div class="cz-intel-types">${renderEventTypes(types)}</div></div></details>`
+  const locationCount = Number(telemetry.locationCoverage?.totalLocations || telemetry.locations?.length || 0)
+  const locationOpen = S.intelDisclosures[intelDisclosureKey(gameId, regionId, 'locations')]
+  const locationDetails = locationRows
+    ? `<details class="cz-intel-accordion" ${locationOpen ? 'open' : ''}><summary data-act="intel-disclosure" data-disclosure="locations" ${disclosureContext}><span>${icon('planets')}Разрез по размеченным районам</span><small>${locationCount.toLocaleString('ru-RU')} ${ruCount(locationCount, 'район', 'района', 'районов')}</small></summary><div class="cz-intel-accordion-body">${locationRows}</div></details>`
+    : ''
+  const locationNote = regionId && S.object
+    ? '<div class="cz-callout info"><b>Точность привязки</b><span>Этот объект наследует телеметрию своего района. Отдельная аналитика по объекту возможна, только если игра передаёт отдельный objectId.</span></div>'
+    : ''
+  const coverageLabel = regionId ? 'Общее покрытие геометками игры' : 'Покрытие геометками'
+  const telemetryTitle = regionId ? `Телеметрия района · ${locationTitle}` : `Телеметрия игры · ${bodyById(gameId)?.short || gameId}`
+  return `<h3 class="cz-telemetry-title">${icon('events')}${esc(telemetryTitle)}</h3>${intelToolbar(gameId, regionId, record)}${overviewScope}${locationNote}${cards}<h3>${icon('time')}Динамика событий</h3>${renderTelemetryTimeline(series, windowDays, source?.timedEvents || 0)}${eventTypesDetails}${locationDetails}<div class="cz-callout ${telemetry.locationCoverage?.taggedEvents ? 'info' : 'warn'}"><b>${coverageLabel}: ${telemetry.locationCoverage?.ratio == null ? 'нет данных' : `${(telemetry.locationCoverage.ratio * 100).toLocaleString('ru-RU', { maximumFractionDigits: 1 })}%`}</b><span>${Number(telemetry.locationCoverage?.taggedEvents || 0).toLocaleString('ru-RU')} из ${Number(telemetry.totalEvents || 0).toLocaleString('ru-RU')} событий в окне содержат явный location-тег. ${esc(telemetry.locationCoverage?.note || 'Районные срезы строятся только по явно размеченным событиям.')}</span></div><p class="cz-note">Качество входящих событий: полных ${Number(telemetry.dataQualityCounts?.complete || 0).toLocaleString('ru-RU')}, частичных ${Number(telemetry.dataQualityCounts?.partial || 0).toLocaleString('ru-RU')}, недоступных ${Number(telemetry.dataQualityCounts?.unavailable || 0).toLocaleString('ru-RU')}, без статуса ${Number(telemetry.dataQualityCounts?.unspecified || 0).toLocaleString('ru-RU')}.</p>`
+}
+
+function renderSecurityTab(gameId, regionId = null) {
+  const body = bodyById(gameId)
+  const st = S.live?.bodies?.[gameId] || {}
+  const audit = st.security?.audit || null
+  const incidents = st.anomalies || []
+  const detectorAlerts = (S.live?.bodies?.hub?.detectorAlerts || []).filter((alert) => alert.gameId === gameId)
+  const auditState = !audit?.present ? 'Отчёт аудита отсутствует' : audit.scanValid ? 'Есть просканированные файлы' : 'Скан не подтверждён'
+  const auditDetail = !audit?.present
+    ? `Не найден ${audit?.source || `reports/${gameId}-audit.json`}. Отсутствие отчёта не означает отсутствие уязвимостей.`
+    : audit.scanValid
+      ? `Просканировано файлов: ${Number(audit.filesScanned || 0).toLocaleString('ru-RU')}. Источник: ${audit.source}.`
+      : `Файл ${audit.source} присутствует, но files_scanned = 0. Это дефект/пробел сканирования, не «чистый аудит».`
+  const counts = audit || {}
+  const safetyTiles = [
+    ['Критические находки', counts.critical], ['Высокие', counts.high], ['Средние', counts.medium], ['Низкие', counts.low],
+    ['Открытые инциденты', incidents.length], ['Сигналы детекторов', detectorAlerts.length],
+  ]
+  const alerts = [
+    ...incidents.map((item) => ({ ...item, title: item.title || item.type, detail: item.detail || item.description, interactive: true })),
+    ...detectorAlerts.map((item) => ({ ...item, interactive: false })),
+  ]
+  const regionScope = regionId ? `<div class="cz-callout info"><b>Безопасность игры целиком</b><span>Аудит, инциденты и сигналы детекторов не содержат надёжной привязки к району «${esc(body?.regions?.find((region) => region.id === regionId)?.name || regionId)}»; они показаны как контекст игры, не как локальная находка.</span></div>` : ''
+  return `${regionScope}<div class="cz-intel-toolbar"><span class="cz-intel-source">Безопасность · ${esc(body?.short || gameId)} · только чтение</span><button type="button" class="cz-icon-btn cz-intel-refresh" data-act="refresh-live" title="Обновить состояние" aria-label="Обновить состояние">↻</button></div><div class="cz-callout ${audit?.scanValid ? 'info' : 'warn'}"><b>${esc(auditState)}</b><span>${esc(auditDetail)}</span></div><div class="cz-intel-stat-grid security">${safetyTiles.map(([label, value]) => `<div><span>${esc(label)}</span><b class="${value == null ? 'na' : Number(value) > 0 && ['Критические находки', 'Высокие', 'Открытые инциденты'].includes(label) ? 'risk' : ''}">${value == null ? 'нет данных' : Number(value).toLocaleString('ru-RU')}</b></div>`).join('')}</div><div class="cz-kv"><span>Подключение программы</span><b>${st.configured ? 'настроено' : 'не настроено'}</b></div><div class="cz-kv"><span>Качество сигнала</span><b>${esc(DATA_QUALITY_TEXT[st.ecosystemQuality] || st.ecosystemQuality || 'нет данных')}</b></div>${st.security?.envKey ? `<div class="cz-kv"><span>Переменная настройки</span><b>${esc(st.security.envKey)}</b></div>` : ''}${st.security?.reason ? `<p class="cz-note">${esc(st.security.reason)}</p>` : ''}${st.nextStep ? `<div class="cz-callout info"><b>Следующий шаг</b><span>${esc(st.nextStep)}</span></div>` : ''}<h3>${icon('anomaly')}Тревоги и инциденты${alerts.length ? ` <em class="cz-count ${worstClass(alerts)}">${alerts.length}</em>` : ''}</h3>${alerts.length ? `<div class="cz-list">${alerts.map((alert) => alert.interactive ? anomalyRow(alert) : `<div class="cz-row static"><i class="cz-sev ${severityClass(alert.severity)}"></i><span><b>${esc(alert.title || 'Сигнал детектора')}</b><small>${esc(alert.detail || '')}</small></span></div>`).join('')}</div>` : '<p class="cz-empty">Сигналов для этой игры сейчас нет. Это не заменяет независимый аудит.</p>'}<div class="cz-callout warn"><b>Граница полномочий</b><span>Watchtower работает read-only: не подписывает и не отправляет игровые транзакции. Тревога — повод проверить факты, а не автоматический бан.</span></div>`
+}
+
+function renderForecastTab(gameId, record, regionId = null) {
+  if (!record) return '<div class="cz-intel-empty"><b>Статус прогноза загружается</b><small>Данные запрашиваются у API игры.</small></div>'
+  if (record.loading && !record.forecast && !record.economy) return intelLoading(record, 'сценарий и прогноз')
+  const apiForecast = record.forecast
+  const apiReason = record.errors?.forecast || apiForecast?.reason || 'API не вернул прогноз для этой игры.'
+  const scenario = economyScenario(record.economy, 30)
+  const fmtScenario = (value) => `${value > 0 ? '+' : ''}${Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 3 })} ед.`
+  const scenarioHtml = scenario.available
+    ? `<div class="cz-intel-scenario"><div><span>Чистая эмиссия / день (по окну)</span><b>${fmtScenario(scenario.dailyNet)}</b></div><div><span>Mint за 30 дней, если темп сохранится</span><b>${Number(scenario.projectedMint).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ед.</b></div><div><span>Burn за 30 дней, если темп сохранится</span><b>${Number(scenario.projectedBurn).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ед.</b></div><div class="net"><span>Сценарная чистая эмиссия за 30 дней</span><b>${fmtScenario(scenario.projectedNet)}</b></div><small>${esc(scenario.caveat)} Основа: ${scenario.observedEvents.toLocaleString('ru-RU')} событий за ${scenario.windowDays} дн.</small></div>`
+    : `<div class="cz-intel-empty"><b>Сценарий пока не рассчитывается</b><small>${esc(scenario.reason)}</small></div>`
+  const forecastState = apiForecast?.status === 'available' ? 'Прогноз доступен' : 'Игровой прогноз недоступен'
+  const scopeNote = regionId ? '<div class="cz-callout info"><b>Сценарий района · прогноз игры</b><span>Линейный run-rate берёт только экономические события с явной меткой выбранного района. Статус forecast API относится ко всей игре и не локализуется.</span></div>' : ''
+  return `${intelToolbar(gameId, regionId, record)}${scopeNote}<div class="cz-callout warn"><b>${esc(forecastState)}</b><span>${esc(apiReason)} Текущий API явно не публикует прогноз игроков или выручки без подтверждённого исторического ряда.</span></div><h3>${icon('time')}Сценарий экономики</h3>${scenarioHtml}<div class="cz-callout info"><b>Что можно оценивать сейчас</b><span>Ниже — только линейный run-rate сценарий на основе наблюдаемых mint/burn. Это не ML, не инвестиционная рекомендация и не прогноз фактического поведения игроков.</span></div><p class="cz-note">Источник: /api/games/${esc(gameId)}/forecast и /api/economy/overview?gameId=${esc(gameId)}. Для полноценного прогноза нужны длинные исторические дневные ряды, стабильная телеметрия и проверка ошибки модели по игре.</p>`
+}
+
+function renderGameIntelTab(gameId, regionId, tab) {
+  if (tab === 'security') return renderSecurityTab(gameId, regionId)
+  const record = currentGameIntel(gameId, regionId)
+  if (tab === 'economy') return renderEconomyTab(gameId, record, regionId)
+  if (tab === 'analytics') return renderAnalyticsTab(gameId, record, regionId)
+  if (tab === 'forecast') return renderForecastTab(gameId, record, regionId)
+  return ''
+}
+
 const DETECTOR_TEXT = {
   'silence-gate': () => ['Канал приёма молчит', 'Ни одна игра пока не прислала событий, поэтому цифры показаны как «нет данных», а не нули.'],
   'data-quality': (b) => [`${b?.name || 'Игра'}: нет свежих данных`, 'За окно наблюдения от игры не пришло ни одного события.'],
@@ -459,14 +758,17 @@ function bodyPanel(id) {
   if (!b) return welcomePanel()
   const st = world().bodies?.[id] || {}
   const signal = st.lost ? 'none' : (st.signal || 'none')
+  const isGame = b.kind === 'planet'
+  const hasIntel = isGame && S.mode !== 'training'
+  const tab = hasIntel ? intelTabFor(id) : 'overview'
   const keys = b.kind === 'station' ? ['events', 'adapters', 'alerts'] : S.mode === 'training' ? ['players'] : ['players', 'newPlayers', 'retention', 'minted', 'burned', 'volume']
   const anomalies = st.anomalies || []
-  return `
-    ${panelHead(b.name, b.formerly ? `${b.tagline} · ${b.formerly}` : b.tagline, true, thumb(b, 'big'))}
+  const overview = `
     <div class="cz-signal ${st.lost ? 'lost' : signal}"><i></i><span>${st.lost ? 'Связь потеряна' : SIGNAL_TEXT[signal]}${S.mode === 'training' && !st.lost ? ` · стабильность ${Math.round(Math.max(0, st.stability || 0))}%` : ''}</span></div>
     ${st.signalReason ? `<p class="cz-note">${esc(st.signalReason)}</p>` : ''}
     <p class="cz-text">${esc(b.about)}</p>
     ${metricsGrid(st.metrics, keys)}
+    ${hasIntel ? `<div class="cz-intel-overview">${renderTelemetryOverview(id, currentGameIntel(id))}</div>` : ''}
     ${S.mode !== 'training' && st.level ? `<div class="cz-kv"><span>Подключение к обсерватории</span><b>${esc(LEVEL_TEXT[st.level]?.[0] || st.level)}</b></div>${LEVEL_TEXT[st.level] ? `<p class="cz-note">${esc(LEVEL_TEXT[st.level][1])}</p>` : ''}` : ''}
     <h3>${icon('anomaly')}Аномалии ${anomalies.length ? `<em class="cz-count ${worstClass(anomalies)}">${anomalies.length}</em>` : ''}</h3>
     ${anomalies.length ? `<div class="cz-list">${anomalies.map(anomalyRow).join('')}</div>` : '<p class="cz-empty">Аномалий нет.</p>'}
@@ -475,6 +777,7 @@ function bodyPanel(id) {
       <button class="cz-btn primary" data-act="enter" data-id="${b.id}">${ICON.down}Спуститься на поверхность</button>
       ${b.site ? `<a class="cz-btn" href="${esc(withRef(b.site))}" target="_blank" rel="noopener">Сайт игры ${ICON.ext}</a>` : ''}
     </div>`
+  return `${panelHead(b.name, b.formerly ? `${b.tagline} · ${b.formerly}` : b.tagline, true, thumb(b, 'big'))}${hasIntel ? gameIntelTabs(id) : ''}${tab === 'overview' ? overview : `<div class="cz-intel-panel">${renderGameIntelTab(id, null, tab)}</div>`}`
 }
 
 function closeupPreview(b, r) {
@@ -485,6 +788,34 @@ function closeupPreview(b, r) {
   return `<button class="cz-preview" data-act="closeup" data-id="${r.id}"><img src="${cu.image}" alt="" draggable="false" /><span><b>Войти в район</b><small>Осмотрено ${seen} из ${cu.objects.length}</small></span></button>`
 }
 
+function renderLocationOverview(gameId, regionId, { objectId = null } = {}) {
+  const record = currentGameIntel(gameId, regionId)
+  const telemetry = record?.telemetry
+  const location = telemetry?.selectedLocation || telemetry?.locations?.find((item) => item.id === regionId) || null
+  if (!location?.events) {
+    if (record?.loading && !telemetry) return intelLoading(record, 'метрики района')
+    const error = record?.errors?.telemetry
+    return `<div class="cz-intel-empty"><b>${error ? 'Телеметрия района не загрузилась' : 'Пока нет событий, привязанных к этому району'}</b><small>${esc(error || `Игра должна передавать regionId/locationId = ${regionId}. Общие числа игры намеренно не копируются в район и не считаются нулевой активностью.`)}</small></div>`
+  }
+  const economy = record?.economy
+  const fields = [
+    ['События района', location.events.toLocaleString('ru-RU')],
+    ['Активные кошельки', metricById(economy, 'active_wallets')],
+    ['Выпущено', metricById(economy, 'total_minted')],
+    ['Сожжено', metricById(economy, 'total_burned')],
+    ['Источники', metricById(economy, 'sources_total')],
+    ['Стоки', metricById(economy, 'sinks_total')],
+  ]
+  const tiles = fields.map(([label, metric]) => {
+    if (typeof metric === 'string') return `<div><span>${esc(label)}</span><b>${esc(metric)}</b></div>`
+    const available = metricAvailable(metric)
+    return `<div><span>${esc(label)}</span><b class="${available ? '' : 'na'}">${esc(available ? formatMetricValue(metric) : 'нет данных')}</b></div>`
+  }).join('')
+  const updated = location.lastEventAt ? new Date(location.lastEventAt).toLocaleString('ru-RU', { timeZone: 'UTC', dateStyle: 'short', timeStyle: 'short' }) : 'нет данных'
+  const objectNote = objectId ? '<p class="cz-note">Это срез содержащего объекта района. Отдельные числа по объекту появятся, если игра начнёт передавать objectId.</p>' : ''
+  return `<div class="cz-location-summary"><div class="cz-intel-summary"><b>Подтверждённые данные района</b><span>${location.events.toLocaleString('ru-RU')} событий · обновление ${esc(updated)} UTC</span></div><div class="cz-intel-stat-grid">${tiles}</div><p class="cz-note">Расчёт только по событиям с regionId/locationId = ${esc(regionId)}. Не размеченные события исключены; это не оценка всей активности района.</p>${objectNote}</div>`
+}
+
 function objectPanel(bodyId, regionId, objId) {
   const b = bodyById(bodyId)
   const cu = closeupFor(bodyId, regionId)
@@ -493,11 +824,13 @@ function objectPanel(bodyId, regionId, objId) {
   const codex = loadCodex()
   const next = cu.objects.find((x) => !codex.has(codexKey(bodyId, regionId, x.id)))
   const n = codex.size
-  return `
-    ${panelHead(o.name, `${b.name} · ${cu.title}`)}
-    <div class="cz-entry"><span class="cz-entry-tag">${icon('codex')}Запись кодекса</span><p>${esc(o.text)}</p></div>
-    <div class="cz-codex mini"><div class="cz-codex-head"><b>Кодекс системы</b><span>${n} из ${CODEX_TOTAL}</span></div><div class="cz-meter"><i style="width:${(n / CODEX_TOTAL) * 100}%"></i></div></div>
-    <div class="cz-actions">${next ? `<button class="cz-btn primary" data-act="object" data-id="${next.id}">Дальше: ${esc(next.name)}</button>` : '<span class="cz-note">Район осмотрен полностью.</span>'}<button class="cz-btn" data-act="codex">Весь кодекс</button></div>`
+  const hasIntel = b?.kind === 'planet' && S.mode !== 'training'
+  const tab = hasIntel ? intelTabFor(bodyId, regionId) : 'overview'
+  const locationIntel = hasIntel
+    ? renderLocationOverview(bodyId, regionId, { objectId: objId }) + `<div class="cz-intel-overview">${renderTelemetryOverview(bodyId, currentGameIntel(bodyId, regionId), regionId)}</div>`
+    : ''
+  const entry = `<div class="cz-entry"><span class="cz-entry-tag">${icon('codex')}Запись кодекса</span><p>${esc(o.text)}</p></div>${locationIntel}<div class="cz-codex mini"><div class="cz-codex-head"><b>Кодекс системы</b><span>${n} из ${CODEX_TOTAL}</span></div><div class="cz-meter"><i style="width:${(n / CODEX_TOTAL) * 100}%"></i></div></div><div class="cz-actions">${next ? `<button class="cz-btn primary" data-act="object" data-id="${next.id}">Дальше: ${esc(next.name)}</button>` : '<span class="cz-note">Район осмотрен полностью.</span>'}<button class="cz-btn" data-act="codex">Весь кодекс</button></div>`
+  return `${panelHead(o.name, `${b.name} · ${cu.title}`)}${hasIntel ? gameIntelTabs(bodyId, regionId) : ''}${tab === 'overview' ? entry : `<div class="cz-intel-location-tag">${esc(cu.title)} · ${esc(o.name)}</div><div class="cz-intel-panel">${renderGameIntelTab(bodyId, regionId, tab)}</div>`}`
 }
 
 function regionPanel(bodyId, regionId) {
@@ -506,14 +839,19 @@ function regionPanel(bodyId, regionId) {
   if (!r) return bodyPanel(bodyId)
   const st = world().bodies?.[bodyId] || {}
   const anomalies = (st.anomalies || []).filter((a) => regionFor(b, a)?.id === r.id)
-  return `
-    ${panelHead(r.name, b.name)}
+  const hasIntel = b.kind === 'planet' && S.mode !== 'training'
+  const tab = hasIntel ? intelTabFor(bodyId, regionId) : 'overview'
+  const regionMetrics = hasIntel
+    ? renderLocationOverview(bodyId, regionId) + `<div class="cz-intel-overview">${renderTelemetryOverview(bodyId, currentGameIntel(bodyId, regionId), regionId)}</div>`
+    : metricsGrid(st.metrics, ['players'])
+  const overview = `
     <p class="cz-text">${esc(r.about)}</p>
     <div class="cz-callout"><b>За чем следит вахта</b><span>${esc(r.watch)}</span></div>
     ${closeupPreview(b, r)}
-    ${metricsGrid(st.metrics, S.mode === 'training' ? ['players'] : r.metrics)}
+    ${regionMetrics}
     <h3>${icon('anomaly')}Аномалии в районе ${anomalies.length ? `<em class="cz-count ${worstClass(anomalies)}">${anomalies.length}</em>` : ''}</h3>
     ${anomalies.length ? `<div class="cz-list">${anomalies.map(anomalyRow).join('')}</div>` : '<p class="cz-empty">Здесь спокойно.</p>'}`
+  return `${panelHead(r.name, b.name)}${hasIntel ? gameIntelTabs(bodyId, regionId) : ''}${tab === 'overview' ? overview : `<div class="cz-intel-panel">${renderGameIntelTab(bodyId, regionId, tab)}</div>`}`
 }
 
 function anomalyRow(a) {
@@ -675,6 +1013,7 @@ function renderBottom() {
 function openSurface(id) {
   if (id === 'solana') return
   S.surface = id; S.selected = id; S.region = null; S.anomalyId = null; S.closeup = null; S.object = null
+  ensureGameIntel(id)
   engine.select(id)
   render()
 }
@@ -1135,14 +1474,38 @@ root.addEventListener('click', async (e) => {
   const act = t.dataset.act
   const id = t.dataset.id
   if (act === 'mode') return setMode(t.dataset.mode)
-  if (act === 'select') { S.selected = id; S.anomalyId = null; engine.select(id); return render() }
+  if (act === 'intel-tab') {
+    const gameId = t.dataset.game
+    const regionId = t.dataset.region || null
+    S.intelTabs[intelContextKey(gameId, regionId)] = t.dataset.tab
+    render()
+    if (t.dataset.tab !== 'overview' && t.dataset.tab !== 'security') ensureGameIntel(gameId, { regionId })
+    return
+  }
+  if (act === 'intel-disclosure') {
+    const key = intelDisclosureKey(t.dataset.game, t.dataset.region || null, t.dataset.disclosure)
+    S.intelDisclosures[key] = !t.closest('details')?.open
+    return
+  }
+  if (act === 'refresh-intel') return ensureGameIntel(t.dataset.game, { regionId: t.dataset.region || null, force: true })
+  if (act === 'refresh-live') return refreshLive()
+  if (act === 'select') { S.selected = id; S.anomalyId = null; engine.select(id); if (bodyById(id)?.kind === 'planet') ensureGameIntel(id); return render() }
   if (act === 'enter') return openSurface(id)
   if (act === 'leave-surface') { S.surface = null; S.region = null; S.closeup = null; S.object = null; return render() }
-  if (act === 'region') { S.region = id; S.anomalyId = null; S.object = null; return render() }
-  if (act === 'closeup') { S.closeup = id; S.region = id; S.object = null; S.anomalyId = null; return render() }
+  if (act === 'region') { S.region = id; S.anomalyId = null; S.object = null; if (S.surface) ensureGameIntel(S.surface, { regionId: id }); return render() }
+  if (act === 'intel-location') {
+    const gameId = t.dataset.game
+    const regionId = t.dataset.region
+    S.selected = gameId; S.surface = gameId; S.region = regionId; S.closeup = null; S.object = null; S.anomalyId = null
+    S.intelTabs[intelContextKey(gameId, regionId)] = 'overview'
+    ensureGameIntel(gameId, { regionId })
+    return render()
+  }
+  if (act === 'closeup') { S.closeup = id; S.region = id; S.object = null; S.anomalyId = null; if (S.surface) ensureGameIntel(S.surface, { regionId: id }); return render() }
   if (act === 'leave-closeup') { S.closeup = null; S.object = null; return render() }
   if (act === 'object' && S.surface && S.closeup) {
     S.object = id; S.anomalyId = null; S.lastResult = null
+    ensureGameIntel(S.surface, { regionId: S.closeup })
     const res = discover(codexKey(S.surface, S.closeup, id))
     if (res.isNew) {
       const codex = loadCodex()
@@ -1163,6 +1526,7 @@ root.addEventListener('click', async (e) => {
     if (S.examOpen) closeModal()
     S.surface = t.dataset.body; S.selected = t.dataset.body; S.region = t.dataset.region; S.closeup = t.dataset.region; S.object = null
     if (!keep) { S.anomalyId = null; S.lastResult = null }
+    ensureGameIntel(S.surface, { regionId: S.region })
     engine.select(S.surface)
     return render()
   }
@@ -1264,8 +1628,8 @@ root.addEventListener('click', async (e) => {
     S.query = ''
     root.querySelector('[data-act="search"]').value = ''
     root.querySelector('.cz-results').hidden = true
-    if (t.dataset.kind === 'body') { S.selected = id; S.anomalyId = null; engine.select(id) }
-    if (t.dataset.kind === 'region') { openSurface(t.dataset.body); S.region = id }
+    if (t.dataset.kind === 'body') { S.selected = id; S.anomalyId = null; engine.select(id); if (bodyById(id)?.kind === 'planet') ensureGameIntel(id) }
+    if (t.dataset.kind === 'region') { openSurface(t.dataset.body); S.region = id; ensureGameIntel(t.dataset.body, { regionId: id }) }
     if (t.dataset.kind === 'anomaly') { const a = findAnomaly(id); S.anomalyId = id; if (a) { S.selected = a.bodyId; engine.select(a.bodyId) } }
     return render()
   }
@@ -1312,6 +1676,15 @@ root.addEventListener('input', (e) => {
   renderSearch()
 })
 
+root.addEventListener('change', (e) => {
+  if (e.target.dataset.act !== 'intel-window') return
+  const next = INTEL_WINDOWS.some((window) => window.id === e.target.value) ? e.target.value : '7d'
+  S.intelWindow = next
+  try { localStorage.setItem('wt-cosmos-intel-window', next) } catch { /* приватный режим */ }
+  render()
+  if (e.target.dataset.game) ensureGameIntel(e.target.dataset.game, { regionId: e.target.dataset.region || null })
+})
+
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return
   if (S.examOpen) return closeModal()
@@ -1331,6 +1704,12 @@ document.addEventListener('keydown', (e) => {
 render()
 refreshLive()
 setInterval(() => { if (S.mode !== 'training' && !document.hidden) refreshLive() }, LIVE_REFRESH_MS)
+setInterval(() => {
+  if (S.mode === 'training' || document.hidden) return
+  const gameId = S.surface || (bodyById(S.selected)?.kind === 'planet' ? S.selected : null)
+  const regionId = S.surface ? S.region : null
+  if (gameId) ensureGameIntel(gameId, { regionId })
+}, INTEL_REFRESH_MS)
 // Отсчёт времени на отмену подтверждённого решения
 setInterval(() => {
   document.querySelectorAll('[data-until]').forEach((n) => { n.textContent = mmss(Math.max(0, (Number(n.dataset.until) - Date.now()) / 1000)) })

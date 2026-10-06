@@ -24,7 +24,10 @@ function seeded(seed) {
 
 export function createEngine(canvas, handlers = {}) {
   const ctx = canvas.getContext('2d')
-  const images = { star: loadImage(STAR.sprite) }
+  const images = {
+    star: loadImage(STAR.sprite),
+    backdrop: loadImage('/cosmos/backgrounds/orbit-atlas.jpg'),
+  }
   BODIES.forEach((b) => { images[b.id] = loadImage(b.sprite); if (b.moon?.sprite) images[`moon:${b.id}`] = loadImage(b.moon.sprite) })
 
   const rand = seeded(1742)
@@ -47,12 +50,17 @@ export function createEngine(canvas, handlers = {}) {
   let positions = {}
   let routeHover = null
   let destroyed = false
+  let backgroundSurface = null
+  let backgroundSurfaceCtx = null
+  let backgroundDirty = true
+  images.backdrop.addEventListener?.('load', () => { backgroundDirty = true })
 
   function resize() {
     const rect = canvas.getBoundingClientRect()
     dpr = Math.min(window.devicePixelRatio || 1, 2)
     w = rect.width; h = rect.height
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr)
+    backgroundDirty = true
     const portrait = h > w
     const base = portrait ? w * 0.5 : Math.min(w * 0.47, h * 0.92)
     layout = { cx: w * 0.5, cy: portrait ? h * 0.48 : h * 0.54, base, portrait }
@@ -82,20 +90,65 @@ export function createEngine(canvas, handlers = {}) {
   }
 
   // ---------------- отрисовка ----------------
-  function drawBackground() {
-    const g = ctx.createRadialGradient(layout.cx, layout.cy, 0, layout.cx, layout.cy, Math.max(w, h) * 0.75)
+  function paintStaticBackground(target) {
+    const g = target.createRadialGradient(layout.cx, layout.cy, 0, layout.cx, layout.cy, Math.max(w, h) * 0.75)
     g.addColorStop(0, '#0b1230')
     g.addColorStop(0.55, '#060a1c')
     g.addColorStop(1, '#03050d')
-    ctx.fillStyle = g
-    ctx.fillRect(0, 0, w, h)
-    // туманности
-    const neb = [[0.18, 0.25, '#5b2bd9', 0.12], [0.85, 0.78, '#0fb9a6', 0.09], [0.78, 0.18, '#d93b8f', 0.06]]
-    for (const [x, y, c, a] of neb) {
-      const gg = ctx.createRadialGradient(w * x, h * y, 0, w * x, h * y, Math.max(w, h) * 0.38)
-      gg.addColorStop(0, hexA(c, a)); gg.addColorStop(1, hexA(c, 0))
-      ctx.fillStyle = gg; ctx.fillRect(0, 0, w, h)
+    target.fillStyle = g
+    target.fillRect(0, 0, w, h)
+
+    // Авторская орбитальная карта: тёмный центр оставляет место для орбит и подписей.
+    const backdrop = images.backdrop
+    if (backdrop?.complete && backdrop.naturalWidth) {
+      const scale = Math.max(w / backdrop.naturalWidth, h / backdrop.naturalHeight)
+      const drawW = backdrop.naturalWidth * scale
+      const drawH = backdrop.naturalHeight * scale
+      target.save()
+      target.globalAlpha = 0.34
+      target.globalCompositeOperation = 'screen'
+      target.drawImage(backdrop, (w - drawW) / 2, (h - drawH) / 2, drawW, drawH)
+      target.restore()
     }
+
+    // Процедурный цветовой объём дополняет сгенерированную сцену.
+    const neb = [[0.18, 0.25, '#5b2bd9', 0.07], [0.85, 0.78, '#0fb9a6', 0.06], [0.78, 0.18, '#d93b8f', 0.035]]
+    for (const [x, y, c, a] of neb) {
+      const gg = target.createRadialGradient(w * x, h * y, 0, w * x, h * y, Math.max(w, h) * 0.38)
+      gg.addColorStop(0, hexA(c, a)); gg.addColorStop(1, hexA(c, 0))
+      target.fillStyle = gg
+      target.fillRect(0, 0, w, h)
+    }
+  }
+
+  function cacheStaticBackground() {
+    if (!w || !h) return false
+    try {
+      backgroundSurface ||= document.createElement('canvas')
+      const width = Math.max(1, Math.ceil(w))
+      const height = Math.max(1, Math.ceil(h))
+      if (backgroundSurface.width !== width || backgroundSurface.height !== height) {
+        backgroundSurface.width = width
+        backgroundSurface.height = height
+        backgroundSurfaceCtx = backgroundSurface.getContext('2d')
+      }
+      if (!backgroundSurfaceCtx) backgroundSurfaceCtx = backgroundSurface.getContext('2d')
+      if (typeof backgroundSurfaceCtx?.createRadialGradient !== 'function') return false
+      if (backgroundDirty) {
+        paintStaticBackground(backgroundSurfaceCtx)
+        backgroundDirty = false
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  function drawBackground() {
+    if (cacheStaticBackground()) ctx.drawImage(backgroundSurface, 0, 0, w, h)
+    else paintStaticBackground(ctx)
+
+    // Звёзды остаются динамическими; тяжёлый фоновый слой кэшируется до resize/load.
     for (const s of stars) {
       const px = ((s.x * w - mouse.nx * 14 * s.depth) % w + w) % w
       const py = ((s.y * h - mouse.ny * 10 * s.depth) % h + h) % h

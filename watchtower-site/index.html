@@ -1,493 +1,233 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#04060b">
-<title>Watchtower OS — операционная система для Web3-игр</title>
-<meta name="description" content="Watchtower OS: аналитика, трафик, контроль и запуск игр на Solana в одной системе. Хаб только читает блокчейн и не может подписать транзакцию.">
-<meta property="og:title" content="Watchtower OS — операционная система для Web3-игр">
-<meta property="og:description" content="Аналитика, трафик, контроль и запуск игр на Solana в одной системе. 4 игры · 1 OS · 0 скрытых цифр.">
-<meta property="og:type" content="website">
-<meta property="og:image" content="../web-shared/og-watchtower.jpg">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="wt-page" content="target_wtos_ru">
-<link rel="alternate" hreflang="en" href="en.html">
-<link rel="icon" type="image/svg+xml" href="../web-shared/favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Inter+Tight:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>
-@property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
-:root{--bg:#04060b;--ink:#eef3ff;--dim:#8793ab;--line:rgba(160,190,255,.12);--glass:rgba(18,26,44,.45);
---c1:#37e5a0;--c2:#5cc8ff;--c3:#a78bfa;--c4:#ffb85c;--r:26px;--mx:50vw;--my:30vh}
-*{box-sizing:border-box}html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Inter Tight",system-ui,sans-serif;overflow-x:hidden}
-::selection{background:var(--c1);color:#03110b}
-a{color:inherit;text-decoration:none}
-canvas#field{position:fixed;inset:0;z-index:0;pointer-events:none}
-.glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(600px 600px at var(--mx) var(--my),rgba(92,200,255,.10),transparent 60%)}
-main,header,footer{position:relative;z-index:1}
-.wrap{max-width:1240px;margin:0 auto;padding:0 28px}
-h1,h2,h3{font-family:Unbounded,sans-serif;letter-spacing:-.02em;margin:0}
-.mono{font-family:"JetBrains Mono",monospace}
-.grad{background:linear-gradient(100deg,var(--c1),var(--c2) 40%,var(--c3) 80%);-webkit-background-clip:text;background-clip:text;color:transparent}
-/* header — плавающий остров */
-header{position:sticky;top:14px;z-index:30;display:flex;justify-content:center;pointer-events:none}
-.island{pointer-events:auto;display:flex;gap:6px;align-items:center;padding:8px 8px 8px 18px;border-radius:99px;background:rgba(10,14,24,.6);
-backdrop-filter:blur(18px) saturate(1.6);border:1px solid var(--line);box-shadow:0 10px 40px rgba(0,0,0,.4)}
-.island b{font-family:Unbounded;font-size:14px;margin-right:10px;display:flex;align-items:center;gap:8px}
-.island b i{width:10px;height:10px;border-radius:50%;background:var(--c1);box-shadow:0 0 12px var(--c1);animation:pulse 2.4s infinite}
-.island a.l{padding:8px 14px;border-radius:99px;color:var(--dim);font-size:14px}.island a.l:hover{color:var(--ink);background:rgba(255,255,255,.05)}
-.kbd{font:600 12px "JetBrains Mono";padding:8px 12px;border-radius:99px;border:1px solid var(--line);color:var(--dim);background:transparent;cursor:pointer}
-.cta{padding:10px 18px;border-radius:99px;background:var(--ink);color:#05070c;font-weight:700;font-size:14px}
-@keyframes pulse{50%{opacity:.35}}
-/* hero */
-.hero{min-height:92vh;display:grid;align-content:center;padding:120px 0 60px}
-.chip{display:inline-flex;gap:10px;align-items:center;padding:7px 14px;border-radius:99px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(8px);font:500 13px "JetBrains Mono";color:var(--dim)}
-.chip em{color:var(--c1);font-style:normal}
-.hero h1{font-size:clamp(44px,8.4vw,124px);line-height:.95;margin:26px 0 22px;font-weight:800}
-.hero p{max-width:640px;color:var(--dim);font-size:clamp(18px,1.6vw,21px)}
-.row{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
-.btn{position:relative;padding:15px 24px;border-radius:16px;font-weight:700;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(10px)}
-.btn.prime{border:0;color:#03110b;background:var(--c1);box-shadow:0 0 0 1px rgba(55,229,160,.4),0 20px 60px -10px rgba(55,229,160,.55)}
-.btn:hover{transform:translateY(-2px)}.btn{transition:transform .2s}
-/* живой терминал */
-.term{margin-top:56px;border-radius:var(--r);border:1px solid var(--line);background:rgba(6,10,18,.72);backdrop-filter:blur(14px);overflow:hidden;
-box-shadow:0 40px 120px -40px rgba(92,200,255,.35)}
-.term .bar{display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);font:12px "JetBrains Mono";color:var(--dim);align-items:center}
-.term .bar i{width:11px;height:11px;border-radius:50%;background:#2a3246}
-.term pre{margin:0;padding:22px;font:14px/1.75 "JetBrains Mono";min-height:250px;white-space:pre-wrap;color:#b9c6e0}
-.term .ok{color:var(--c1)}.term .k{color:var(--c2)}.term .w{color:var(--c4)}.term .p{color:var(--c3)}
-.caret{display:inline-block;width:9px;height:18px;background:var(--c1);vertical-align:-3px;animation:pulse 1s steps(1) infinite}
-/* секции */
-section{padding:120px 0}
-.eyebrow{font:600 13px "JetBrains Mono";color:var(--c2);letter-spacing:.14em;text-transform:uppercase}
-h2{font-size:clamp(32px,4.6vw,62px);line-height:1.02;margin:14px 0 18px;font-weight:600}
-.lead{color:var(--dim);max-width:680px;font-size:19px}
-/* bento */
-.bento{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;margin-top:48px}
-.tile{position:relative;grid-column:span 2;padding:28px;border-radius:var(--r);background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(12px);overflow:hidden;
-transform-style:preserve-3d;transition:transform .25s ease,border-color .25s}
-.tile.w3{grid-column:span 3}.tile.w4{grid-column:span 4}
-.tile::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:conic-gradient(from var(--a),transparent 70%,var(--c2),var(--c1),transparent);
--webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .3s}
-.tile:hover::before{opacity:1;animation:spin 3s linear infinite}
-@keyframes spin{to{--a:360deg}}
-.tile h3{font-size:22px;margin:14px 0 8px;font-weight:600}.tile p{color:var(--dim);margin:0;font-size:15.5px}
-.ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
-.stage{position:absolute;top:24px;right:24px;font:600 11px "JetBrains Mono";padding:5px 10px;border-radius:99px;border:1px solid}
-.s-live{color:var(--c1);border-color:rgba(55,229,160,.4)}.s-ready{color:var(--c2);border-color:rgba(92,200,255,.4)}.s-plan{color:var(--c4);border-color:rgba(255,184,92,.4)}
-.spark{display:flex;align-items:flex-end;gap:4px;height:70px;margin-top:22px}.spark i{flex:1;border-radius:4px 4px 0 0;background:linear-gradient(var(--c2),rgba(92,200,255,.08))}
-/* орбита игр */
-.orbit{position:relative;aspect-ratio:1;max-width:620px;margin:0 auto}
-.orbit .ring{position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(160,190,255,.16);animation:rot 60s linear infinite}
-.orbit .ring.r2{inset:17%;animation-duration:40s;animation-direction:reverse}
-@keyframes rot{to{transform:rotate(360deg)}}
-.core{position:absolute;inset:36%;border-radius:50%;display:grid;place-items:center;text-align:center;
-background:radial-gradient(circle at 35% 30%,rgba(55,229,160,.35),rgba(10,14,24,.9) 70%);border:1px solid rgba(55,229,160,.35);box-shadow:0 0 80px rgba(55,229,160,.25)}
-.core b{font-family:Unbounded;font-size:clamp(14px,2vw,20px)}.core span{font:12px "JetBrains Mono";color:var(--dim)}
-.planet{position:absolute;width:31%;padding:14px 16px;border-radius:20px;background:rgba(12,18,32,.8);border:1px solid var(--line);backdrop-filter:blur(10px);transform:translate(-50%,-50%)}
-.planet b{display:block;font-family:Unbounded;font-size:15px}.planet span{font:12px "JetBrains Mono";color:var(--dim)}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-.links li{margin:10px 0;color:var(--dim)}.links b{color:var(--ink)}
-/* гарантии */
-.proof{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:44px}
-.proof div{padding:24px;border-radius:20px;border:1px solid var(--line);background:var(--glass)}
-.proof b{display:block;font:600 34px Unbounded;margin-bottom:6px}.proof span{color:var(--dim);font-size:14.5px}
-/* дорожная карта — горизонтальная лента */
-.lane{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(260px,1fr);gap:16px;overflow-x:auto;padding:40px 0 10px;scroll-snap-type:x mandatory}
-.lane div{scroll-snap-align:start;padding:26px;border-radius:22px;border:1px solid var(--line);background:var(--glass);position:relative}
-.lane div::before{content:"";position:absolute;left:26px;top:-7px;width:12px;height:12px;border-radius:50%;background:var(--c);box-shadow:0 0 16px var(--c)}
-.lane .q{font:600 13px "JetBrains Mono";color:var(--c)}.lane h3{font-size:19px;margin:8px 0}.lane p{color:var(--dim);margin:0;font-size:15px}
-/* API */
-.code{border-radius:var(--r);border:1px solid var(--line);background:rgba(6,10,18,.8);padding:24px;font:14px/1.8 "JetBrains Mono";overflow:auto;color:#b9c6e0}
-.code .k{color:var(--c3)}.code .s{color:var(--c1)}.code .c{color:#56617a}
-/* финальный CTA */
-.final{text-align:center;padding:140px 0;border-radius:40px;margin:0 28px 60px;border:1px solid var(--line);
-background:radial-gradient(800px 300px at 50% 0%,rgba(167,139,250,.18),transparent),radial-gradient(700px 300px at 50% 100%,rgba(55,229,160,.14),transparent),rgba(10,14,24,.6)}
-.final h2{font-size:clamp(36px,6vw,84px)}
-footer{padding:40px 0 60px;color:var(--dim);font-size:14px}
-footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
-/* цены */
-.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px}
-.plan{position:relative;padding:32px;border-radius:var(--r);border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(12px);display:flex;flex-direction:column}
-.plan.hot{border-color:rgba(55,229,160,.45);box-shadow:0 40px 120px -50px rgba(55,229,160,.55)}
-.plan .tag{position:absolute;top:-12px;left:32px;font:600 11px "JetBrains Mono";padding:5px 10px;border-radius:99px;background:var(--c1);color:#03110b}
-.plan h3{font-size:20px}.plan .price{font:600 46px Unbounded;margin:18px 0 4px;letter-spacing:-.03em}.plan .price small{font:500 15px "Inter Tight";color:var(--dim)}
-.plan ul{list-style:none;padding:0;margin:22px 0 28px;flex:1}.plan li{padding:8px 0;border-top:1px solid var(--line);color:var(--dim);font-size:15.5px}.plan li::before{content:"✓  ";color:var(--c1)}
-.plan .btn{text-align:center}
-.note{margin-top:22px;color:var(--dim);font-size:14.5px}
-/* лист ожидания Studio API */
-.wl{margin-top:44px;padding:36px;border-radius:var(--r);border:1px solid rgba(92,200,255,.32);background:var(--glass);backdrop-filter:blur(12px)}
-.wl h3{font-size:clamp(22px,3vw,30px)}
-.wl p{color:var(--dim);max-width:560px}
-.wl form{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
-.wl input{flex:1;min-width:240px;padding:14px 18px;border-radius:14px;border:1px solid var(--line);background:rgba(6,10,18,.7);color:var(--ink);font:16px "Inter Tight";outline:none}
-.wl input:focus{border-color:var(--c2)}
-.wl .msg{width:100%;margin:4px 0 0;color:var(--dim);font-size:14px}
-.wl .hp{position:absolute;left:-9999px;opacity:0}
-@media (max-width:900px){.plans{grid-template-columns:1fr}}
-/* возможности: списки в плитках */
-.tile ul{list-style:none;padding:0;margin:16px 0 0}
-.tile li{position:relative;padding:7px 0 7px 20px;border-top:1px solid var(--line);color:var(--dim);font-size:15px}
-.tile li b{color:var(--ink);font-weight:600}
-.tile li::before{content:"";position:absolute;left:0;top:14px;width:8px;height:8px;border-radius:2px;background:var(--c1);opacity:.8}
-/* пути развития */
-.tracks{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:36px 0 8px}
-.track{padding:26px;border-radius:22px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(12px)}
-.track .tag{display:inline-block;font:600 11px "JetBrains Mono";padding:4px 10px;border-radius:99px;border:1px solid var(--line);color:var(--dim);margin-bottom:12px;text-transform:uppercase;letter-spacing:.08em}
-.track h3{font-size:19px;margin:0 0 12px}
-.track ol{margin:0;padding-left:22px;color:var(--dim);font-size:15px}
-.track li{margin:8px 0}
-.track li b{color:var(--ink);font-weight:600}
-/* палитра команд */
-dialog{border:1px solid var(--line);border-radius:22px;background:rgba(10,14,24,.92);backdrop-filter:blur(20px);color:var(--ink);width:min(560px,92vw);padding:0}
-dialog::backdrop{background:rgba(2,4,8,.6);backdrop-filter:blur(4px)}
-dialog input{width:100%;padding:18px 20px;background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--ink);font:16px "Inter Tight";outline:none}
-dialog ul{list-style:none;margin:0;padding:8px;max-height:320px;overflow:auto}
-dialog li a{display:flex;justify-content:space-between;padding:12px 14px;border-radius:12px}dialog li a:hover,dialog li a.on{background:rgba(92,200,255,.1)}
-dialog li small{color:var(--dim);font-family:"JetBrains Mono"}
-/* появление по скроллу */
-.rv{opacity:0;transform:translateY(30px);transition:opacity .8s,transform .8s cubic-bezier(.2,.7,.2,1)}.rv.in{opacity:1;transform:none}
-@media (max-width:900px){.bento{grid-template-columns:1fr}.tile,.tile.w3,.tile.w4{grid-column:auto}.two{grid-template-columns:1fr}.proof{grid-template-columns:1fr 1fr}.island a.l{display:none}.tracks{grid-template-columns:1fr}}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#050811">
+  <title>Leo Games Studio — игровые миры и Watchtower</title>
+  <meta name="description" content="Leo Games Studio создаёт игровые миры и Watchtower — внутреннюю систему студии для аналитики, честных данных и безопасной эксплуатации игр.">
+  <meta property="og:title" content="Leo Games Studio — игры, которые живут дольше релиза">
+  <meta property="og:description" content="Четыре игровых мира. Одна студия. Watchtower — система, которая помогает строить, понимать и защищать игры без выдуманных цифр.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="../web-shared/brand-world.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="wt-page" content="target_wtos_ru">
+  <link rel="alternate" hreflang="en" href="en.html">
+  <link rel="icon" type="image/svg+xml" href="../web-shared/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="studio.css">
 </head>
 <body>
-<canvas id="field" aria-hidden="true"></canvas><div class="glow" aria-hidden="true"></div>
+  <a class="skip-link" href="#main">Перейти к содержимому</a>
+  <canvas id="starfield" aria-hidden="true"></canvas>
+  <div class="ambient-glow" aria-hidden="true"></div>
 
-<header><nav class="island" aria-label="Навигация">
-  <b><i></i>Watchtower OS</b>
-  <a class="l" href="#platform">Платформа</a><a class="l" href="#capabilities">Возможности</a><a class="l" href="#games">Игры</a><a class="l" href="#api">API</a><a class="l" href="#pricing">Цены</a><a class="l" href="#roadmap">2035</a>
-  <button class="kbd" id="cmdk" aria-label="Палитра команд">⌘K</button>
-  <a class="kbd" href="en.html" lang="en">EN</a>
-  <a class="cta" href="../token-landing/index.html">$WTWR →</a>
-</nav></header>
+  <header class="site-header">
+    <nav class="nav-shell" aria-label="Основная навигация">
+      <a class="brand" href="#top" aria-label="Leo Games Studio — главная">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none">
+            <path d="M20 4.5v21.8M11 35.5h18M14.2 35.5l5.8-9.2 5.8 9.2M8.5 20c4.4-4.8 8.2-7.2 11.5-7.2s7.1 2.4 11.5 7.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="20" cy="5.5" r="2.3" fill="currentColor"/>
+            <ellipse cx="20" cy="22" rx="16" ry="6.5" transform="rotate(-22 20 22)" stroke="currentColor" stroke-width="1.1" opacity=".58"/>
+          </svg>
+        </span>
+        <span class="brand-copy"><b>LEO GAMES</b><small>STUDIO / WATCHTOWER</small></span>
+      </a>
+      <button class="menu-toggle" type="button" data-menu-toggle aria-controls="site-links" aria-expanded="false" aria-label="Открыть меню"><span></span><span></span></button>
+      <div class="nav-links" id="site-links" data-nav-links>
+        <a href="#games">Игры</a>
+        <a href="#play">Как играть</a>
+        <a href="#studio">Watchtower</a>
+        <a href="#why">Почему мы</a>
+        <a href="#roadmap">Развитие</a>
+        <a class="lang-link" href="en.html" lang="en">EN</a>
+        <a class="nav-cta" href="#games">Выбрать мир <span aria-hidden="true">↗</span></a>
+      </div>
+    </nav>
+  </header>
 
-<main>
-<section class="hero"><div class="wrap">
-  <span class="chip rv"><em>●</em> v0.1 · Solana · аналитика только на чтение</span>
-  <h1 class="rv">Операционная<br>система для<br><span class="grad">Web3-игр.</span></h1>
-  <p class="rv">Аналитика, трафик, контроль и запуск игр — одна система вместо десятка скриптов. Watchtower видит всю экосистему и технически не может подписать ни одной транзакции.</p>
-  <div class="row rv"><a class="btn prime" href="#platform">Посмотреть платформу</a><a class="btn" href="#api">Studio API</a></div>
+  <main id="main">
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="hero-art" aria-hidden="true"><img src="../web-shared/brand-world.jpg" alt="" fetchpriority="high"></div>
+      <div class="hero-shade" aria-hidden="true"></div>
+      <div class="wrap hero-content">
+        <p class="eyebrow reveal"><span class="pulse-dot"></span> НЕЗАВИСИМАЯ ИГРОВАЯ СТУДИЯ · РАБОТАЕМ ОТКРЫТО</p>
+        <h1 id="hero-title" class="reveal">Игры —<br>в центре.<br><span class="accent-text">Студия —<br>за ними.</span></h1>
+        <p class="hero-lead reveal">Мы создаём игровые миры и собственную систему, которая помогает команде понимать, улучшать и защищать их. Сначала интересная игра. Затем — честная инфраструктура вокруг неё.</p>
+        <div class="hero-actions reveal">
+          <a class="button button-primary" href="#games">Выбрать игру <span aria-hidden="true">↘</span></a>
+          <a class="button button-quiet" href="#studio">Что такое Watchtower</a>
+        </div>
+        <div class="hero-facts reveal" aria-label="Коротко о студии">
+          <div><b>04</b><span>мира в разработке</span></div>
+          <div><b>01</b><span>внутренняя система студии</span></div>
+          <div><b>0</b><span>придуманных метрик</span></div>
+        </div>
+        <p class="hero-footnote reveal">Статусы игр и подключений отличаются. Здесь «в разработке» не выдаётся за «запущено».</p>
+      </div>
+      <a class="scroll-cue" href="#games" aria-label="Прокрутить к играм"><span></span> ИССЛЕДОВАТЬ МИРЫ</a>
+    </section>
 
-  <div class="term rv" aria-label="Демонстрация терминала">
-    <div class="bar"><i></i><i></i><i></i><span style="margin-left:10px">watchtower — демо-сценарий</span></div>
-    <pre id="tty"></pre>
-  </div>
-</div></section>
+    <section class="section section-games" id="games" aria-labelledby="games-title">
+      <div class="wrap">
+        <div class="section-heading reveal">
+          <div><p class="eyebrow">01 / ИГРОВАЯ ВСЕЛЕННАЯ</p><h2 id="games-title">Четыре разных игры.<br><span class="muted-heading">Не четыре скина.</span></h2></div>
+          <p class="section-intro">У каждого мира — свой жанр, темп и стадия. Начни с того, который тебе ближе; доступность сборок может меняться.</p>
+        </div>
 
-<section id="platform"><div class="wrap">
-  <div class="eyebrow rv">01 · Платформа</div>
-  <h2 class="rv">Пять модулей.<br>Одно состояние мира.</h2>
-  <p class="lead rv">У каждого модуля честная стадия. Мы показываем, что уже работает, а что только строится.</p>
-  <div class="bento">
-    <article class="tile w4 rv"><span class="stage s-live">работает</span><div class="ico">📡</div>
-      <h3>Ingestion и аналитика</h3><p>События из блокчейна и вне его: дедупликация, курсоры, backfill, воронки, кросс-игровые сегменты. У каждой метрики — пометка качества: complete, partial или unavailable.</p>
-      <div class="spark" id="spark"></div></article>
-    <article class="tile rv" style="grid-column:span 2"><span class="stage s-live">работает</span><div class="ico">🛡️</div>
-      <h3>Контроль</h3><p>Параметры игр меняются только через предложение с двумя подписями и 2FA. Журнал аудита, аварийная пауза.</p></article>
-    <article class="tile w3 rv"><span class="stage s-ready">код готов</span><div class="ico">📣</div>
-      <h3>TalkChart</h3><p>SEO и AI-поиск, X с Solana Blinks, короткие видео, онбординг через TipLink. Переход «пост → игра» подтверждается по click-id.</p></article>
-    <article class="tile w3 rv"><span class="stage s-plan">2027</span><div class="ico">🚀</div>
-      <h3>Launchpad</h3><p>Новые игры стартуют сразу с аналитикой, трафиком и защитой. Сбор — в $WTWR, приоритет для стейкеров.</p></article>
-    <article class="tile w4 rv"><span class="stage s-plan">сбор средств</span><div class="ico">🧠</div>
-      <h3>Compute Grid</h3><p>Своё железо: GPU-узел для ИИ-аналитика в реальном времени, рендер, VR-стенд, ферма Solana Seeker. Каждая покупка — с чеком и транзакцией казны.</p></article>
-    <article class="tile rv" style="grid-column:span 2"><span class="stage s-live">проверяется тестом</span><div class="ico">🔒</div>
-      <h3>Только чтение</h3><p><span class="mono">npm run test:readonly</span> падает, если в хабе появится код подписи.</p></article>
-  </div>
-</div></section>
+        <div class="game-grid">
+          <article class="game-card reveal">
+            <div class="game-art"><img src="../public/cosmos/scene-ares.webp" alt="Марсианская колония с гидропонными куполами в ARES-1" loading="lazy" decoding="async"><span class="game-stage stage-beta">БЕТА · DEVNET</span><span class="game-index">01 / COLONY</span></div>
+            <div class="game-info"><p class="game-genre">КОЛОНИЯ · ЭКОНОМИЧЕСКАЯ СИМУЛЯЦИЯ</p><h3>ARES-1</h3><p>Строй марсианскую колонию: развивай гидропонные модули, выращивай урожай и изучай, как устроена игровая экономика.</p><div class="game-loop"><span>МОДУЛЬ</span><i>→</i><span>РОСТ</span><i>→</i><span>СБОР</span></div><a class="text-link" href="https://ares1-play.pages.dev/" target="_blank" rel="noopener noreferrer">Открыть бету <span aria-hidden="true">↗</span></a><small class="game-note">Тестовая сеть Solana Devnet. Тестовые токены не имеют денежной ценности.</small></div>
+          </article>
 
-<section id="capabilities"><div class="wrap">
-  <div class="eyebrow rv">02 · Возможности</div>
-  <h2 class="rv">Всё, что умеет<br>платформа сегодня.</h2>
-  <p class="lead rv">Это инвентарь, а не список мечты: у каждой функции честная стадия. Что ещё не в проде — помечено «код готов» или годом запуска.</p>
-  <div class="bento" style="margin-top:44px">
-    <article class="tile rv"><span class="stage s-live">работает</span>
-      <h3>Правдивые данные</h3>
-      <ul>
-        <li><b>Метка качества у каждой метрики:</b> complete, partial или unavailable — и уровень доверия виден сразу.</li>
-        <li><b>«—» вместо нулей:</b> отсутствие данных не притворяется значением; demo-режим только с <span class="mono">?demo=1</span> и бейджем «DEMO DATA», в проде выключается флагом.</li>
-        <li><b>Единый слой событий:</b> ончейн и оффчейн, дедупликация, курсоры, backfill, обнаружение разрывов и их лечение.</li>
-      </ul>
-    </article>
-    <article class="tile rv"><span class="stage s-live">работает</span>
-      <h3>Экономика под замком</h3>
-      <ul>
-        <li><b>40 метрик в 8 семействах:</b> снабжение и сжигание, источники и стоки, скорость обращения, справедливость, риски, переплетение игр.</li>
-        <li><b>Индекс здоровья 0–100</b> для каждой игры и экосистемы целиком — одно число с расшифровкой.</li>
-        <li><b>Золотые тесты и мутационный гейт 0.8:</b> формулу нельзя сломать незаметно — CI упадёт первым.</li>
-      </ul>
-    </article>
-    <article class="tile rv"><span class="stage s-live">работает</span>
-      <h3>Управление без ключей</h3>
-      <ul>
-        <li><b>Изменения только предложением:</b> 2 подписи + 2FA, журнал аудита каждого действия, аварийная пауза.</li>
-        <li><b>Хаб не подписывает транзакции:</b> это гарантирует тест <span class="mono">test:readonly</span>, а не политика на честном слове.</li>
-        <li><b>Контракты как спецификация:</b> cross_game_inventory, studio_treasury, session_keys — с проверяемыми инвариантами и <span class="mono">writes: false</span>.</li>
-      </ul>
-    </article>
-    <article class="tile rv"><span class="stage s-ready">код готов</span>
-      <h3>Трафик с подтверждением</h3>
-      <ul>
-        <li><b>Переход «пост → игра» по click-id</b> без PII и с уважением DNT/GPC — посещаемость подтверждается, а не додумывается.</li>
-        <li><b>21 счётчик и integrity-слой:</b> боты и люди строго раздельно, дубликаты, разрывы и rate-limit видны, а не спрятаны.</li>
-        <li><b>Воронки на 6 ступеней,</b> кросс-игровые сегменты и кампании: от источника до первого матча.</li>
-      </ul>
-    </article>
-    <article class="tile rv"><span class="stage s-live">работает</span>
-      <h3>Слой инвестора</h3>
-      <ul>
-        <li><b>Отчёты, снапшоты и тренды по API:</b> держатель доли видит те же цифры, что и основатель.</li>
-        <li><b>Уровни зрелости L0–L4</b> по каждой игре, покрытие цели экосистемы и суммы находок аудитов.</li>
-        <li><b>Кнопка «Приступить»:</b> готовый промпт Arena прямо из дашборда — от отчёта к работе в один клик.</li>
-      </ul>
-    </article>
-    <article class="tile rv"><span class="stage s-live">работает</span>
-      <h3>Эксплуатация как у больших</h3>
-      <ul>
-        <li><b>Один контейнер non-root:</b> healthcheck, graceful shutdown, метрики Prometheus на <span class="mono">/metrics</span>.</li>
-        <li><b>Релизный пайплайн студии:</b> release:check по всем репозиториям, план без side-effects, деплой только с явным флагом.</li>
-        <li><b>Приватность по умолчанию:</b> PII псевдонимизируется солью, удаление по запросу, ретенция; секреты только через env — без них старт падает сразу.</li>
-      </ul>
-    </article>
-  </div>
-</div></section>
+          <article class="game-card reveal">
+            <div class="game-art"><img src="../public/cosmos/scene-guttercaps.webp" alt="Неоновый район Гаттер-Сити из GUTTERCAPS" loading="lazy" decoding="async"><span class="game-stage stage-alpha">АЛЬФА · ДОСТУП МЕНЯЕТСЯ</span><span class="game-index">02 / STREET</span></div>
+            <div class="game-info"><p class="game-genre">КОЛЛЕКЦИЯ · АРЕНА 3 × 3</p><h3>GUTTERCAPS</h3><p>Исследуй Гаттер-Сити, собирай крышки с историями районов, объединяй коллекцию и выходи на Cap Slam.</p><div class="game-loop"><span>ОТКРОЙ</span><i>→</i><span>СОБЕРИ</span><i>→</i><span>СРАЖАЙСЯ</span></div><a class="text-link" href="https://app.guttercaps.gg/?lang=ru" target="_blank" rel="noopener noreferrer">Открыть игру <span aria-hidden="true">↗</span></a><small class="game-note">Перед транзакцией проверь сеть, цену и разрешения в официальном приложении.</small></div>
+          </article>
 
-<section id="games"><div class="wrap two">
-  <div>
-    <div class="eyebrow rv">03 · Экосистема</div>
-    <h2 class="rv">Четыре игры<br>на одной орбите.</h2>
-    <p class="lead rv">Игры связаны механиками, а не только общим логотипом.</p>
-    <ul class="links rv">
-      <li><b>$POTATO → Age of Farming:</b> картофель из ARES-1 — семена фермы.</li>
-      <li><b>Трофеи:</b> победы в Neon Relay открывают фишки GutterCaps.</li>
-      <li><b>Паспорт Watchtower:</b> одни достижения на все игры.</li>
-      <li><b>CapsStake:</b> стейк $CG, $POTATO и SKR → airdrop $WTWR.</li>
-    </ul>
-  </div>
-  <div class="orbit rv" aria-label="Схема экосистемы">
-    <div class="ring"></div><div class="ring r2"></div>
-    <div class="core"><div><b>Watchtower</b><br><span>$WTWR</span></div></div>
-    <div class="planet" style="left:50%;top:6%"><b>ARES-1</b><span>$POTATO · бета</span></div>
-    <div class="planet" style="left:92%;top:50%"><b>GutterCaps</b><span>$CG · альфа</span></div>
-    <div class="planet" style="left:50%;top:94%"><b>Neon Relay</b><span>прототип</span></div>
-    <div class="planet" style="left:8%;top:50%"><b>Age of Farming</b><span>прототип</span></div>
-  </div>
-</div></section>
+          <article class="game-card reveal">
+            <div class="game-art"><img src="../public/cosmos/scene-neuroforge.webp" alt="Футуристическая нейролаборатория NeuroForge" loading="lazy" decoding="async"><span class="game-stage stage-prototype">ПРОТОТИП</span><span class="game-index">03 / LAB</span></div>
+            <div class="game-info"><p class="game-genre">ЛАБОРАТОРНАЯ RPG · КРАФТ</p><h3>NeuroForge</h3><p>Выращивай образцы, собирай цепочки ресурсов, обучай модели и создавай инструменты в лабораторной RPG.</p><div class="game-loop"><span>ОБРАЗЕЦ</span><i>→</i><span>МОДЕЛЬ</span><i>→</i><span>КРАФТ</span></div><a class="text-link" href="https://aof.pages.dev/site/start" target="_blank" rel="noopener noreferrer">Посмотреть первый шаг <span aria-hidden="true">↗</span></a><small class="game-note">Прототип. Сначала проверь правила и условия на странице игры.</small></div>
+          </article>
 
-<section id="principles"><div class="wrap">
-  <div class="eyebrow rv">04 · Принципы</div>
-  <h2 class="rv">Доверие,<br>которое можно проверить.</h2>
-  <div class="proof">
-    <div class="rv"><b class="grad">0</b><span>ключей подписи в хабе — это проверяет тест</span></div>
-    <div class="rv"><b class="grad">2 + 2FA</b><span>подписи на любое изменение параметров игры</span></div>
-    <div class="rv"><b class="grad">3</b><span>уровня качества у каждой метрики</span></div>
-    <div class="rv"><b class="grad">DNT</b><span>и GPC соблюдаются трекером переходов, без PII</span></div>
-  </div>
-</div></section>
+          <article class="game-card reveal">
+            <div class="game-art"><img src="../public/cosmos/scene-neonrelay.webp" alt="Неоновая гоночная трасса Neon Relay" loading="lazy" decoding="async"><span class="game-stage stage-prototype">ПРОТОТИП · БИЛД НЕ ОТКРЫТ</span><span class="game-index">04 / SPEED</span></div>
+            <div class="game-info"><p class="game-genre">АРКАДНЫЕ ГОНКИ · СОРЕВНОВАНИЕ</p><h3>Neon Relay</h3><p>Неоновая трасса, короткие заезды и дуэли на реакцию. Сейчас команда готовит игровой цикл и следующий этап тестирования.</p><div class="game-loop"><span>ЗАЕЗД</span><i>→</i><span>РЕЗУЛЬТАТ</span><i>→</i><span>НОВЫЙ РЕКОРД</span></div><a class="text-link" href="#join">Следить за тестами <span aria-hidden="true">↘</span></a><small class="game-note">Публичная ссылка на сборку появится после проверки доступа и правил.</small></div>
+          </article>
+        </div>
+        <p class="section-footnote reveal"><b>Важно:</b> общий аккаунт, перенос предметов и единый игровой пропуск пока не работают. Каждая игра остаётся самостоятельной; межигровые механики появятся только после отдельной реализации и проверки.</p>
+      </div>
+    </section>
 
-<section id="api"><div class="wrap two">
-  <div>
-    <div class="eyebrow rv">05 · Studio API · 2027</div>
-    <h2 class="rv">Ваша игра —<br>в той же системе.</h2>
-    <p class="lead rv">Один контракт событий для любой игры на Solana. Подключили адаптер — и получили воронки, когорты, трафик и контроль. Оплата в USDC или в $WTWR со скидкой.</p>
-  </div>
-  <pre class="code rv"><span class="c">// набросок интерфейса, API ещё не опубликован</span>
-<span class="k">import</span> { watchtower } <span class="k">from</span> <span class="s">'@watchtower/sdk'</span>
+    <section class="section section-play" id="play" aria-labelledby="play-title">
+      <div class="wrap play-layout">
+        <div class="play-copy reveal">
+          <p class="eyebrow">02 / СТАРТ ИГРОКА</p>
+          <h2 id="play-title">Как играть<br><span class="muted-heading">сегодня.</span></h2>
+          <p class="section-intro">Не вся вселенная открыта одинаково. Начни с игры, у которой есть доступная сборка, и всегда сверяй сеть и стадию до подключения кошелька.</p>
+          <ol class="play-steps">
+            <li><span>01</span><div><b>Выбери мир</b><p>ARES-1 — бета в Devnet; GUTTERCAPS — альфа; NeuroForge и Neon Relay — прототипы.</p></div></li>
+            <li><span>02</span><div><b>Открой только официальный адрес</b><p>Ссылки на доступные страницы находятся в карточках игр выше. Для Neon Relay публичная сборка пока не подтверждена.</p></div></li>
+            <li><span>03</span><div><b>Проверь кошелёк и сеть</b><p>Подключай кошелёк только если игра просит. Никому не отправляй seed-фразу; внимательно читай каждую подпись и стоимость.</p></div></li>
+            <li><span>04</span><div><b>Играй, сообщай, что сломано</b><p>Тесты и отзывы помогают команде выбрать следующий шаг. Не обещаем награды за участие и не выдаём прототип за релиз.</p></div></li>
+          </ol>
+        </div>
+        <aside class="safety-card reveal" aria-label="Безопасность игрока">
+          <img src="../public/cosmos/scene-hub.webp" alt="Обсерватория Watchtower, связывающая игровые миры" loading="lazy" decoding="async">
+          <div class="safety-overlay"></div>
+          <div class="safety-content"><span class="hud-label">PLAYER CHECKLIST / 04</span><h3>Играй своим темпом.<br>Подписывай осознанно.</h3><p>Блокчейн здесь — способ проверить отдельные игровые правила, а не обязательная причина играть. Цены, риски и доступ всегда проверяй внутри официальной игры.</p><a href="#proof" class="text-link">Наши правила прозрачности <span aria-hidden="true">↘</span></a></div>
+        </aside>
+      </div>
+    </section>
 
-<span class="k">const</span> wt = watchtower({ game: <span class="s">'my-game'</span> })
+    <section class="section section-studio" id="studio" aria-labelledby="studio-title">
+      <div class="wrap studio-layout">
+        <div class="studio-visual-stack reveal">
+          <figure class="studio-window" aria-label="Каталог игровых миров Leo Games Studio и их текущих стадий">
+            <div class="window-head"><div><p class="window-overline">PORTFOLIO / LEO GAMES</p><h3>МИРЫ СТУДИИ</h3></div><div class="window-count"><b>04</b><span>ПРОЕКТА</span></div></div>
+            <div class="window-atlas"><img src="../web-shared/brand-console.jpg" alt="Обсерватория с картой игровых миров" loading="lazy" decoding="async"><span class="atlas-label">WATCHTOWER · ВНУТРЕННЯЯ СИСТЕМА СТУДИИ</span></div>
+            <div class="world-register" aria-label="Стадии игровых проектов">
+              <div class="register-head"><span>ИГРОВОЙ МИР</span><span>СТАДИЯ СЕЙЧАС</span></div>
+              <div class="world-row world-ares"><img src="../public/cosmos/scene-ares.webp" alt="" loading="lazy" decoding="async"><div><b>ARES-1</b><small>КОЛОНИЯ · DEVNET</small></div><span class="world-state state-beta">БЕТА</span></div>
+              <div class="world-row world-gutter"><img src="../public/cosmos/scene-guttercaps.webp" alt="" loading="lazy" decoding="async"><div><b>GUTTERCAPS</b><small>КОЛЛЕКЦИЯ · ARENA 3 × 3</small></div><span class="world-state state-alpha">АЛЬФА</span></div>
+              <div class="world-row world-forge"><img src="../public/cosmos/scene-neuroforge.webp" alt="" loading="lazy" decoding="async"><div><b>NeuroForge</b><small>ЛАБОРАТОРНАЯ RPG</small></div><span class="world-state state-prototype">ПРОТОТИП</span></div>
+              <div class="world-row world-neon"><img src="../public/cosmos/scene-neonrelay.webp" alt="" loading="lazy" decoding="async"><div><b>Neon Relay</b><small>ПРОТОТИП · АРКАДНЫЕ ГОНКИ</small></div><span class="world-state state-closed">БИЛД ЗАКРЫТ</span></div>
+            </div>
+            <figcaption class="window-caption">Каталог показывает стадию каждого проекта — не live-поток и не готовность production-подключения.</figcaption>
+          </figure>
+        </div>
+        <div class="studio-copy reveal">
+          <p class="eyebrow">03 / СТУДИЯ И СИСТЕМА</p>
+          <h2 id="studio-title">Сначала мы строим игры.<br><span class="accent-text">Watchtower помогает студии их понимать.</span></h2>
+          <p class="section-intro">Watchtower — не игровой токен и не обещание «автопилота». Это внутренняя операционная система Leo Games Studio: она принимает игровые события, собирает аналитику по конкретной игре и району, показывает качество данных и помогает команде разбирать сигналы.</p>
+          <div class="studio-points">
+            <div><span class="point-index">A</span><p><b>Игровые события</b><br>Воронки и временные срезы строятся из входящих событий, а не из красивой демо-цифры.</p></div>
+            <div><span class="point-index">B</span><p><b>Экономика и состояние</b><br>В коде есть 40 определений метрик в 8 семействах. Значение появляется только при наличии нужных входных данных.</p></div>
+            <div><span class="point-index">C</span><p><b>Безопасность игрока</b><br>Watchtower спроектирован как read-only хаб: он не хранит ключи игрока и не подписывает транзакции за него.</p></div>
+          </div>
+          <p class="reality-note"><b>Статус без прикрас:</b> аналитическое ядро и интерфейс существуют. Потоки production-событий и подключение каждой игры подтверждаются отдельно; сейчас нельзя считать все четыре игры полностью подключёнными к боевой телеметрии.</p>
+        </div>
+      </div>
+    </section>
 
-wt.track(<span class="s">'match_end'</span>, { wallet, score, durationSec })
+    <section class="section section-why" id="why" aria-labelledby="why-title">
+      <div class="wrap">
+        <div class="section-heading reveal">
+          <div><p class="eyebrow">04 / ПОЧЕМУ МЫ</p><h2 id="why-title">Почему мы называем это<br><span class="muted-heading">первым настоящим решением студии?</span></h2></div>
+          <p class="section-intro">Не потому, что в мире нет аналитики, античита или игровых платформ. Наш тезис — в другом: одна игровая студия строит собственные игры и одновременно проверяемую систему, которой ей самой не хватало.</p>
+        </div>
+        <div class="proof-grid">
+          <article class="proof-card reveal"><span class="proof-number">01</span><p class="eyebrow">СНАЧАЛА СВОИ ИГРЫ</p><h3>Инструмент вырос из разработки</h3><p>Watchtower проектируется вокруг задач реального портфеля Leo Games Studio — разных жанров, событий и стадий, а не вокруг абстрактного шаблона для презентации.</p></article>
+          <article class="proof-card reveal"><span class="proof-number">02</span><p class="eyebrow">ЕДИНЫЙ КОНТУР</p><h3>Игровой цикл виден целиком</h3><p>События, воронки, экономика, районы и сигналы безопасности сходятся в одном контексте игры. Это помогает студии проверять изменения от первого входа до повторной сессии.</p></article>
+          <article class="proof-card reveal"><span class="proof-number">03</span><p class="eyebrow">ЧЕСТНЫЕ ДАННЫЕ</p><h3>Нет события — нет выдуманного нуля</h3><p>У метрики есть качество и источник. Неизвестное отмечается как unavailable, частичное — как partial; игровые потоки разных проектов не смешиваются в одну красивую цифру.</p></article>
+          <article class="proof-card reveal"><span class="proof-number">04</span><p class="eyebrow">ИГРОК СОХРАНЯЕТ КОНТРОЛЬ</p><h3>Наблюдение — не владение</h3><p>Хаб не имеет signing-ключей и не может подписать транзакцию игрока. Опасные on-chain действия не должны становиться автоматическим решением аналитики.</p></article>
+        </div>
+        <div class="claim-note reveal"><span class="claim-icon" aria-hidden="true">✳</span><p><b>Что означает «первое в мире» на этой странице.</b> Это точное позиционирование нашей комбинации — собственная студия, собственные игровые проекты и внутренняя read-only система с проверяемой аналитикой. Независимый глобальный рейтинг решений не проводился, поэтому мы не выдаём это за доказанный отраслевой рекорд. И мы открыто показываем, что production-интеграции ещё не завершены.</p></div>
+      </div>
+    </section>
 
-<span class="k">const</span> f = <span class="k">await</span> wt.funnel([<span class="s">'landing'</span>, <span class="s">'wallet'</span>, <span class="s">'first_match'</span>])
-<span class="c">// → { steps: [...], quality: 'complete' }</span></pre>
-</div>
-<div class="wrap">
-  <div class="wl rv" id="api-waitlist">
-    <h3>Лист ожидания Studio API</h3>
-    <p>Оставьте почту — сообщим о старте публичного доступа и финальных тарифах. Одно письмо перед открытием, никакой рассылки.</p>
-    <form data-wt-waitlist="studio-api">
-      <input type="email" name="email" required placeholder="рабочая почта" autocomplete="email" aria-label="рабочая почта">
-      <input type="text" class="hp" data-wt-hp name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <button class="btn prime" type="submit">Записаться</button>
-      <p class="msg" data-wt-msg hidden></p>
-    </form>
-    <a data-wt-contact hidden style="display:inline-block;margin-top:14px;font-size:14.5px">Задать вопрос команде →</a>
-  </div>
-</div></section>
+    <section class="section section-proof" id="proof" aria-labelledby="proof-title">
+      <div class="wrap proof-layout">
+        <div class="proof-intro reveal"><p class="eyebrow">05 / ПРИНЦИПЫ, КОТОРЫЕ МОЖНО ПРОВЕРИТЬ</p><h2 id="proof-title">Доверие —<br>это поведение системы.</h2><p class="section-intro">Не просим верить слогану. Показываем границы, источники и то, что пока не подключено.</p></div>
+        <div class="proof-list">
+          <div class="proof-row reveal"><span class="proof-symbol">—</span><div><b>Пропуск не превращается в ноль</b><p>Отсутствующий сигнал остаётся отсутствующим; демо-данные помечаются отдельно.</p></div><span class="proof-state">DATA QUALITY</span></div>
+          <div class="proof-row reveal"><span class="proof-symbol">◉</span><div><b>Срез остаётся в границах игры</b><p>Выбранная игра и район не подменяются общим средним по студии.</p></div><span class="proof-state">SCOPED</span></div>
+          <div class="proof-row reveal"><span class="proof-symbol">⛨</span><div><b>Хаб не является кошельком</b><p>Watchtower не получает приватные ключи игрока и не формирует подпись от его имени.</p></div><span class="proof-state">READ ONLY</span></div>
+          <div class="proof-row reveal"><span class="proof-symbol">↗</span><div><b>Стадии и ограничения видны</b><p>Бета, альфа, прототип и будущая идея — разные статусы. Будущее не маркируется как shipped.</p></div><span class="proof-state">NO PRETEND</span></div>
+        </div>
+      </div>
+    </section>
 
-<section id="pricing"><div class="wrap">
-  <div class="eyebrow rv">06 · Цены</div>
-  <h2 class="rv">Платите за масштаб,<br>а не за доступ.</h2>
-  <p class="lead rv">Тарифы Studio API откроются в 2027 году. Цифры ниже — ориентир, мы уточним их до запуска. Игры Leo Games уже работают на Watchtower.</p>
-  <div class="plans">
-    <article class="plan rv"><h3>Indie</h3><div class="price">$0<small> / мес</small></div><span class="mono" style="color:var(--dim);font-size:13px">для первой игры</span>
-      <ul><li>1 игра</li><li>до 1 млн событий в месяц</li><li>история 30 дней</li><li>воронки и пометки качества данных</li><li>контроль только на чтение</li></ul>
-      <a class="btn" href="#api-waitlist">Лист ожидания API</a></article>
-    <article class="plan hot rv"><span class="tag">ОСНОВНОЙ</span><h3>Studio</h3><div class="price">$299<small> / мес</small></div><span class="mono" style="color:var(--dim);font-size:13px">ориентир · скидка при оплате в $WTWR</span>
-      <ul><li>до 5 игр, кросс-игровые сегменты</li><li>до 50 млн событий в месяц</li><li>история 12 месяцев</li><li>контроль: 2 подписи + 2FA, журнал аудита</li><li>кампании TalkChart с подтверждением переходов</li></ul>
-      <a class="btn prime" href="#api-waitlist">Хочу Studio</a></article>
-    <article class="plan rv"><h3>Launchpad</h3><div class="price">3–5%<small> от сбора</small></div><span class="mono" style="color:var(--dim);font-size:13px">2027 · приоритет стейкерам $WTWR</span>
-      <ul><li>всё из Studio на время запуска</li><li>аудит-чеклист и защита контрактов</li><li>трафик на старте через TalkChart</li><li>сбор в $WTWR и витрина в экосистеме</li><li>ресурсы Compute Grid для ИИ и рендера</li></ul>
-      <a class="btn" href="../token-landing/index.html">Условия $WTWR</a></article>
-  </div>
-  <p class="note rv">Лимиты и цены — план до запуска. Аренда мощностей Compute Grid появится в 2027–2028 годах, после закупки оборудования.</p>
-</div></section>
+    <section class="section section-roadmap" id="roadmap" aria-labelledby="roadmap-title">
+      <div class="wrap">
+        <div class="section-heading reveal">
+          <div><p class="eyebrow">06 / КАК БУДЕТ РАЗВИВАТЬСЯ СТУДИЯ</p><h2 id="roadmap-title">Не обещаем даты.<br><span class="muted-heading">Показываем ворота релиза.</span></h2></div>
+          <p class="section-intro">Сначала доказываем, что работает на одной игре. Затем повторяем на остальных. Каждая следующая стадия начинается после проверки предыдущей.</p>
+        </div>
+        <div class="roadmap-grid tracks">
+          <article class="roadmap-card track reveal"><span class="roadmap-phase">PHASE 01 · NOW</span><h3>Сделать игру достойной возвращения</h3><p>Довести основные игровые циклы, onboarding и первые playtests. Собирать только те события, которые помогают улучшить игру.</p><div class="gate"><b>Ворота:</b> понятная сборка, работающий игровой цикл, известные ограничения.</div></article>
+          <article class="roadmap-card track reveal"><span class="roadmap-phase">PHASE 02 · CONNECT</span><h3>Подключить реальную телеметрию</h3><p>Добавлять адаптеры по одной игре, согласовать схему событий, свежесть и удаление данных; проверять игру и регион отдельными тестами.</p><div class="gate"><b>Ворота:</b> события end-to-end подтверждены, пропуски и дубли видны.</div></article>
+          <article class="roadmap-card track reveal"><span class="roadmap-phase">PHASE 03 · OPERATE</span><h3>Открыть устойчивые игровые тесты</h3><p>Улучшать аналитику, обнаружение аномалий, инструменты поддержки и ручной разбор инцидентов. Любое ограничение доступа — с понятной причиной.</p><div class="gate"><b>Ворота:</b> безопасность, правила, поддержка и мониторинг готовы к аудитории.</div></article>
+          <article class="roadmap-card track reveal"><span class="roadmap-phase">PHASE 04 · CONNECT WORLDS</span><h3>Связывать игры только по делу</h3><p>Исследовать общие достижения, необязательный профиль и Studio API после того, как одиночные игры доказали ценность и игроки понимают правила.</p><div class="gate"><b>Ворота:</b> ясная выгода игроку, согласие, проверенные контракты и возможность не участвовать.</div></article>
+        </div>
+        <p class="roadmap-note reveal"><b>Никаких выдуманных процентов готовности.</b> Даты публикуются, когда у этапа есть владелец, зависимости и критерии выпуска. Переход между фазами не обещан календарём.</p>
+      </div>
+    </section>
 
-<section id="roadmap"><div class="wrap">
-  <div class="eyebrow rv">07 · Пути развития</div>
-  <h2 class="rv">Четыре пути,<br>одна линия времени.</h2>
-  <p class="lead rv">Развитие идёт параллельно по четырём направлениям. Статусы честные: «сегодня» — это то, что можно проверить в репозитории, остальное — план с датами.</p>
-  <div class="tracks rv">
-    <div class="track"><span class="tag">игры</span><h3>Интеграция игр: L0 → L4</h3>
-      <ol>
-        <li><b>L0 — контракт и патчи</b> зафиксированы для всех 4 игр (сегодня).</li>
-        <li><b>L1 — трекинг лендинга:</b> wt_click подтверждает переходы «пост → игра».</li>
-        <li><b>L2 — живые события</b> в Watchtower вместо demo-потока.</li>
-        <li><b>L3 — живая экономика и игроки:</b> 40 метрик на реальных данных.</li>
-        <li><b>L4 — полный контур:</b> управление параметрами через предложения.</li>
-      </ol>
+    <section class="section section-join" id="join" aria-labelledby="join-title">
+      <div class="wrap join-panel reveal">
+        <div class="join-art" aria-hidden="true"><img src="../web-shared/brand-studio.jpg" alt="" loading="lazy" decoding="async"></div>
+        <div class="join-copy"><p class="eyebrow">07 / ИГРОКИ И СТУДИИ</p><h2 id="join-title">Хочешь играть<br>или строить вместе?</h2><p>Оставь почту, чтобы узнать о следующих плейтестах и подключении игровых команд. Отправка формы включится только после подключения официального адреса приёма.</p>
+          <form class="signup-form" data-wt-waitlist="studio-playtests">
+            <label class="visually-hidden" for="signup-email">Электронная почта</label>
+            <input id="signup-email" type="email" name="email" required placeholder="почта для обновлений" autocomplete="email">
+            <label class="visually-hidden" for="signup-company">Компания</label>
+            <input id="signup-company" class="hp" type="text" data-wt-hp name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <button class="button button-primary" type="submit">Получать обновления <span aria-hidden="true">↗</span></button>
+            <p class="form-message" data-wt-msg hidden></p>
+          </form>
+          <p class="form-note">Сейчас форма работает как демонстрация: пока endpoint не настроен, введённая почта не отправляется и не сохраняется.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-top"><a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M20 4.5v21.8M11 35.5h18M14.2 35.5l5.8-9.2 5.8 9.2M8.5 20c4.4-4.8 8.2-7.2 11.5-7.2s7.1 2.4 11.5 7.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="5.5" r="2.3" fill="currentColor"/><ellipse cx="20" cy="22" rx="16" ry="6.5" transform="rotate(-22 20 22)" stroke="currentColor" stroke-width="1.1" opacity=".58"/></svg></span><span class="brand-copy"><b>LEO GAMES</b><small>STUDIO / WATCHTOWER</small></span></a>
+      <p>Создаём игры. Учимся на реальных сигналах. Не скрываем стадию.</p>
+      <div class="footer-links"><a href="#games">Игры</a><a href="#roadmap">Развитие</a><a href="../token-landing/index.html">Информация о $WTWR</a><a href="terms-of-use.html">Условия</a><a href="privacy-policy.html">Конфиденциальность</a><a href="en.html" lang="en">English</a></div>
     </div>
-    <div class="track"><span class="tag">бизнес</span><h3>Продукт и выручка</h3>
-      <ol>
-        <li><b>Сейчас:</b> Watchtower работает на 4 игры студии — свой первый клиент.</li>
-        <li><b>2027 — Studio API</b> для внешних команд: Indie $0 / Studio $299 / Launchpad 3–5%.</li>
-        <li><b>2027–2028 — аренда Compute Grid:</b> ИИ и рендер на собственном железе.</li>
-      </ol>
-    </div>
-    <div class="track"><span class="tag">доверие</span><h3>Комплаенс и прозрачность</h3>
-      <ol>
-        <li><b>Q4 2026:</b> аудит контрактов, white paper по MiCA, Terms для NFT-доли.</li>
-        <li><b>Казна-мультиподпись</b> и публичные квартальные отчёты со ссылками на транзакции.</li>
-        <li><b>Q1 2027:</b> дивидендный контракт и первая выплата в USDC.</li>
-      </ol>
-    </div>
-    <div class="track"><span class="tag">технологии</span><h3>Глубина экосистемы</h3>
-      <ol>
-        <li><b>Реальные данные 4 игр</b> вместо demo-режима в каждом разделе.</li>
-        <li><b>AI-аналитик в реальном времени</b> на Compute Grid (Q4 2027).</li>
-        <li><b>Кросс-игровые механики и Паспорт,</b> затем VR-линейка (2028+).</li>
-      </ol>
-    </div>
-  </div>
-  <p class="lead rv" style="margin-top:36px;font-size:16px">Линия времени:</p>
-  <div class="lane rv">
-    <div style="--c:var(--c1)"><span class="q">Q4 2026</span><h3>Аудит и пресейл</h3><p>Аудит контрактов, TalkChart в прод, сбор на Compute Grid.</p></div>
-    <div style="--c:var(--c1)"><span class="q">Q1 2027</span><h3>Mainnet</h3><p>ARES-1 и GutterCaps в mainnet, сезон 1 CapsStake.</p></div>
-    <div style="--c:var(--c2)"><span class="q">Q2–Q3 2027</span><h3>Связи и API</h3><p>Кросс-игровые механики, Паспорт, Studio API, первые игры Launchpad.</p></div>
-    <div style="--c:var(--c3)"><span class="q">Q4 2027</span><h3>ИИ-аналитик</h3><p>Compute Grid в работе: ответы на вопросы о метриках в реальном времени.</p></div>
-    <div style="--c:var(--c4)"><span class="q">2028</span><h3>VR</h3><p>Первая VR-игра, NFT переходят между 2D и VR.</p></div>
-    <div style="--c:#ff6b8a"><span class="q">2030 → 2035</span><h3>Видение</h3><p>Пространственный интерфейс студии и агенты, которые управляют экономикой. Это цель, а не обещание.</p></div>
-  </div>
-</div></section>
+    <div class="wrap footer-bottom"><span>© 2026 Leo Games Studio</span><span>Статусы проектов обновлены 6 октября 2026. Они не заменяют аудит или условия конкретной игры.</span></div>
+  </footer>
 
-<div class="final rv">
-  <div class="eyebrow">Экосистемный токен</div>
-  <h2>Станьте частью<br><span class="grad">Watchtower.</span></h2>
-  <p class="lead" style="margin:0 auto 30px">$WTWR связывает игры, платформу и железо. Токеномика, стейкинг и честные риски — на отдельной странице.</p>
-  <a class="btn prime" href="../token-landing/index.html">Открыть $WTWR →</a>
-</div>
-</main>
-
-<footer><div class="wrap"><span>© 2026 Leo Games Studio · Watchtower OS</span><span class="mono">Стадии и сроки — план и могут меняться.</span></div></footer>
-
-<dialog id="pal" aria-label="Палитра команд">
-  <input id="q" placeholder="Куда перейти?" autocomplete="off">
-  <ul id="res"></ul>
-</dialog>
-
-<script>
-const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
-
-// поле частиц: узлы-«события», тянущиеся к курсору
-const cv = document.getElementById('field'), cx = cv.getContext('2d')
-let W, H, pts = [], mouse = { x: -1e4, y: -1e4 }
-function size() { W = cv.width = innerWidth * devicePixelRatio; H = cv.height = innerHeight * devicePixelRatio; cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'
-  pts = Array.from({ length: Math.min(90, Math.floor(innerWidth / 16)) }, () => ({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3 })) }
-size(); addEventListener('resize', size)
-addEventListener('pointermove', e => { mouse = { x: e.clientX * devicePixelRatio, y: e.clientY * devicePixelRatio }
-  document.documentElement.style.setProperty('--mx', e.clientX + 'px'); document.documentElement.style.setProperty('--my', e.clientY + 'px') })
-function frame() {
-  cx.clearRect(0, 0, W, H); const D = 140 * devicePixelRatio
-  for (const p of pts) {
-    const dx = mouse.x - p.x, dy = mouse.y - p.y, d = Math.hypot(dx, dy)
-    if (d < D * 1.6) { p.vx += dx / d * .02; p.vy += dy / d * .02 }
-    p.vx *= .985; p.vy *= .985; p.x += p.vx; p.y += p.vy
-    if (p.x < 0 || p.x > W) p.vx *= -1; if (p.y < 0 || p.y > H) p.vy *= -1
-  }
-  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-    const a = pts[i], b = pts[j], d = Math.hypot(a.x - b.x, a.y - b.y)
-    if (d < D) { cx.strokeStyle = `rgba(92,200,255,${.16 * (1 - d / D)})`; cx.lineWidth = devicePixelRatio; cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke() }
-  }
-  cx.fillStyle = 'rgba(55,229,160,.6)'; for (const p of pts) { cx.beginPath(); cx.arc(p.x, p.y, 1.4 * devicePixelRatio, 0, 7); cx.fill() }
-  if (!reduce) requestAnimationFrame(frame)
-}
-frame()
-
-// терминал: демо-сценарий, не живые данные
-const LINES = [
-  ['$ ', 'k', 'watchtower status'],
-  ['', 'ok', '✓ ingestion   4 игры · курсоры актуальны'],
-  ['', 'ok', '✓ read-only   ключей подписи: 0'],
-  ['', 'w', '◐ talkchart   код готов · прод не развёрнут'],
-  ['$ ', 'k', 'watchtower funnel --game guttercaps --from x'],
-  ['', '', '  пост в X → лендинг → кошелёк → первый матч'],
-  ['', 'p', '  quality: partial  (демо-данные, цифры не показываем)'],
-  ['$ ', 'k', 'watchtower propose --param fee_bps=250'],
-  ['', 'ok', '✓ предложение создано · нужно 2 подписи + 2FA'],
-]
-const tty = document.getElementById('tty')
-async function type() {
-  let html = ''
-  for (const [pr, cls, text] of LINES) {
-    const span = `<span class="${cls}">`
-    for (let i = 1; i <= text.length; i++) {
-      tty.innerHTML = html + pr + span + text.slice(0, i).replace(/</g, '&lt;') + '</span><span class="caret"></span>'
-      if (!reduce) await new Promise(r => setTimeout(r, pr ? 34 : 9))
-    }
-    html += pr + span + text.replace(/</g, '&lt;') + '</span>\n'
-    if (!reduce) await new Promise(r => setTimeout(r, 260))
-  }
-  tty.innerHTML = html + '$ <span class="caret"></span>'
-}
-new IntersectionObserver((e, o) => { if (e[0].isIntersecting) { type(); o.disconnect() } }).observe(tty)
-
-// спарклайн — иллюстрация формы графика
-document.getElementById('spark').innerHTML = Array.from({ length: 32 }, (_, i) => `<i style="height:${20 + 60 * Math.abs(Math.sin(i * .45)) * (0.5 + i / 64)}%"></i>`).join('')
-
-// появление при скролле
-const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) } }), { threshold: .12 })
-document.querySelectorAll('.rv').forEach(el => io.observe(el))
-
-// 3D-наклон плиток
-if (!reduce) document.querySelectorAll('.tile').forEach(t => {
-  t.addEventListener('pointermove', e => { const r = t.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5
-    t.style.transform = `perspective(900px) rotateY(${x * 6}deg) rotateX(${-y * 6}deg)` })
-  t.addEventListener('pointerleave', () => t.style.transform = '')
-})
-
-// палитра команд ⌘K / Ctrl+K
-const CMDS = [['Платформа', '#platform'], ['Возможности платформы', '#capabilities'], ['Игры и экосистема', '#games'], ['Принципы', '#principles'], ['Studio API', '#api'], ['Лист ожидания Studio API', '#api-waitlist'], ['Цены', '#pricing'], ['Пути развития до 2035', '#roadmap'], ['Токен $WTWR', '../token-landing/index.html'], ['Token $WTWR (EN)', '../token-landing/en.html'], ['English site', 'en.html']]
-const pal = document.getElementById('pal'), q = document.getElementById('q'), res = document.getElementById('res')
-let sel = 0
-function render() {
-  const v = q.value.toLowerCase(), list = CMDS.filter(c => c[0].toLowerCase().includes(v)); sel = Math.min(sel, Math.max(0, list.length - 1))
-  res.innerHTML = list.map(([n, h], i) => `<li><a href="${h}" class="${i === sel ? 'on' : ''}">${n}<small>${h.startsWith('#') ? '↵' : '↗'}</small></a></li>`).join('')
-}
-function open() { pal.showModal(); q.value = ''; sel = 0; render(); q.focus() }
-document.getElementById('cmdk').onclick = open
-addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); pal.open ? pal.close() : open() } })
-q.oninput = () => { sel = 0; render() }
-q.onkeydown = e => { const n = res.children.length
-  if (e.key === 'ArrowDown') { sel = (sel + 1) % n; render(); e.preventDefault() }
-  if (e.key === 'ArrowUp') { sel = (sel - 1 + n) % n; render(); e.preventDefault() }
-  if (e.key === 'Enter') { const a = res.querySelectorAll('a')[sel]; if (a) { pal.close(); a.click() } } }
-res.onclick = e => { if (e.target.closest('a')) pal.close() }
-</script>
-<script src="../web-shared/wt-landing.js" defer></script>
-<script src="../web-shared/wt-params.js" defer></script>
-<script src="../web-shared/wt-forms.js" defer></script>
+  <script src="../web-shared/wt-landing.js" defer></script>
+  <script src="../web-shared/wt-params.js" defer></script>
+  <script src="../web-shared/wt-forms.js" defer></script>
+  <script src="studio.js" defer></script>
 </body>
 </html>
