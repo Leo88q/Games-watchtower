@@ -66,6 +66,14 @@ export async function loadLiveWorld(wallet) {
       nextStep: tenant.nextStep || null,
       stage: game.stage || tenant.stage || null,
       network: game.network || tenant.network || null,
+      configured: tenant.configured === true,
+      ecosystemQuality: tenant.dataQuality || game.health?.dataQuality || 'unavailable',
+      security: {
+        audit: tenant.findings || null,
+        auditDiscrepancy: tenant.auditDiscrepancy === true,
+        reason: tenant.reason || null,
+        envKey: tenant.envKey || null,
+      },
       metrics: {
         players,
         newPlayers: numberOrNull(game.newPlayers),

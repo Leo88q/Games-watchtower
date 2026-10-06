@@ -7,6 +7,7 @@ import './investor-history.css'
 import './traffic.css'
 import './os.css'
 import './os/styles.css'
+import './visual-polish.css'
 import { fetchOS, renderOSPanel } from './os/index.js'
 import { CONTROL_PANELS, renderControlPanels } from './os/control-panels-v3.js'
 
@@ -51,7 +52,7 @@ function app() {
   document.querySelector('#app').innerHTML = `
     <div class="app-shell">
       <aside class="sidebar">
-        <div class="brand"><span class="brand-icon">W</span><span>watchtower</span><em>PRO</em></div>
+        <div class="brand"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><ellipse cx="16" cy="16" rx="12" ry="5.5" transform="rotate(-32 16 16)"/><ellipse cx="16" cy="16" rx="12" ry="5.5" transform="rotate(32 16 16)" opacity=".48"/><circle cx="16" cy="16" r="3.2"/><circle cx="26.6" cy="8" r="1.7"/></svg></span><span>watchtower</span><em>PRO</em></div>
         <div class="workspace"><span class="workspace-avatar">L</span><div><small>Рабочее пространство</small><strong>Leo Games Studio</strong></div><span class="chevron">⌄</span></div>
         <nav class="main-nav">
           <div class="nav-label">WORKSPACE</div>

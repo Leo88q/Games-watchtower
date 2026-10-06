@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Минимальный статический сервер для предпросмотра площадок без зависимостей:
- *   npm run site:preview  → http://localhost:4173/watchtower-site/ и /token-landing/
+ *   npm run site:preview  → http://localhost:4173/ (главная) · /token-landing/
  * Нужен только для разработки: в проде страницы раздаёт любой статический хостинг
  * (GitHub Pages, Vercel, nginx), см. WEBSITES.md.
  */
@@ -29,7 +29,8 @@ const MIME = {
 }
 
 createServer((req, res) => {
-  const url = decodeURIComponent((req.url || '/').split('?')[0])
+  const requested = decodeURIComponent((req.url || '/').split('?')[0])
+  const url = requested === '/' ? '/watchtower-site/' : requested
   const file = path.resolve(root, `.${url}`)
   if (!file.startsWith(root)) { res.writeHead(403); res.end('forbidden'); return }
   let target = file
@@ -42,5 +43,5 @@ createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': MIME[path.extname(target).toLowerCase()] || 'application/octet-stream' })
   createReadStream(target).pipe(res)
 }).listen(port, '0.0.0.0', () => {
-  console.log(`предпросмотр площадок: http://localhost:${port}/watchtower-site/ · http://localhost:${port}/token-landing/`)
+  console.log(`предпросмотр Leo Games Studio: http://localhost:${port}/ · http://localhost:${port}/token-landing/`)
 })

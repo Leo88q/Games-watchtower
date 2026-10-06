@@ -7,6 +7,8 @@ import { configureInbox, erasePlayer, ingest, ingestBatch, inboxStatus, list, wi
 import { reconciliationReport } from './ingestion/reconciliation.js'
 import { adapterReadiness, decodeGameEvent, getGameAdapter } from './ingestion/game-adapters.js'
 import { buildFunnel, crossGameSegments, buildCrossGameProjection } from './ingestion/player-projections.js'
+import { eventGameId, eventLocationId } from './ingestion/location.js'
+import { summarizeGameTelemetry } from './analytics/game-telemetry.js'
 import { campaignStatus, createCampaignProposal, recommendations } from './ingestion/campaigns.js'
 import { investorReport } from './analytics/investor-report.js'
 import { createInvestorSnapshot, investorTrend, listInvestorSnapshots } from './analytics/snapshots.js'
@@ -271,13 +273,39 @@ const economyCache = new Map()
 function economyPayload({ url, demo, now }) {
   const window = url.searchParams.get('window') || '7d'
   const gameId = url.searchParams.get('gameId') || undefined
+  const regionId = url.searchParams.get('regionId') || undefined
   const { events: source, source: sourceName, warning, retention } = economySource({ url, demo, now })
-  const events = gameId ? source.filter((event) => (event.payload?.gameId || event.app || event.source) === gameId) : source
-  const cacheKey = `${window}|${gameId || '*'}|${demo}|${Math.floor(now / 1000)}`
+  const events = source.filter((event) => {
+    if (gameId && eventGameId(event) !== gameId) return false
+    if (regionId && eventLocationId(event) !== regionId) return false
+    return true
+  })
+  const cacheKey = `${window}|${gameId || '*'}|${regionId || '*'}|${demo}|${Math.floor(now / 1000)}`
   const cached = economyCache.get(cacheKey)
   if (cached) return cached
-  const economy = computeEconomy({ events, window, now, config: demo ? demoConfig() : config.economy, demo, retention })
-  const payload = { ...economy, warning, source: sourceName, demo }
+  // WATCHTOWER_ECONOMY_* is studio-wide. It must not be silently presented as a
+  // selected game's/region's treasury, price, supply or revenue.
+  const scopedConfig = demo ? demoConfig() : gameId ? {} : config.economy
+  const scopedRetention = gameId ? { ...retention, eventsRetained: events.length } : retention
+  const economy = computeEconomy({ events, window, now, config: scopedConfig, demo, retention: scopedRetention, scopeGameId: gameId || null })
+  let metrics = economy.metrics
+  let index = economy.index
+  if ((regionId || gameId) && !(Number(economy.inputs?.eventsTotal) > 0)) {
+    const reason = regionId
+      ? `Нет событий с подтверждённой меткой региона «${regionId}» за окно ${window}; это не доказывает нулевую активность.`
+      : `В event-inbox нет событий игры «${gameId}» за окно ${window}; отсутствие входящего потока не доказывает отсутствие игровой активности.`
+    metrics = metrics.map((metric) => ({ ...metric, value: null, quality: 'unavailable', reason }))
+    index = { ...index, score: null, status: 'unavailable', reason, components: [], vetoes: [] }
+  }
+  const payload = {
+    ...economy,
+    metrics,
+    index,
+    scope: { type: regionId ? 'location' : gameId ? 'game' : 'studio', gameId: gameId || null, regionId: regionId || null, configuration: gameId && !demo ? 'studio-config-excluded' : 'applied' },
+    warning,
+    source: sourceName,
+    demo,
+  }
   economyCache.set(cacheKey, payload)
   if (economyCache.size > 64) economyCache.clear()
   return payload
@@ -425,7 +453,17 @@ async function route(req, res) {
   if (method === 'GET' && pathname === '/api/infra/trafficgen') return respond(200, await createTrafficgenProvider().health())
   if (method === 'GET' && pathname === '/api/analytics/traffic') return respond(200, trafficAnalytics({ events: list({ source: 'trafficgen', limit: 1000 }) }))
   if (method === 'GET' && pathname === '/api/ingestion/adapters') return respond(200, adapterReadiness())
-  if (method === 'GET' && pathname === '/api/funnels') return respond(200, buildFunnel({ gameId: url.searchParams.get('gameId') || undefined, limit: Number(url.searchParams.get('limit') || 5000) }))
+  if (method === 'GET' && pathname === '/api/funnels') {
+    if (url.searchParams.has('regionId') && !url.searchParams.get('gameId')) return respond(400, { error: 'game_id_required_for_region_scope' })
+    const windowDays = url.searchParams.has('windowDays') ? resolveWindowDays(url, 7) : undefined
+    return respond(200, buildFunnel({
+      gameId: url.searchParams.get('gameId') || undefined,
+      regionId: url.searchParams.get('regionId') || undefined,
+      windowDays,
+      now,
+      limit: Number(url.searchParams.get('limit') || 5000),
+    }))
+  }
   if (method === 'GET' && pathname === '/api/players/cross-game') return respond(200, crossGameSegments({ limit: Number(url.searchParams.get('limit') || 5000) }))
   if (method === 'GET' && pathname === '/api/campaigns/recommendations') return respond(200, recommendations({ limit: Number(url.searchParams.get('limit') || 5000) }))
   if (method === 'GET' && pathname === '/api/campaigns/status') return respond(200, campaignStatus())
@@ -491,6 +529,16 @@ async function route(req, res) {
     return respond(report.ok ? 200 : 400, { ...report, policy: 'идентификатор игрока удалён из inbox; исходные события не восстанавливаются' })
   }
   if (method === 'GET' && pathname === '/api/games') return respond(200, { games: liveAggregates({ windowDays, now }).games, source: 'event-inbox' })
+  if (method === 'GET' && parts[0] === 'api' && parts[1] === 'games' && parts[2] && parts[3] === 'telemetry') {
+    const gameId = parts[2]
+    if (!getGame(gameId)) return respond(404, { error: 'game_not_found' })
+    const days = resolveWindowDays(url, 7)
+    const regionId = url.searchParams.get('regionId') || null
+    const events = windowEvents({ since: now - days * 86_400_000, until: now })
+    const telemetry = summarizeGameTelemetry({ events, gameId, locationId: regionId, windowDays: days, now })
+    if (!guardPii(telemetry, `/api/games/${gameId}/telemetry`)) return respond(500, { error: 'pii_guard_tripped' })
+    return respond(200, telemetry)
+  }
   if (method === 'GET' && pathname === '/api/alerts') return respond(200, { alerts: liveAlerts({ windowDays, now }), source: 'event-inbox', generatedAt: new Date(now).toISOString() })
   if (method === 'GET' && pathname === '/api/ai/report') return respond(200, liveAiReport({ windowDays, now }))
   if (method === 'GET' && parts[0] === 'api' && parts[1] === 'games' && parts[2] && parts[3] === 'forecast') {
@@ -700,10 +748,12 @@ async function route(req, res) {
   }
   if (method === 'GET' && pathname === '/api/economy/overview') {
     const demo = requireDemo(url)
+    if (url.searchParams.has('regionId') && !url.searchParams.get('gameId')) return respond(400, { error: 'game_id_required_for_region_scope' })
     return respond(200, { writes: false, ...economyPayload({ url, demo, now: resolveNow(url, { demo }) }) })
   }
   if (method === 'GET' && pathname === '/api/economy/health') {
     const demo = requireDemo(url)
+    if (url.searchParams.has('regionId') && !url.searchParams.get('gameId')) return respond(400, { error: 'game_id_required_for_region_scope' })
     const payload = economyPayload({ url, demo, now: resolveNow(url, { demo }) })
     return respond(200, { writes: false, demo, index: payload.index, inputs: payload.inputs, source: payload.source, generatedAt: payload.generatedAt })
   }

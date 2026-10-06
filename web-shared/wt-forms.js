@@ -1,4 +1,4 @@
-/* wt-forms v1 — логика ссылок и форм статических площадок Watchtower.
+/* wt-forms v1 — логика ссылок и форм статических площадок Leo Games / Watchtower.
  *
  * Что делает:
  *  1) a[data-wt-buy]  → MARKETPLACE_URL, когда он задан (раунд открыт);
@@ -21,16 +21,16 @@
 
   var T = {
     ru: {
-      demo: 'Форма в демо-режиме: отправка подключится перед стартом раунда.',
-      sent: 'Готово — вы в листе ожидания. Письмо придёт перед стартом.',
+      demo: 'Форма пока не подключена: адрес не отправлен и не сохранён.',
+      sent: 'Готово — запрос получен. Следующие обновления придут на эту почту.',
       failed: 'Не удалось отправить. Напишите нам напрямую',
       contactFallback: 'контакты публикуются ближе к старту',
       badEmail: 'Похоже, в адресе опечатка — проверьте ещё раз.',
       spam: 'Заявка отклонена.',
     },
     en: {
-      demo: 'The form is in demo mode: submission goes live before the round opens.',
-      sent: 'Done — you are on the waitlist. An e-mail will arrive before the launch.',
+      demo: 'This form is not connected yet: your e-mail has not been sent or stored.',
+      sent: 'Thanks — your request was received. Future updates will be sent to this address.',
       failed: 'Could not submit. Reach us directly',
       contactFallback: 'contacts will be published closer to launch',
       badEmail: 'That address looks off — please double-check it.',

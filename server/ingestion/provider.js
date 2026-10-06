@@ -28,6 +28,10 @@ export function normalizeEvent(input, { provider = 'unknown', parserVersion = 'r
   const payload = sanitized.value
   const fields = offchain ? offchainFields(safeInput, payload) : {}
   const gameId = sanitizeIdentifier(safeInput.gameId || payload.gameId) || null
+  const regionTag = safeInput.regionId ?? payload.regionId
+  const locationTag = safeInput.locationId ?? payload.locationId
+  const regionId = typeof regionTag === 'string' || typeof regionTag === 'number' ? sanitizeIdentifier(regionTag) : null
+  const locationId = typeof locationTag === 'string' || typeof locationTag === 'number' ? sanitizeIdentifier(locationTag) : null
   const dataQualityDefault = offchain
     ? (safeInput.eventType && fields.campaignId ? 'partial' : 'unavailable')
     : (safeInput.eventType && safeInput.programId ? 'partial' : 'unavailable')
@@ -50,6 +54,8 @@ export function normalizeEvent(input, { provider = 'unknown', parserVersion = 'r
     success: safeInput.success !== false,
     payload,
     gameId,
+    regionId,
+    locationId,
     sanitizationWarnings: [...sanitized.warnings],
     source: sanitizeIdentifier(safeInput.app) || provider,
     app: sanitizeIdentifier(safeInput.app) || null,
