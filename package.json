@@ -40,7 +40,7 @@
     "test:state": "node --test scripts/state-durability.test.mjs"
   },
   "devDependencies": {
-    "jsdom": "^30.1.1",
+    "jsdom": "^31.0.0",
     "vite": "^7.1.7"
   },
   "engines": {
